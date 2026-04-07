@@ -1,0 +1,26 @@
+[project]
+name = "job-rag"
+version = "0.1.0"
+description = "RAG system for AI Engineer job postings — skill extraction, matching, and gap analysis"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "instructor",
+    "openai",
+    "pydantic",
+    "psycopg2-binary",
+    "pgvector",
+    "sqlalchemy",
+    "python-dotenv",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
