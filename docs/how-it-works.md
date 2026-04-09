@@ -13,6 +13,8 @@ You have 23 AI Engineer job postings saved as text files. This system:
 3. **Understands meaning** by converting text into numbers (embeddings)
 4. **Answers questions** like "which jobs want LangChain experience?" by searching for meaning, not keywords
 5. **Scores how well you match** each job and tells you what skills you're missing
+6. **Proves it works** by evaluating answer quality with RAGAS metrics
+7. **Runs anywhere** via Docker — one command starts the entire system
 
 ---
 
@@ -87,6 +89,18 @@ This is different from large language models like GPT-4o or Llama which are bill
 ### structlog (logging)
 
 Records what the system does — how many files were processed, how many tokens were used, how much it cost. Useful for debugging and tracking.
+
+### RAGAS (evaluation)
+
+A Python library that scores how well a RAG system answers questions. It uses an LLM (GPT-4o-mini) as a judge — feeding it the question, the answer, the retrieved context, and the expected answer, then asking "is this faithful? is this relevant?" This gives you numbers (0 to 1) instead of gut feelings.
+
+### GitHub Actions (CI/CD)
+
+GitHub's built-in automation. Every time you push code, GitHub spins up a fresh Linux machine, installs your dependencies, and runs your linter, type checker, and tests. If anything fails, you see a red ❌ on the commit. This catches bugs before they reach production.
+
+### Dockerfile (containerization)
+
+A recipe that describes how to build a self-contained image of your application — all code, dependencies, and models baked in. Anyone with Docker can run the image without installing Python, PostgreSQL, or anything else. The multi-stage build pattern keeps the final image small by discarding build tools after they're used.
 
 ---
 
@@ -413,3 +427,361 @@ Response:
 ```
 
 Total cost to process everything: **~$0.03** (3 cents).
+
+---
+
+## Pipeline 4: Evaluation — Proving the System Works
+
+When you build a system that uses AI to answer questions, how do you know the answers are actually good? You can't just eyeball it — you need numbers. That's what evaluation does.
+
+### The problem
+
+The RAG pipeline has many moving parts: embedding, vector search, reranking, generation. Each one can silently degrade. Maybe the embeddings don't capture salary information well. Maybe the reranker favors skill-heavy postings over benefit-heavy ones. Maybe the LLM hallucinates a company that doesn't exist. Without measurement, you're flying blind.
+
+### Golden dataset
+
+The foundation of evaluation is a **golden dataset** — a set of questions where you already know the right answer. The file `data/eval/golden_queries.json` contains 18 queries with:
+
+- **question** — what the user asks ("Which jobs require LangChain experience?")
+- **ground_truth** — the correct answer, written by hand after reading all 23 postings
+- **expected_sources** — which companies should appear in the results
+
+The 18 queries cover five categories:
+
+| Category | Examples | Count |
+|---|---|---|
+| Skill-based | "Which jobs require LangChain?", "What roles need PyTorch?" | 6 |
+| Filter-based | "What remote-friendly senior roles are available?" | 4 |
+| Salary/benefits | "Which jobs offer the highest salary?" | 3 |
+| Comparative | "Compare requirements between Trimble and GitLab" | 3 |
+| Profile-relevant | "Find roles where automotive/HMI background is relevant" | 2 |
+
+Building this dataset is manual work. You run each query, read the answer, compare it against the actual postings, and write down what the correct answer should be. It takes time but it's the only way to have a reliable benchmark.
+
+### RAGAS — the evaluation framework
+
+[RAGAS](https://docs.ragas.io/) (Retrieval Augmented Generation Assessment) is a Python library that scores RAG systems on four dimensions. Each metric uses an LLM (GPT-4o-mini) to judge quality — it reads the question, the answer, the retrieved context, and the ground truth, then assigns a score from 0 to 1.
+
+**Faithfulness (scored: 0.82)** — Does the answer only say things that appear in the retrieved context? A faithfulness score of 0.82 means 82% of the statements in the answers are supported by the context. The remaining 18% are either hallucinated or inferred beyond what was retrieved.
+
+How it works internally: RAGAS breaks the answer into individual statements ("Thieme requires LangChain", "GovRadar is fully remote"), then checks each statement against the retrieved context. Statements that can't be traced back to the context are marked unfaithful.
+
+**Answer Relevancy (scored: 0.74)** — Is the answer actually about what was asked? A score of 0.74 means the answers are mostly relevant, but some queries (especially about salary and benefits) get vague responses because the retrieval doesn't surface the right postings.
+
+How it works: RAGAS generates hypothetical questions that the answer *would* be a good response to, then compares those questions to the original question using embeddings. If the hypothetical questions are similar to the real question, the answer is relevant.
+
+**Context Precision (scored: 0.60)** — Are the retrieved documents actually relevant? A score of 0.60 means about 60% of the time, the top-ranked retrieved postings are the ones that contain the answer. For skill queries this is nearly perfect (1.0). For metadata queries like "which companies offer 30 vacation days?" it drops to 0.0 because the embeddings are optimized for skills and responsibilities, not benefits.
+
+**Context Recall (scored: 0.47)** — Did we retrieve *all* the relevant documents? A score of 0.47 means we're only finding about half of the postings that should appear in the answer. This makes sense — we retrieve 20 postings and rerank to 5, but some questions have 8-10 relevant postings across the corpus.
+
+### What the scores tell us
+
+The scores reveal a clear pattern:
+
+| Query type | Faithfulness | Relevancy | Precision | Recall |
+|---|---|---|---|---|
+| Skill queries ("LangChain", "PyTorch") | 0.95+ | 0.90+ | 1.00 | 0.50-1.00 |
+| Comparative ("Trimble vs GitLab") | 1.00 | 0.73 | 1.00 | 1.00 |
+| Metadata ("salary", "vacation days") | 0.50-1.00 | 0.00-0.98 | 0.00 | 0.00-1.00 |
+
+The system excels at what it was designed for — skill-based semantic search. It struggles with metadata queries because the embeddings represent *what a job is about*, not *what benefits it offers*. This is a known limitation of embedding-based retrieval and could be improved with hybrid search (combining vector search with SQL filters on structured fields).
+
+### Running the evaluation
+
+```bash
+# Requires: running database with embeddings, OPENAI_API_KEY in .env
+uv run python scripts/evaluate.py
+```
+
+The script:
+1. Loads the 18 golden queries
+2. Runs the full RAG pipeline for each (embed query → vector search → rerank → generate)
+3. Scores each answer using RAGAS metrics (4 API calls per query = 72 LLM scoring calls)
+4. Prints a summary table and saves detailed per-query results to `data/eval/results.json`
+
+Total evaluation cost: ~$0.10-0.15 (72 GPT-4o-mini calls for scoring, plus 18 queries for the RAG pipeline itself).
+
+### Extraction accuracy tests
+
+Separate from RAGAS, there's a second kind of evaluation: **did the AI extract the right data from the postings?**
+
+Five postings were manually verified — reading the original markdown and writing down exactly what the extraction should produce (company name, seniority, remote policy, which skills are must-have, how many requirements there are, etc.). These expectations live in `data/eval/extraction_ground_truth.json`.
+
+The actual extraction results from a verified run are stored in `data/eval/extraction_results.json`. The tests in `tests/test_extraction_accuracy.py` compare the two:
+
+- Does the company name match exactly?
+- Is the remote policy correct?
+- Is the seniority level correct?
+- Is the salary present when expected?
+- Is the must-have skill count within the expected range?
+- Are key skills (Python, LangChain, RAG, etc.) present in the right category?
+- Are benefits present when they should be?
+
+This produces 50 parametrized tests (10 test categories × 5 postings). Run them with:
+
+```bash
+uv run pytest -m eval
+```
+
+These tests don't call the OpenAI API — they compare stored results against stored expectations. They're fast, free, and deterministic.
+
+---
+
+## Deployment — Running in Docker
+
+### The problem
+
+To run the system locally, you need:
+- PostgreSQL with pgvector installed
+- Python 3.12 with ~20 packages installed
+- The cross-encoder model downloaded (~80MB)
+- An `.env` file with your OpenAI API key
+- Three commands run in order: `init-db`, `ingest`, `embed`, then `serve`
+
+That's a lot of steps. Docker packages everything so that `docker compose up` does it all.
+
+### How Docker works (the short version)
+
+A **Dockerfile** is a recipe for building an image — a snapshot of a computer with everything installed. A **container** is a running instance of that image. Docker Compose orchestrates multiple containers (database + app) so they can talk to each other.
+
+### The Dockerfile — two-stage build
+
+The Dockerfile uses a **multi-stage build** to keep the final image smaller:
+
+**Stage 1 (builder):** Starts with a Python 3.12 image that has `uv` (the package manager) pre-installed. It copies the project files, installs all dependencies, and pre-downloads the cross-encoder model. This stage is big (~3GB) because it includes compilers and build tools.
+
+One important optimization: it sets `UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` to install **CPU-only PyTorch**. The default PyTorch includes CUDA support for GPUs, which adds ~1.5GB. The cross-encoder runs fine on CPU, so this is wasted space.
+
+**Stage 2 (runtime):** Starts with a clean, slim Python 3.12 image. It copies only what's needed from Stage 1:
+- The virtual environment (installed packages)
+- The cached Hugging Face model
+- The application source code and data
+
+The build tools, compilers, and intermediate files from Stage 1 are discarded. The final image is smaller and more secure.
+
+```dockerfile
+# Stage 1: Install everything
+FROM ghcr.io/astral-sh/uv:0.6-python3.12-bookworm-slim AS builder
+WORKDIR /app
+ENV UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
+COPY pyproject.toml uv.lock ./
+COPY src/ src/
+RUN uv sync --frozen --no-dev
+RUN uv run python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
+
+# Stage 2: Copy only what's needed
+FROM python:3.12-slim-bookworm
+WORKDIR /app
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /root/.cache/huggingface /root/.cache/huggingface
+COPY src/ src/
+COPY data/ data/
+ENV PATH="/app/.venv/bin:$PATH"
+EXPOSE 8000
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+```
+
+### The entrypoint script
+
+When the container starts, it needs to set up the database before serving requests. The entrypoint script (`scripts/docker-entrypoint.sh`) runs four commands in order:
+
+```bash
+job-rag init-db       # Create tables (safe to run multiple times)
+job-rag ingest        # Process markdown files (skips duplicates)
+job-rag embed         # Generate embeddings (skips already-embedded)
+uvicorn ...           # Start the API server
+```
+
+On the first run, it does all the work. On subsequent runs, `ingest` and `embed` detect that everything is already processed and skip ahead to serving — zero API cost.
+
+### Docker Compose — orchestrating both services
+
+The `docker-compose.yml` defines two services:
+
+**db** — PostgreSQL with pgvector, the same as before, but now with a **healthcheck**:
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U postgres"]
+  interval: 5s
+  timeout: 5s
+  retries: 5
+```
+
+This tells Docker to periodically check if PostgreSQL is ready to accept connections.
+
+**app** — the FastAPI application, built from the Dockerfile:
+```yaml
+app:
+  build: .
+  ports:
+    - "8000:8000"
+  environment:
+    DATABASE_URL: postgresql://postgres:postgres@db:5432/job_rag
+    ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/job_rag
+    OPENAI_API_KEY: ${OPENAI_API_KEY}
+  depends_on:
+    db:
+      condition: service_healthy
+```
+
+Three important details:
+
+1. **`DATABASE_URL` uses `db` not `localhost`** — inside Docker's network, services find each other by name. The `app` container reaches PostgreSQL at `db:5432`, not `localhost:5432`. The environment variables override the defaults in `config.py`.
+
+2. **`depends_on: condition: service_healthy`** — the app won't start until PostgreSQL's healthcheck passes. Without this, the app would crash trying to connect to a database that isn't ready yet.
+
+3. **`OPENAI_API_KEY: ${OPENAI_API_KEY}`** — reads the key from your host machine's environment (or `.env` file) and passes it into the container.
+
+### Running it
+
+```bash
+cp .env.example .env          # Create .env and add your OpenAI key
+docker compose up              # Build image + start both services
+# Wait for "Starting API server..." message
+open http://localhost:8000/docs   # Swagger UI
+```
+
+---
+
+## CI/CD — Automated Quality Checks
+
+### The problem
+
+You push code to GitHub. Did you break anything? Are there lint errors? Type errors? Failing tests? You could check manually every time, but that's error-prone. CI (Continuous Integration) automates these checks on every push.
+
+### GitHub Actions
+
+GitHub Actions runs your checks on GitHub's servers every time you push code or open a pull request. The configuration lives in `.github/workflows/ci.yml`.
+
+The workflow does three things:
+
+**1. Lint with ruff** — checks for code style issues, unused imports, and common mistakes:
+```bash
+uv run ruff check src/ tests/
+```
+
+Ruff is extremely fast (written in Rust, checks the entire codebase in <1 second). It enforces rules defined in `pyproject.toml`: PEP 8 style (E), pyflakes errors (F), import sorting (I), and Python upgrade suggestions (UP).
+
+**2. Type check with pyright** — checks that types are consistent:
+```bash
+uv run pyright src/
+```
+
+If a function says it returns `str` but actually returns `int`, pyright catches it. This prevents an entire category of runtime errors.
+
+**3. Test with pytest** — runs all 48 unit tests:
+```bash
+uv run pytest -m "not eval"
+```
+
+The `-m "not eval"` flag skips the extraction accuracy tests (which need the eval data files and aren't part of the core test suite). All 48 tests are fully mocked — they don't need a database or an OpenAI API key to run.
+
+### Caching
+
+The workflow uses `astral-sh/setup-uv@v4` with `enable-cache: true` to cache downloaded packages between runs. This matters because `sentence-transformers` pulls in PyTorch, which is ~200MB. The first CI run downloads everything (~3-4 minutes). Subsequent runs hit the cache (~30 seconds).
+
+### What triggers it
+
+```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+```
+
+Every push to `main` and every pull request targeting `main` triggers the workflow. If any step fails, the push gets a red ❌ on GitHub.
+
+---
+
+## Updated File Structure
+
+```
+job-rag/
+├── data/
+│   ├── postings/              23 markdown job posting files (input)
+│   ├── profile.json           Your skills and preferences
+│   └── eval/
+│       ├── golden_queries.json          18 queries with ground truth answers
+│       ├── extraction_ground_truth.json  Expected extraction for 5 postings
+│       ├── extraction_results.json       Stored extraction outputs
+│       └── results.json                  RAGAS evaluation scores
+│
+├── src/job_rag/
+│   ├── config.py              Settings loaded from .env file
+│   ├── logging.py             Structured logging setup
+│   ├── models.py              Pydantic models (data shapes for validation)
+│   ├── cli.py                 Terminal commands (ingest, embed, serve, etc.)
+│   │
+│   ├── db/
+│   │   ├── engine.py          Database connection (sync + async)
+│   │   └── models.py          Table definitions (ORM)
+│   │
+│   ├── extraction/
+│   │   ├── prompt.py          Rules for the AI extraction
+│   │   └── extractor.py       Calls GPT-4o-mini via Instructor
+│   │
+│   ├── services/
+│   │   ├── ingestion.py       Read files → deduplicate → extract → store
+│   │   ├── embedding.py       Convert text to vectors, store in DB
+│   │   ├── retrieval.py       Search → rerank → generate answers
+│   │   └── matching.py        Profile matching and gap analysis
+│   │
+│   └── api/
+│       ├── app.py             FastAPI application setup
+│       ├── deps.py            Database session for each request
+│       └── routes.py          API endpoint definitions
+│
+├── tests/                     48 unit tests + 50 extraction accuracy tests
+├── scripts/
+│   ├── evaluate.py            RAGAS evaluation script
+│   └── docker-entrypoint.sh   Docker startup (init → ingest → embed → serve)
+│
+├── .env.example               Template for environment variables
+├── .github/workflows/ci.yml   GitHub Actions: lint, type check, test
+├── Dockerfile                 Multi-stage build (builder → slim runtime)
+├── docker-compose.yml         PostgreSQL + FastAPI app orchestration
+├── pyproject.toml             Project config and dependencies
+└── .env                       API keys and database URL (not in git)
+```
+
+---
+
+## End-to-End Example (Updated)
+
+### The Docker way (one command)
+
+```
+1. cp .env.example .env          Add your OpenAI API key
+2. docker compose up              Start everything
+
+   [db]  PostgreSQL ready ✓
+   [app] Initializing database...
+   [app] Ingesting postings... 23 ingested
+   [app] Generating embeddings... 23 embedded
+   [app] Starting API server...
+
+3. Visit http://localhost:8000/docs    Interactive API docs
+```
+
+### The local development way
+
+```
+1. docker compose up db -d           Start just the database
+2. uv sync                           Install Python dependencies
+3. job-rag init-db                   Create tables
+4. job-rag ingest --show-cost        Process 23 files → $0.025
+5. job-rag embed --show-cost         Generate embeddings → $0.000168
+6. job-rag serve --reload            Start API with hot-reload
+
+Then:
+   curl "http://localhost:8000/search?q=which+jobs+want+LangChain"
+   curl "http://localhost:8000/gaps?seniority=senior"
+
+7. uv run pytest                     Run all tests (48 pass)
+8. uv run pytest -m eval             Run extraction accuracy tests (50 pass)
+9. uv run python scripts/evaluate.py  Run RAGAS evaluation (~$0.10)
+```
+
+Total cost to process everything: **~$0.03** (3 cents).
+Total cost to evaluate everything: **~$0.13** (13 cents).
