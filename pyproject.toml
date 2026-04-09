@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "job-rag"
 version = "0.1.0"
@@ -8,11 +12,25 @@ dependencies = [
     "instructor",
     "openai",
     "pydantic",
+    "pydantic-settings",
     "psycopg2-binary",
     "pgvector",
-    "sqlalchemy",
+    "sqlalchemy[asyncio]",
+    "asyncpg",
     "python-dotenv",
+    "typer",
+    "structlog",
+    "tenacity",
+    "fastapi",
+    "uvicorn[standard]",
+    "langchain-core",
+    "langchain-openai",
+    "sentence-transformers",
+    "python-multipart",
 ]
+
+[project.scripts]
+job-rag = "job_rag.cli:app"
 
 [tool.ruff]
 target-version = "py312"
@@ -24,3 +42,10 @@ select = ["E", "F", "I", "UP"]
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio", "httpx", "ruff", "pyright", "ragas>=0.2.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["eval: extraction accuracy tests (require eval data, excluded from CI)"]

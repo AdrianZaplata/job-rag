@@ -1,6 +1,4 @@
-def main():
-    print("Hello from job-rag!")
-
+from job_rag.cli import app
 
 if __name__ == "__main__":
-    main()
+    app()

@@ -1,0 +1,151 @@
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from job_rag.api.deps import get_session
+from job_rag.db.models import JobPostingDB
+from job_rag.services.matching import aggregate_gaps, load_profile, match_posting
+from job_rag.services.retrieval import rag_query, search_postings
+
+router = APIRouter()
+
+Session = Annotated[AsyncSession, Depends(get_session)]
+
+
+@router.get("/health")
+async def health(session: Session) -> dict[str, str]:
+    """Check API and database connectivity."""
+    await session.execute(text("SELECT 1"))
+    return {"status": "ok"}
+
+
+@router.get("/search")
+async def search(
+    session: Session,
+    q: str,
+    seniority: str | None = None,
+    remote: str | None = None,
+    min_salary: int | None = None,
+    generate: bool = True,
+) -> dict[str, Any]:
+    """Semantic search over job postings with optional RAG generation.
+
+    When generate=True (default), returns an LLM-generated answer with sources.
+    When generate=False, returns just the ranked search results.
+    """
+    if generate:
+        result = await rag_query(
+            session,
+            q,
+            seniority=seniority,
+            remote=remote,
+            min_salary=min_salary,
+        )
+        return result
+
+    results = await search_postings(
+        session,
+        q,
+        seniority=seniority,
+        remote=remote,
+        min_salary=min_salary,
+    )
+    return {
+        "results": [
+            {
+                "id": str(r["posting"].id),
+                "title": r["posting"].title,
+                "company": r["posting"].company,
+                "location": r["posting"].location,
+                "remote_policy": r["posting"].remote_policy,
+                "seniority": r["posting"].seniority,
+                "similarity": round(r["similarity"], 4),
+            }
+            for r in results
+        ]
+    }
+
+
+@router.get("/match/{posting_id}")
+async def match(session: Session, posting_id: str) -> dict[str, Any]:
+    """Match a specific posting against the user profile."""
+    stmt = (
+        select(JobPostingDB)
+        .filter(JobPostingDB.id == posting_id)
+        .options(selectinload(JobPostingDB.requirements))
+    )
+    result = await session.execute(stmt)
+    posting = result.scalar_one_or_none()
+
+    if not posting:
+        raise HTTPException(status_code=404, detail="Posting not found")
+
+    profile = load_profile()
+    return match_posting(profile, posting)
+
+
+@router.get("/gaps")
+async def gaps(
+    session: Session,
+    seniority: str | None = None,
+    remote: str | None = None,
+) -> dict[str, Any]:
+    """Aggregate skill gaps across all (or filtered) postings."""
+    stmt = select(JobPostingDB).options(selectinload(JobPostingDB.requirements))
+    if seniority:
+        stmt = stmt.filter(JobPostingDB.seniority == seniority)
+    if remote:
+        stmt = stmt.filter(JobPostingDB.remote_policy == remote)
+
+    result = await session.execute(stmt)
+    postings = list(result.scalars().all())
+
+    if not postings:
+        raise HTTPException(status_code=404, detail="No postings found with given filters")
+
+    profile = load_profile()
+    return aggregate_gaps(profile, postings)
+
+
+@router.post("/ingest")
+async def ingest(file: UploadFile) -> dict[str, Any]:
+    """Ingest a single job posting markdown file.
+
+    Uses sync session for compatibility with existing ingestion pipeline.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from job_rag.db.engine import SessionLocal
+    from job_rag.services.embedding import embed_and_store_posting
+    from job_rag.services.ingestion import ingest_file
+
+    content = await file.read()
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".md", delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = Path(tmp.name)
+
+    session = SessionLocal()
+    try:
+        was_ingested, reason = ingest_file(session, tmp_path)
+        if not was_ingested:
+            return {"ingested": False, "reason": reason}
+
+        # Auto-embed the new posting
+        posting = (
+            session.query(JobPostingDB)
+            .filter(JobPostingDB.embedding.is_(None))
+            .order_by(JobPostingDB.created_at.desc())
+            .first()
+        )
+        if posting:
+            embed_and_store_posting(session, posting)
+            session.commit()
+
+        return {"ingested": True, "reason": reason}
+    finally:
+        session.close()
+        tmp_path.unlink(missing_ok=True)
