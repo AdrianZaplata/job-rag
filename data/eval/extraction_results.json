@@ -1,0 +1,195 @@
+[
+  {
+    "source_file": "gitlab-senior-ai-engineer.md",
+    "extracted": {
+      "company": "GitLab",
+      "title": "Senior AI Engineer",
+      "location": "Germany",
+      "remote_policy": "remote",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "salary_min": null,
+      "salary_max": null,
+      "salary_raw": null,
+      "salary_period": "unknown",
+      "requirements": [
+        {"skill": "Python", "category": "language", "required": true},
+        {"skill": "JavaScript", "category": "language", "required": true},
+        {"skill": "TypeScript", "category": "language", "required": true},
+        {"skill": "Prompt Engineering", "category": "concept", "required": true},
+        {"skill": "LLM", "category": "concept", "required": true},
+        {"skill": "Agentic Architecture", "category": "concept", "required": true},
+        {"skill": "REST API", "category": "concept", "required": true},
+        {"skill": "GraphQL", "category": "concept", "required": true},
+        {"skill": "AI Safety", "category": "concept", "required": true},
+        {"skill": "Systems Thinking", "category": "soft_skill", "required": true},
+        {"skill": "Product Mindset", "category": "soft_skill", "required": true},
+        {"skill": "GitLab CI/CD", "category": "tool", "required": false},
+        {"skill": "Consulting", "category": "soft_skill", "required": false},
+        {"skill": "Value Stream Mapping", "category": "concept", "required": false},
+        {"skill": "n8n", "category": "tool", "required": false},
+        {"skill": "Mentoring", "category": "soft_skill", "required": false}
+      ],
+      "responsibilities": [
+        "Diagnose business problems, validate AI as solution",
+        "Own AI initiatives end-to-end from discovery through deployment",
+        "Design/ship AI solutions rapidly",
+        "Integrate AI via APIs and modern platforms",
+        "Partner with cross-functional stakeholders",
+        "Document reusable patterns"
+      ],
+      "benefits": [
+        "Health/financial/wellness support",
+        "Flexible PTO",
+        "Equity + ESPP",
+        "Growth and development fund",
+        "Parental leave",
+        "Home office support"
+      ]
+    }
+  },
+  {
+    "source_file": "amai-gmbh-senior-ai-engineer.md",
+    "extracted": {
+      "company": "AMAI GmbH",
+      "title": "Senior AI Engineer",
+      "location": "Karlsruhe, Germany",
+      "remote_policy": "unknown",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "salary_min": 65000,
+      "salary_max": 85000,
+      "salary_raw": "\u20ac65,000-\u20ac85,000/year",
+      "salary_period": "year",
+      "requirements": [
+        {"skill": "AI", "category": "concept", "required": true},
+        {"skill": "ML", "category": "concept", "required": true},
+        {"skill": "Deep Learning", "category": "concept", "required": true},
+        {"skill": "Docker", "category": "tool", "required": true},
+        {"skill": "Git", "category": "tool", "required": true},
+        {"skill": "Project Management", "category": "soft_skill", "required": true},
+        {"skill": "German", "category": "soft_skill", "required": true},
+        {"skill": "Software Development", "category": "concept", "required": true}
+      ],
+      "responsibilities": [
+        "Lead AI/ML/DL projects from conception through implementation",
+        "Advise/support clients on AI/ML topics",
+        "Develop/apply advanced ML and deep learning algorithms",
+        "Collaborate with interdisciplinary teams",
+        "Manage projects using agile methodologies",
+        "Mentor junior colleagues"
+      ],
+      "benefits": []
+    }
+  },
+  {
+    "source_file": "trimble-agentic-artificial-intelligence-engineer.md",
+    "extracted": {
+      "company": "Trimble Inc.",
+      "title": "Agentic Artificial Intelligence Engineer",
+      "location": "Berlin, Germany",
+      "remote_policy": "unknown",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "salary_min": null,
+      "salary_max": null,
+      "salary_raw": null,
+      "salary_period": "unknown",
+      "requirements": [
+        {"skill": "Python", "category": "language", "required": true},
+        {"skill": "LLM", "category": "concept", "required": true},
+        {"skill": "RAG", "category": "concept", "required": true},
+        {"skill": "Vector Databases", "category": "concept", "required": true},
+        {"skill": "Agentic Workflows", "category": "concept", "required": true},
+        {"skill": "LLM Observability", "category": "concept", "required": true},
+        {"skill": "Evaluation Pipelines", "category": "concept", "required": true},
+        {"skill": "Agile", "category": "soft_skill", "required": true},
+        {"skill": "LangChain", "category": "framework", "required": false},
+        {"skill": "LlamaIndex", "category": "framework", "required": false},
+        {"skill": "Open Source Contributions", "category": "soft_skill", "required": false}
+      ],
+      "responsibilities": [
+        "Own end-to-end technical direction for GenAI initiatives",
+        "Establish CI/CD and automated evaluation pipelines",
+        "Lead evaluation of cutting-edge techniques",
+        "Implement observability hooks using LangSmith",
+        "Mentor engineers",
+        "Champion secure-by-design practices"
+      ],
+      "benefits": []
+    }
+  },
+  {
+    "source_file": "edison-smart-robotics-ml-engineer.md",
+    "extracted": {
+      "company": "Edison Smart",
+      "title": "Robotics ML Engineer",
+      "location": "Germany",
+      "remote_policy": "remote",
+      "seniority": "senior",
+      "employment_type": "Freelance",
+      "salary_min": 80,
+      "salary_max": 100,
+      "salary_raw": "\u20ac80-\u20ac100/hour",
+      "salary_period": "hour",
+      "requirements": [
+        {"skill": "ML", "category": "concept", "required": true},
+        {"skill": "Python", "category": "language", "required": true},
+        {"skill": "PyTorch", "category": "framework", "required": true},
+        {"skill": "TensorFlow", "category": "framework", "required": true},
+        {"skill": "Computer Vision", "category": "concept", "required": true},
+        {"skill": "Edge ML", "category": "concept", "required": true},
+        {"skill": "ROS2", "category": "framework", "required": true},
+        {"skill": "German", "category": "soft_skill", "required": false}
+      ],
+      "responsibilities": [
+        "Lead ownership of ML and software stack",
+        "Design/train/deploy ML models for robotic perception",
+        "Implement Large Behavior Models and Vision-Language-Action models",
+        "Deploy/optimize models on edge devices",
+        "Collaborate with robotics/hardware teams"
+      ],
+      "benefits": []
+    }
+  },
+  {
+    "source_file": "thieme-senior-ai-engineer.md",
+    "extracted": {
+      "company": "Thieme",
+      "title": "Senior AI Engineer",
+      "location": "Berlin, Germany",
+      "remote_policy": "remote",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "salary_min": null,
+      "salary_max": null,
+      "salary_raw": null,
+      "salary_period": "unknown",
+      "requirements": [
+        {"skill": "AI Engineering", "category": "concept", "required": true},
+        {"skill": "LLM", "category": "concept", "required": true},
+        {"skill": "RAG", "category": "concept", "required": true},
+        {"skill": "Python", "category": "language", "required": true},
+        {"skill": "PyTorch", "category": "framework", "required": true},
+        {"skill": "LangChain", "category": "framework", "required": true},
+        {"skill": "LangGraph", "category": "framework", "required": true},
+        {"skill": "Cloud Deployment", "category": "cloud", "required": true},
+        {"skill": "Databricks", "category": "cloud", "required": true}
+      ],
+      "responsibilities": [
+        "Design/develop AI products with advanced RAG architectures in medical domain",
+        "Build AI pipelines from prototype through production using MLflow",
+        "Evaluate RAG-based chat applications in production",
+        "Coordinate with Subject Matter Experts",
+        "Apply agentic system orchestration"
+      ],
+      "benefits": [
+        "Flexible working",
+        "Remote within Germany",
+        "State-of-the-art hardware",
+        "Thieme.ACADEMY training",
+        "Health/sports benefits"
+      ]
+    }
+  }
+]

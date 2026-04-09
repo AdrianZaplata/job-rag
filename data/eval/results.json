@@ -1,0 +1,210 @@
+{
+  "timestamp": "2026-04-09T11:06:47.891987+00:00",
+  "num_queries": 18,
+  "metrics": {
+    "faithfulness": 0.8231823369078272,
+    "answer_relevancy": 0.7416400605499723,
+    "context_precision": 0.6020833333075983,
+    "context_recall": 0.4705026455026455
+  },
+  "per_query": [
+    {
+      "question": "Which jobs require LangChain experience?",
+      "answer_length": 473,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.9933831926239683,
+        "context_precision": 0.99999999998,
+        "context_recall": 0.5714285714285714
+      }
+    },
+    {
+      "question": "Which postings require RAG experience?",
+      "answer_length": 483,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.9063435608524788,
+        "context_precision": 0.99999999998,
+        "context_recall": 0.5
+      }
+    },
+    {
+      "question": "Find roles that require Python and FastAPI",
+      "answer_length": 650,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.9033893441694073,
+        "context_precision": 0.9999999999666667,
+        "context_recall": 0.75
+      }
+    },
+    {
+      "question": "Which jobs want Docker experience?",
+      "answer_length": 527,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.7272727272727273,
+        "answer_relevancy": 0.9662370369600786,
+        "context_precision": 0.9999999999666667,
+        "context_recall": 0.6
+      }
+    },
+    {
+      "question": "What roles require PyTorch experience?",
+      "answer_length": 475,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "context_precision": 0.99999999998,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "question": "Which postings mention agentic AI or agent-based systems?",
+      "answer_length": 843,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.8708578522840092,
+        "context_precision": 0.99999999998,
+        "context_recall": 0.6666666666666666
+      }
+    },
+    {
+      "question": "What remote-friendly senior roles are available?",
+      "answer_length": 477,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.8888888888888888,
+        "answer_relevancy": 0.9893875856829567,
+        "context_precision": 0.32499999998375,
+        "context_recall": 0.3333333333333333
+      }
+    },
+    {
+      "question": "Show me roles based in Berlin",
+      "answer_length": 267,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.7221539764036299,
+        "context_precision": 0.3333333333,
+        "context_recall": 0.16666666666666666
+      }
+    },
+    {
+      "question": "Which entry-level or associate positions are available?",
+      "answer_length": 413,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.8,
+        "answer_relevancy": 0.6059531519262236,
+        "context_precision": 0.49999999995,
+        "context_recall": 0.0
+      }
+    },
+    {
+      "question": "Which companies offer 30 vacation days?",
+      "answer_length": 197,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.0,
+        "context_precision": 0.0,
+        "context_recall": 0.0
+      }
+    },
+    {
+      "question": "Which jobs offer the highest salary?",
+      "answer_length": 188,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.0,
+        "context_precision": 0.0,
+        "context_recall": 0.0
+      }
+    },
+    {
+      "question": "What salary range do AI Engineer roles offer in Germany?",
+      "answer_length": 527,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.2,
+        "answer_relevancy": 0.9854122478545154,
+        "context_precision": 0.0,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "question": "Which companies offer the best benefits packages?",
+      "answer_length": 401,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.5,
+        "answer_relevancy": 0.0,
+        "context_precision": 0.0,
+        "context_recall": 0.0
+      }
+    },
+    {
+      "question": "Compare the skill requirements between Trimble and GitLab",
+      "answer_length": 1665,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.7345019542252006,
+        "context_precision": 0.99999999995,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "question": "Which roles require the most must-have skills?",
+      "answer_length": 1270,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.9285714285714286,
+        "answer_relevancy": 0.9699261518670766,
+        "context_precision": 0.0,
+        "context_recall": 0.0
+      }
+    },
+    {
+      "question": "Which roles require German language skills?",
+      "answer_length": 474,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.6666666666666666,
+        "answer_relevancy": 1.0,
+        "context_precision": 0.6791666666496875,
+        "context_recall": 0.7142857142857143
+      }
+    },
+    {
+      "question": "Find roles where an automotive or HMI background would be relevant",
+      "answer_length": 905,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.7058823529411765,
+        "answer_relevancy": 0.858207993529367,
+        "context_precision": 0.9999999999,
+        "context_recall": 0.6666666666666666
+      }
+    },
+    {
+      "question": "Which roles would be a good fit for someone with strong TypeScript and React experience?",
+      "answer_length": 739,
+      "num_contexts": 5,
+      "scores": {
+        "faithfulness": 0.5,
+        "answer_relevancy": 0.8437670415205899,
+        "context_precision": 0.99999999995,
+        "context_recall": 0.5
+      }
+    }
+  ]
+}

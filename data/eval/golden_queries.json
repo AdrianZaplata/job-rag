@@ -1,0 +1,92 @@
+[
+  {
+    "question": "Which jobs require LangChain experience?",
+    "ground_truth": "Several postings require LangChain experience. Acto lists familiarity with agentic frameworks like LangChain as a must-have. GovRadar requires proven agent systems using LangChain or LangGraph. Thieme requires LangChain/LangGraph or comparable as a must-have. Oliver Bernard requires agent framework familiarity such as LangChain. As nice-to-haves, Flip mentions Pydantic AI, LangChain, or LlamaIndex, and Reflow lists LangChain and OpenAI API.",
+    "expected_sources": ["Acto", "GovRadar", "Thieme", "Oliver Bernard", "Flip", "Reflow"]
+  },
+  {
+    "question": "Which postings require RAG experience?",
+    "ground_truth": "Multiple postings require RAG experience. Thieme requires strong RAG system design as a must-have. Cognite requires understanding of RAG and prompt chaining. GovRadar lists semantic search, RAG, and clustering as must-haves. IU Group requires modern retrieval including RAG, hybrid search, and semantic chunking. Oliver Bernard requires hands-on LLM experience with RAG. Trimble requires proven RAG frameworks including hybrid search and vector DBs. Datadog lists RAG as a nice-to-have.",
+    "expected_sources": ["Thieme", "Cognite", "GovRadar", "IU Group", "Oliver Bernard", "Trimble"]
+  },
+  {
+    "question": "Find roles that require Python and FastAPI",
+    "ground_truth": "Two postings explicitly require both Python and FastAPI. GovRadar requires excellent Python with production backend integration and specifically mentions FastAPI. IU Group requires backend engineering experience with Python and FastAPI. Oliver Bernard requires excellent Python with FastAPI or similar frameworks.",
+    "expected_sources": ["GovRadar", "IU Group", "Oliver Bernard"]
+  },
+  {
+    "question": "Which jobs want Docker experience?",
+    "ground_truth": "AMAI GmbH lists Docker as a must-have requirement. smartclip requires Docker and docker-compose as must-haves. Salesreich GmbH requires containerization with Docker and Kubernetes as a must-have. Flip mentions modern SWE practices including CI/CD which may involve Docker. Several other postings reference containerization or cloud deployment indirectly.",
+    "expected_sources": ["AMAI GmbH", "smartclip", "Salesreich GmbH"]
+  },
+  {
+    "question": "What roles require PyTorch experience?",
+    "ground_truth": "Several roles require PyTorch. EverAI requires deep Python/PyTorch and the modern LLM stack as a must-have. Thieme requires PyTorch, LangChain/LangGraph or comparable. Acto requires Python and modern ML tools including PyTorch. Edison Smart requires Python, PyTorch, and/or TensorFlow. GovRadar lists model training/fine-tuning with PyTorch as a nice-to-have. Code Compass mentions AI/ML frameworks like PyTorch or TensorFlow.",
+    "expected_sources": ["EverAI", "Thieme", "Acto", "Edison Smart", "GovRadar", "Code Compass"]
+  },
+  {
+    "question": "Which postings mention agentic AI or agent-based systems?",
+    "ground_truth": "Many postings focus on agentic AI. Acto's role is specifically for Agentic Systems, designing agentic workflows. Trimble's role is Agentic AI Engineer, requiring component-level architecture for agentic workflows. GovRadar requires building complex AI systems with agent-based architectures. IU Group requires deploying agentic workflows in production. GAIA's role is Agentic AI Engineer for digital therapeutics. Reflow requires developing agentic AI systems. Eurobase People requires designing agent-based systems. Flip lists agentic AI as a nice-to-have.",
+    "expected_sources": ["Acto", "Trimble", "GovRadar", "IU Group", "GAIA", "Reflow", "Eurobase People"]
+  },
+  {
+    "question": "What remote-friendly senior roles are available?",
+    "ground_truth": "Several remote-friendly senior roles are available. GitLab offers a fully remote/async Senior AI Engineer role. GovRadar offers a fully remote Senior AI Engineer position with EU workation. Flip offers a remote-first Senior AI Engineer role. Deel offers a remote Senior AI/ML Engineer position with optional WeWork. EverAI offers a 100% remote Tech Lead LLM role. Cognizant Mobility offers up to 100% remote from Germany. Oliver Bernard offers a fully remote AI Engineer role. IU Group offers fully remote or office-based.",
+    "expected_sources": ["GitLab", "GovRadar", "Flip", "Deel", "EverAI", "Cognizant Mobility", "Oliver Bernard", "IU Group"]
+  },
+  {
+    "question": "Show me roles based in Berlin",
+    "ground_truth": "Many roles are based in Berlin. Acto, Flip, Datadog, IU Group, Eurobase People, EverAI, and GAIA all list Berlin as their location. Thieme and GovRadar are Berlin-based with remote options. smartclip lists Berlin or Cologne. Reflow is Berlin-based but location-flexible. Oliver Bernard lists EU with Berlin.",
+    "expected_sources": ["Acto", "Flip", "Datadog", "IU Group", "Eurobase People", "EverAI", "GAIA", "Thieme", "GovRadar", "smartclip", "Reflow"]
+  },
+  {
+    "question": "Which entry-level or associate positions are available?",
+    "ground_truth": "Three postings are at entry or associate level. Reflow's AI Engineer role is listed as entry level. Thieme's Senior AI Engineer is listed at associate level. IU Group's AI Engineer is listed at associate level. GAIA's Agentic AI Engineer is also listed at associate level. Salesreich GmbH's AI Developer is at associate level. These roles generally have fewer years of experience required.",
+    "expected_sources": ["Reflow", "Thieme", "IU Group", "GAIA", "Salesreich GmbH"]
+  },
+  {
+    "question": "Which companies offer 30 vacation days?",
+    "ground_truth": "Several companies offer 30 vacation days. Acto offers 30 vacation days. smartclip offers 30 vacation days plus December 24 and 31 off. Cognizant Mobility offers 30 vacation days. IU Group offers 30 vacation days plus birthday off and Christmas Eve/NYE off.",
+    "expected_sources": ["Acto", "smartclip", "Cognizant Mobility", "IU Group"]
+  },
+  {
+    "question": "Which jobs offer the highest salary?",
+    "ground_truth": "Oliver Bernard offers the highest annual salary at up to 130,000 EUR base plus bonus. Sunhat GmbH offers 70,000-100,000 EUR per year. AMAI GmbH offers 65,000-85,000 EUR per year. Code Compass offers 55,000-85,000 EUR plus bonus. Edison Smart offers the highest hourly rate at 80-100 EUR per hour as a freelance/contract role, which could translate to a very high annual equivalent.",
+    "expected_sources": ["Oliver Bernard", "Sunhat GmbH", "AMAI GmbH", "Code Compass", "Edison Smart"]
+  },
+  {
+    "question": "What salary range do AI Engineer roles offer in Germany?",
+    "ground_truth": "Based on the postings with salary data, AI Engineer salaries in Germany range from 55,000 to 130,000 EUR per year. Code Compass offers 55,000-85,000 EUR. AMAI GmbH offers 65,000-85,000 EUR. Sunhat GmbH offers 70,000-100,000 EUR. Oliver Bernard offers up to 130,000 EUR base plus bonus. Edison Smart offers 80-100 EUR/hour for a freelance robotics ML role. Most postings do not specify salary.",
+    "expected_sources": ["Code Compass", "AMAI GmbH", "Sunhat GmbH", "Oliver Bernard", "Edison Smart"]
+  },
+  {
+    "question": "Which companies offer the best benefits packages?",
+    "ground_truth": "Several companies stand out for benefits. GitLab offers health/financial/wellness support, flexible PTO, equity plus ESPP, growth fund, parental leave, and home office support. smartclip offers 30 vacation days, Smart Fridays (4-day week possible), DeutschlandTicket, JobRad, sports/health, mental health support, and RTL+ streaming. IU Group offers flexible location, free e-learning, subsidized tech courses, DeutschlandTicket, JobRad, and 30+ vacation days. Cognizant Mobility offers 30 vacation days, flexible hours, JobRad, continuing education, and pension.",
+    "expected_sources": ["GitLab", "smartclip", "IU Group", "Cognizant Mobility", "Acto", "Datadog"]
+  },
+  {
+    "question": "Compare the skill requirements between Trimble and GitLab",
+    "ground_truth": "Trimble and GitLab have quite different requirement profiles. Trimble focuses on deep technical AI skills: expert Python, RAG frameworks, vector DBs, LLM observability tools, automated evaluation pipelines, and agentic workflow architecture, requiring 8-15 years of experience. GitLab focuses more on breadth and business impact: end-to-end development, advanced prompt engineering, agentic architecture patterns, AI safety, systems thinking, and business systems familiarity. GitLab emphasizes product mindset and consulting-like skills, while Trimble emphasizes deep engineering and evaluation expertise.",
+    "expected_sources": ["Trimble Inc.", "GitLab"]
+  },
+  {
+    "question": "Which roles require the most must-have skills?",
+    "ground_truth": "GovRadar has one of the most extensive must-have lists, requiring NLP/AI application development, complex AI systems design, agent systems with LangChain/LangGraph, semantic search and RAG, strong Python, databases including vector DBs, ORM experience, mentoring experience, German C1+, and strong ownership. GitLab also has a very long must-have list covering development, prompt engineering, model selection, agentic architecture, LLM ecosystem fluency, REST APIs, AI safety, systems thinking, business systems, ownership, and product mindset. Sunhat GmbH has many must-haves including GenAI experience, TypeScript, CI/CD, B2B SaaS, and more.",
+    "expected_sources": ["GovRadar", "GitLab", "Sunhat GmbH", "Cognite"]
+  },
+  {
+    "question": "Which roles require German language skills?",
+    "ground_truth": "Several roles require German language skills. AMAI GmbH requires fluent German at C1+ level. GovRadar requires German C1+. Cognizant Mobility requires fluent German and English. GAIA requires fluent English plus good German. Salesreich GmbH requires fluent German and English. Edison Smart lists German language skills as nice-to-have.",
+    "expected_sources": ["AMAI GmbH", "GovRadar", "Cognizant Mobility", "GAIA", "Salesreich GmbH"]
+  },
+  {
+    "question": "Find roles where an automotive or HMI background would be relevant",
+    "ground_truth": "Cognizant Mobility is the most directly relevant, as it focuses on AI solutions for vehicle E/E architecture assurance and requires experience with embedded systems, sensors, control units, and bus systems like CAN, LIN, and Ethernet. It specifically requires proven production AI solutions in automotive. Cognite's Senior Field AI Engineer role could also be relevant as it involves industrial sectors and unifying IT/OT/ET data, with nice-to-haves including industrial variables in energy, chemicals, and mechanical engineering.",
+    "expected_sources": ["Cognizant Mobility", "Cognite"]
+  },
+  {
+    "question": "Which roles would be a good fit for someone with strong TypeScript and React experience?",
+    "ground_truth": "Sunhat GmbH requires TypeScript proficiency with LLM integration and server-side development as must-haves, making it a strong fit for TypeScript expertise. Code Compass requires Python or TypeScript/Node.js. GitLab requires competent end-to-end development including JS/TS. Reflow lists desktop or web application AI integration as a nice-to-have. Flip mentions modern SWE practices. However, most AI Engineer roles primarily require Python, with TypeScript being less commonly required.",
+    "expected_sources": ["Sunhat GmbH", "Code Compass", "GitLab"]
+  }
+]

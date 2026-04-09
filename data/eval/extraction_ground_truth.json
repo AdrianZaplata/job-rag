@@ -1,0 +1,96 @@
+[
+  {
+    "source_file": "gitlab-senior-ai-engineer.md",
+    "expected": {
+      "company": "GitLab",
+      "title": "Senior AI Engineer",
+      "location": "Germany",
+      "remote_policy": "remote",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "has_salary": false,
+      "must_have_skills": ["Python", "Prompt Engineering", "LLM", "REST API", "AI Safety"],
+      "must_have_count_min": 8,
+      "must_have_count_max": 14,
+      "nice_to_have_skills": ["CI/CD", "GitLab"],
+      "nice_to_have_count_min": 3,
+      "nice_to_have_count_max": 8,
+      "has_benefits": true
+    }
+  },
+  {
+    "source_file": "amai-gmbh-senior-ai-engineer.md",
+    "expected": {
+      "company": "AMAI GmbH",
+      "title": "Senior AI Engineer",
+      "location": "Karlsruhe, Germany",
+      "remote_policy": "unknown",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "has_salary": true,
+      "salary_min_eur_year": 65000,
+      "salary_max_eur_year": 85000,
+      "must_have_skills": ["Docker", "Git", "ML"],
+      "must_have_count_min": 5,
+      "must_have_count_max": 10,
+      "nice_to_have_count_min": 0,
+      "nice_to_have_count_max": 3,
+      "has_benefits": false
+    }
+  },
+  {
+    "source_file": "trimble-agentic-artificial-intelligence-engineer.md",
+    "expected": {
+      "company": "Trimble Inc.",
+      "title": "Agentic Artificial Intelligence Engineer",
+      "location": "Berlin, Germany",
+      "remote_policy": "unknown",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "has_salary": false,
+      "must_have_skills": ["Python", "LLM", "RAG"],
+      "must_have_count_min": 6,
+      "must_have_count_max": 12,
+      "nice_to_have_skills": ["LangChain"],
+      "nice_to_have_count_min": 2,
+      "nice_to_have_count_max": 6,
+      "has_benefits": false
+    }
+  },
+  {
+    "source_file": "edison-smart-robotics-ml-engineer.md",
+    "expected": {
+      "company": "Edison Smart",
+      "title": "Robotics ML Engineer",
+      "location": "Germany",
+      "remote_policy": "remote",
+      "seniority": "senior",
+      "employment_type": "Freelance",
+      "has_salary": true,
+      "must_have_skills": ["Python", "PyTorch", "Computer Vision", "ML"],
+      "must_have_count_min": 4,
+      "must_have_count_max": 8,
+      "nice_to_have_count_min": 0,
+      "nice_to_have_count_max": 3,
+      "has_benefits": false
+    }
+  },
+  {
+    "source_file": "thieme-senior-ai-engineer.md",
+    "expected": {
+      "company": "Thieme",
+      "title": "Senior AI Engineer",
+      "location": "Berlin, Germany",
+      "remote_policy": "remote",
+      "seniority": "senior",
+      "employment_type": "Full-time",
+      "has_salary": false,
+      "must_have_skills": ["Python", "LLM", "RAG", "PyTorch", "LangChain"],
+      "must_have_count_min": 4,
+      "must_have_count_max": 10,
+      "nice_to_have_count_min": 0,
+      "nice_to_have_count_max": 2,
+      "has_benefits": true
+    }
+  }
+]
