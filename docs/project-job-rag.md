@@ -218,7 +218,6 @@ graph TD
 - [x] Setup instructions (Docker + local dev paths)
 - [x] Design decisions section
 - [x] API endpoints documentation
-- [ ] Demo GIF (stretch goal)
 
 **Done when:** `docker compose up` runs the full system. RAGAS metrics documented. CI passes on push.
 
