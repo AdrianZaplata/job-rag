@@ -189,37 +189,53 @@ graph TD
 
 ---
 
-## Phase 3 — Evaluation + Docker Deployment
+## Phase 3 — Evaluation + Docker Deployment ✅
 
 **Goal:** Prove it works with metrics. Make it portable. CI/CD.
 
-**Skills to close:** Evaluation frameworks (RAGAS), containerized deployment, CI/CD.
+**Skills closed:** Evaluation frameworks (RAGAS), containerized deployment (Docker multi-stage), CI/CD (GitHub Actions).
 
-### Evaluation
+### What Was Built
 
-- [x] Create golden evaluation dataset: `data/eval/golden_queries.json` with 18 queries and expected results
-- [x] RAGAS evaluation script: `scripts/evaluate.py` (faithfulness, answer relevancy, context precision, context recall)
-- [x] Pytest test suite for extraction accuracy: `tests/test_extraction_accuracy.py` (5 postings, 10 parametrized test categories)
+| File | Purpose |
+|---|---|
+| `data/eval/golden_queries.json` | 18 golden queries with ground truth answers across 5 categories (skill, filter, salary, comparative, profile-relevant) |
+| `data/eval/extraction_ground_truth.json` | Manually verified expected extraction for 5 diverse postings |
+| `data/eval/extraction_results.json` | Pre-stored extraction outputs compared against ground truth |
+| `data/eval/results.json` | RAGAS evaluation scores (per-query + aggregate) |
+| `scripts/evaluate.py` | Standalone RAGAS script: runs full RAG pipeline for each query, scores with 4 metrics, saves results |
+| `tests/test_extraction_accuracy.py` | 50 parametrized tests (10 categories × 5 postings), marked `@pytest.mark.eval` |
+| `Dockerfile` | Multi-stage build: uv + CPU-only PyTorch + pre-downloaded cross-encoder → slim runtime |
+| `scripts/docker-entrypoint.sh` | Container startup: init-db → ingest → embed → uvicorn |
+| `docker-compose.yml` | Added `app` service with healthcheck-gated `depends_on` and env overrides |
+| `.env.example` | Template with DATABASE_URL, ASYNC_DATABASE_URL, OPENAI_API_KEY |
+| `.github/workflows/ci.yml` | GitHub Actions: ruff → pyright → pytest with uv caching |
+| `README.md` | Portfolio showcase: Mermaid architecture, API docs, skills table, design decisions, RAGAS results |
+| `docs/how-it-works.md` | Extended walkthrough covering evaluation, Docker, and CI/CD |
+| `pyproject.toml` | Added `ragas` dev dependency and `eval` pytest marker |
 
-### Docker
+### Key Design Decisions
 
-- [x] Multi-stage Dockerfile for FastAPI app (uv + CPU-only PyTorch → slim runtime)
-- [x] Update `docker-compose.yml`: `app` service with healthcheck, env overrides, depends_on
-- [x] `docker compose up` runs the full system (init-db → ingest → embed → serve)
+- **Standalone eval script, not CLI command:** `scripts/evaluate.py` is imported-on-demand to avoid pulling RAGAS into every CLI invocation; it requires a running DB and real API calls which belong outside the test suite
+- **Async OpenAI client for RAGAS:** `llm_factory` with `AsyncOpenAI` so `ascore()` can run inside the existing async pipeline
+- **CPU-only PyTorch in Docker:** `UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` saves ~1.5GB; cross-encoder runs fine on CPU
+- **Multi-stage Dockerfile:** Builder stage installs + pre-downloads models, runtime stage copies only `.venv` and `~/.cache/huggingface` — discards build tools
+- **Healthcheck-gated app service:** `depends_on: db: condition: service_healthy` prevents the app from crashing on an unready database
+- **Env var override for Docker networking:** `DATABASE_URL` in compose uses `db` hostname instead of `localhost`; pydantic-settings picks it up automatically
+- **`eval` pytest marker:** Keeps extraction accuracy tests separate from CI unit tests (`pytest -m "not eval"`) — CI stays fast and hermetic, eval tests run on-demand
+- **Extraction tests compare stored outputs:** No OpenAI calls during tests — fast, deterministic, free; the verified extraction results are committed alongside ground truth
+- **Single CI job, not parallel:** Project is small enough that spinning up three runners for lint/typecheck/test would add more overhead than it saves
 
-### CI/CD
+### Results
 
-- [x] GitHub Actions workflow (`.github/workflows/ci.yml`): ruff, pyright, pytest
-
-### README as Portfolio Showcase
-
-- [x] Architecture diagram (Mermaid)
-- [x] "Skills demonstrated" section mapping to 10 target skills
-- [x] Setup instructions (Docker + local dev paths)
-- [x] Design decisions section
-- [x] API endpoints documentation
-
-**Done when:** `docker compose up` runs the full system. RAGAS metrics documented. CI passes on push.
+- **18 golden queries evaluated** across 5 categories with manually verified ground truth
+- **RAGAS scores:** Faithfulness **0.82** · Answer Relevancy **0.74** · Context Precision **0.60** · Context Recall **0.47**
+- **System excels at skill queries:** PyTorch query scored 1.00 across all metrics; comparative queries (Trimble vs GitLab) scored 1.00 on faithfulness and recall
+- **Known limitation surfaced:** metadata queries (salary, vacation days) score 0.00 on context precision — embeddings are skill-focused, not benefit-focused
+- **98/98 tests passing** — 48 unit tests (mocked) + 50 extraction accuracy tests (eval-marked), ruff clean, pyright clean
+- **Docker image builds successfully** — `docker compose up` starts db + app, runs init → ingest → embed → serve end-to-end
+- **CI green on master** — lint + typecheck + tests complete in ~57 seconds with uv cache enabled
+- **Total evaluation cost:** ~$0.13 for 72 RAGAS scoring calls + 18 RAG pipeline runs
 
 ---
 
