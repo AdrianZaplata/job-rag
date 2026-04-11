@@ -26,7 +26,9 @@ I had never read this posting before running the tool. The system surfaced it no
 
 That story is the whole reason this project exists, and also its best validation: **the system works well enough to find its own use case.**
 
-> _Screen recording of the agent running against the live corpus: coming soon. To reproduce locally, see [Run it](#run-it) below and run `job-rag agent --stream "Which 3 remote senior AI Engineer roles fit my profile best, and why?"`_
+![Agent streaming tool calls and a ranked answer against the live corpus](docs/images/agent-demo.gif)
+
+*The LangGraph agent streaming tool calls (`search_jobs`, `match_profile`) and the ranked answer in real time. Reproduce locally with `job-rag agent --stream "Which 3 remote senior AI Engineer roles fit my profile best, and why?"`.*
 
 ---
 
