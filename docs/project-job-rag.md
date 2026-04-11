@@ -2,10 +2,10 @@
 
 **Purpose:** RAG-powered tool that ingests AI Engineer job postings, extracts structured skill data, matches against my profile, and surfaces insights for job applications.
 
-**Status:** Phase 3 Complete — Phase 4 Next
+**Status:** Phase 4 Complete
 
 **Created:** 2026-04-06
-**Last updated:** 2026-04-08
+**Last updated:** 2026-04-10
 
 ---
 
@@ -31,11 +31,11 @@
 | Evaluation frameworks (RAGAS) | 6 | 3 ✅ |
 | Docker deployment (FastAPI + DB) | — | 3 ✅ |
 | CI/CD (GitHub Actions) | 13 | 3 ✅ |
-| LangGraph (agent orchestration) | 3 | 4 |
-| MCP server development | 5 | 4 |
-| LLM observability (Langfuse) | 7 | 4 |
-| Streaming responses (SSE) | 9 | 4 |
-| Tool use / function calling | 10 | 4 |
+| LangGraph (agent orchestration) | 3 | 4 ✅ |
+| MCP server development | 5 | 4 ✅ |
+| LLM observability (Langfuse) | 7 | 4 ✅ |
+| Streaming responses (SSE) | 9 | 4 ✅ |
+| Tool use / function calling | 10 | 4 ✅ |
 
 ---
 
@@ -55,10 +55,10 @@
 | RAGAS | RAG evaluation metrics | 3 ✅ |
 | Docker Compose | Containerized deployment | 3 ✅ |
 | GitHub Actions | CI/CD (lint, test, type check) | 3 ✅ |
-| LangGraph | Agent orchestration | 4 |
-| Custom MCP Server | Expose system to Claude Code | 4 |
-| Langfuse | LLM observability/tracing | 4 |
-| SSE | Streaming responses | 4 |
+| LangGraph | Agent orchestration | 4 ✅ |
+| Custom MCP Server | Expose system to Claude Code | 4 ✅ |
+| Langfuse | LLM observability/tracing | 4 ✅ |
+| sse-starlette | Streaming responses | 4 ✅ |
 | Typer | CLI framework | 1 ✅ |
 | structlog | Structured logging | 1 ✅ |
 | pytest | Testing | All |
@@ -93,13 +93,16 @@ graph TD
         RAGAS --> CI[GitHub Actions CI/CD]
     end
 
-    subgraph "Phase 4: Intelligence"
-        AGENT[LangGraph Agent] --> |search_jobs| API
-        AGENT --> |match_profile| API
-        AGENT --> |analyze_gaps| API
-        MCP[MCP Server] --> AGENT
+    subgraph "Phase 4: Intelligence ✅"
+        AGENT[LangGraph ReAct Agent] --> |search_jobs| TOOLS[Async Tool Layer]
+        AGENT --> |match_profile| TOOLS
+        AGENT --> |analyze_gaps| TOOLS
+        MCP[FastMCP Server stdio] --> TOOLS
+        TOOLS --> DB
         AGENT -.->|traces| LF[Langfuse]
-        AGENT --> SSE[SSE Streaming]
+        EXT -.->|traces| LF
+        LC -.->|traces| LF
+        AGENT --> SSE[SSE Streaming /agent/stream]
     end
 ```
 
@@ -239,42 +242,81 @@ graph TD
 
 ---
 
-## Phase 4 — Agent Layer + MCP + Observability
+## Phase 4 — Agent Layer + MCP + Observability ✅
 
 **Goal:** Make it smart, autonomous, and observable.
 
-**Skills to close:** LangGraph, MCP development, Langfuse observability, SSE streaming, tool use.
+**Skills closed:** LangGraph, MCP development, Langfuse observability, SSE streaming, tool use.
 
-### LangGraph Agent (scoped to 3 tools)
+### What Was Built
 
-- [ ] `search_jobs(query, filters)` → semantic search
-- [ ] `match_profile(posting_id)` → skill match against user profile
-- [ ] `analyze_gaps(filters)` → aggregate gap analysis
+| File | Purpose |
+|---|---|
+| `src/job_rag/mcp_server/tools.py` | Async tool implementations reused by MCP and the agent |
+| `src/job_rag/mcp_server/server.py` | FastMCP stdio server registering 4 tools |
+| `src/job_rag/agent/tools.py` | LangChain `@tool` wrappers around the same async services |
+| `src/job_rag/agent/graph.py` | `create_react_agent` assembly with system prompt + cached build |
+| `src/job_rag/agent/stream.py` | `astream_events` adapter yielding token/tool_start/tool_end/final dicts |
+| `src/job_rag/observability.py` | Langfuse integration: cached OpenAI wrapper + LangChain callback handler |
+| `src/job_rag/api/routes.py` | New `POST /agent` and `GET /agent/stream` endpoints |
+| `src/job_rag/cli.py` | New `job-rag mcp` and `job-rag agent [--stream]` commands |
+| `tests/test_mcp_server.py` | 11 tests covering all 4 MCP tools with mocked DB |
+| `tests/test_agent.py` | 6 tests for tool wrappers, run_agent, and stream_agent |
+| `tests/test_observability.py` | 6 tests verifying enabled/disabled paths and no-op fallbacks |
 
-Stretch goals: auto-process folder, CV bullet point generation, high-match alerts.
+### LangGraph Agent (3 tools)
+
+- [x] `search_jobs(query, remote_only?, seniority?, limit?)` → semantic search + rerank
+- [x] `match_profile(posting_id)` → skill match against user profile
+- [x] `analyze_gaps(seniority?, remote?)` → aggregate gap analysis
+
+Built with `langgraph.prebuilt.create_react_agent`. Sync entry point (`run_agent`) returns the final answer plus a list of tool calls; streaming entry point (`stream_agent`) yields structured events consumed by both the CLI (`--stream` flag) and the SSE endpoint.
+
+Stretch goals (deferred): auto-process folder, CV bullet point generation, high-match alerts.
 
 ### MCP Server
 
-- [ ] `search_postings(query, remote_only)` → list of matching postings
-- [ ] `match_skills(posting_id)` → match report
-- [ ] `skill_gaps(seniority)` → aggregated gaps
-- [ ] `ingest_posting(file_path)` → add new posting
+- [x] `search_postings(query, remote_only, seniority, limit)` → reranked posting list
+- [x] `match_skills(posting_id)` → match report
+- [x] `skill_gaps(seniority, remote)` → aggregated gaps
+- [x] `ingest_posting(file_path | content)` → ingest + auto-embed
+
+Implemented as a FastMCP stdio server reusing the existing retrieval, matching, and ingestion services. The same async tool implementations are also wrapped as LangChain tools for the LangGraph agent — single source of truth for tool behavior. Launch with `job-rag mcp`. Wired into Claude Code via `mcpServers` config — see README.
 
 ### Observability
 
-- [ ] Langfuse integration: trace every LLM call, token usage, latency, cost
-- [ ] Dashboard showing extraction costs, retrieval performance, query patterns
+- [x] Langfuse integration via drop-in `langfuse.openai.OpenAI` wrapper (extraction, embedding, retrieval query embedding)
+- [x] LangChain `CallbackHandler` attached to RAG generation and agent runs
+- [x] Optional via env vars (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`); no-op when unset
+- [x] `flush()` helper called from CLI exit paths
 
 ### Streaming
 
-- [ ] SSE endpoint for chat-style interface
-- [ ] Real-time streaming of RAG responses
+- [x] `GET /agent/stream?q=...` SSE endpoint via `sse-starlette` `EventSourceResponse`
+- [x] Forwards LangGraph `astream_events` as `tool_start`, `tool_end`, `token`, `final` SSE events
+- [x] CLI `job-rag agent --stream` consumes the same async generator for terminal use
 
-### New Dependencies
+### Dependencies Added
 
-langgraph, mcp, langfuse, sse-starlette
+`mcp`, `langgraph`, `langfuse`, `sse-starlette` (the latter pulled in transitively by `mcp` already, declared explicitly).
 
-**Done when:** Can drop a new posting file, have it auto-processed, query it from Claude Code via MCP, see full traces in Langfuse, and get streaming responses.
+### Key Design Decisions
+
+- **One tool implementation, three entry points:** `mcp_server/tools.py` holds the async functions; the FastMCP server registers them directly, the LangGraph agent wraps them in `@tool` decorators, the FastAPI routes call them via the agent. No duplicated SQL or matching logic.
+- **`build_agent()` is `lru_cache`'d:** the compiled graph and the `ChatOpenAI` instance are reused across requests — avoids re-instantiating the model on every call.
+- **Langfuse helpers fail open, not closed:** if keys aren't configured, `get_openai_client()` returns plain `openai.OpenAI` and `get_langchain_callbacks()` returns `[]`. The codebase doesn't have to know whether observability is on.
+- **Streaming events are structured dicts, not raw LangGraph events:** the `stream.py` adapter normalizes `astream_events` output to a stable schema (`token`/`tool_start`/`tool_end`/`final`) so the CLI and SSE endpoint share the same consumer code. Insulates callers from LangGraph internal changes.
+- **Agent returns tool_calls list:** `run_agent` extracts tool call metadata from intermediate messages so callers can audit which tools fired without parsing the full message history.
+
+### Results
+
+- **123 tests collected** — 73 unit tests pass (was 48), +25 covering MCP, agent, observability, SSE; 50 eval tests still gated behind `-m eval`
+- **ruff clean, pyright clean** — 0 errors, 0 warnings across `src/`
+- **MCP server smoke-tested** — `mcp.list_tools()` returns all 4 tools with descriptions
+- **SSE endpoint smoke-tested** — `/agent/stream` emits well-formed `event: <type>\ndata: <json>` frames
+- **Skills closed:** LangGraph orchestration, MCP server development, Langfuse observability, SSE streaming, tool use / function calling — all five Phase 4 skill targets met
+
+**Done when (achieved):** Can drop a new posting file, have it auto-processed, query it from Claude Code via MCP, see full traces in Langfuse (when configured), and get streaming responses via `/agent/stream`.
 
 ---
 

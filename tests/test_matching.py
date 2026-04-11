@@ -96,6 +96,37 @@ class TestSkillMatches:
         skills = {"react"}
         assert _skill_matches(skills, "React.js") is True
 
+    def test_alias_match_hmi_to_automotive_posting_phrase(self):
+        skills = {"hmi development"}
+        assert _skill_matches(skills, "HMI") is True
+        assert _skill_matches(skills, "Human Machine Interface") is True
+
+    def test_alias_match_automotive_variants(self):
+        skills = {"automotive"}
+        assert _skill_matches(skills, "Automotive AI") is True
+        assert _skill_matches(skills, "Automotive AI Solutions") is True
+        assert _skill_matches(skills, "Automotive Industry") is True
+
+    def test_alias_match_vector_db_variants(self):
+        skills = {"vector databases"}
+        assert _skill_matches(skills, "pgvector") is True
+        assert _skill_matches(skills, "Pinecone") is True
+        assert _skill_matches(skills, "Vector Store") is True
+
+    def test_alias_match_async_python(self):
+        skills = {"async python"}
+        assert _skill_matches(skills, "asyncio") is True
+
+    def test_alias_match_function_calling_tool_use(self):
+        skills = {"function calling"}
+        assert _skill_matches(skills, "Tool Use") is True
+        assert _skill_matches(skills, "Tool Calling") is True
+
+    def test_alias_match_c_slash_cpp(self):
+        skills = {"c++"}
+        assert _skill_matches(skills, "C/C++") is True
+        assert _skill_matches(skills, "cpp") is True
+
 
 class TestMatchPosting:
     def test_perfect_must_have_match(self, profile):

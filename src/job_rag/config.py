@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     data_dir: str = "data/postings"
     profile_path: str = "data/profile.json"
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+    agent_model: str = "gpt-4o-mini"
 
 
 settings = Settings()

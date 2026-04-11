@@ -27,6 +27,10 @@ dependencies = [
     "langchain-openai",
     "sentence-transformers",
     "python-multipart",
+    "mcp",
+    "langfuse",
+    "langgraph",
+    "sse-starlette",
 ]
 
 [project.scripts]

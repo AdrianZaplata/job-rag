@@ -1,9 +1,9 @@
-import openai
 from sqlalchemy.orm import Session
 
 from job_rag.config import settings
 from job_rag.db.models import JobChunkDB, JobPostingDB
 from job_rag.logging import get_logger
+from job_rag.observability import get_openai_client
 
 log = get_logger(__name__)
 
@@ -19,7 +19,7 @@ def embed_texts(texts: list[str]) -> tuple[list[list[float]], dict]:
 
     Returns (embeddings, usage_info).
     """
-    client = openai.OpenAI(api_key=settings.openai_api_key)
+    client = get_openai_client()
     response = client.embeddings.create(model=settings.embedding_model, input=texts)
 
     embeddings = [item.embedding for item in response.data]

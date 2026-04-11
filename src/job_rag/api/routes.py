@@ -1,10 +1,15 @@
+import json
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sse_starlette.sse import EventSourceResponse
 
+from job_rag.agent.graph import run_agent
+from job_rag.agent.stream import stream_agent
 from job_rag.api.deps import get_session
 from job_rag.db.models import JobPostingDB
 from job_rag.services.matching import aggregate_gaps, load_profile, match_posting
@@ -108,6 +113,34 @@ async def gaps(
 
     profile = load_profile()
     return aggregate_gaps(profile, postings)
+
+
+class AgentQuery(BaseModel):
+    query: str
+
+
+@router.post("/agent")
+async def agent_query(payload: AgentQuery) -> dict[str, Any]:
+    """Run the LangGraph agent to completion on a single query."""
+    return await run_agent(payload.query)
+
+
+@router.get("/agent/stream")
+async def agent_stream(q: str) -> EventSourceResponse:
+    """Stream the agent's tool calls and tokens via Server-Sent Events.
+
+    Each SSE message has an `event` field (token, tool_start, tool_end,
+    final) and a JSON `data` payload.
+    """
+
+    async def event_source():
+        async for event in stream_agent(q):
+            yield {
+                "event": event["type"],
+                "data": json.dumps(event, default=str, ensure_ascii=False),
+            }
+
+    return EventSourceResponse(event_source())
 
 
 @router.post("/ingest")

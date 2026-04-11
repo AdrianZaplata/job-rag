@@ -22,6 +22,100 @@ def _normalize_skill(name: str) -> str:
     return name.lower().strip().replace("-", " ").replace("_", " ")
 
 
+# Each inner list is an equivalence class — any term in the list matches any other.
+# Add a new group to teach the matcher about a new family of synonyms.
+_ALIAS_GROUPS: list[list[str]] = [
+    ["python"],
+    ["typescript", "ts"],
+    ["javascript", "js"],
+    ["react", "react.js", "reactjs"],
+    ["sql", "postgresql", "postgres", "mysql"],
+    ["docker", "docker compose", "containerization", "containers"],
+    ["git", "version control"],
+    ["openai api", "openai", "gpt", "gpt 4", "chatgpt"],
+    ["claude api", "claude", "anthropic"],
+    ["pytorch", "torch"],
+    [
+        "llm",
+        "large language model",
+        "large language models",
+        "foundation model",
+        "foundation models",
+    ],
+    ["rag", "retrieval augmented generation", "retrieval-augmented generation"],
+    ["rest api", "rest", "api design", "api development"],
+    ["ci/cd", "ci cd", "github actions", "continuous integration", "continuous deployment"],
+    ["agile", "scrum", "kanban"],
+    ["communication", "collaboration", "teamwork", "team player"],
+    ["ml", "machine learning"],
+    ["nlp", "natural language processing", "text processing"],
+    ["prompt engineering", "prompting"],
+    ["pydantic", "structured outputs", "structured generation"],
+    ["mcp", "model context protocol"],
+    ["hugging face", "huggingface", "hf"],
+    ["fine tuning", "finetuning", "lora", "qlora"],
+    ["c++", "cpp", "c/c++"],
+    ["c#", "csharp"],
+    # Phase 4 additions: connect skills the user actually has to how postings phrase them
+    [
+        "automotive",
+        "automotive ai",
+        "automotive ai solutions",
+        "automotive industry",
+        "automotive software",
+        "automotive systems",
+    ],
+    [
+        "hmi development",
+        "hmi",
+        "human machine interface",
+        "human-machine interface",
+        "user interface development",
+    ],
+    [
+        "vector databases",
+        "vector database",
+        "vector store",
+        "vector stores",
+        "pgvector",
+        "qdrant",
+        "pinecone",
+        "weaviate",
+        "chroma",
+        "chromadb",
+    ],
+    ["embeddings", "embedding models", "vector embeddings", "text embeddings"],
+    ["semantic search", "vector search", "similarity search"],
+    ["reranking", "rerankers", "cross-encoder", "cross encoder"],
+    ["async python", "asyncio", "async/await", "concurrent python"],
+    ["type hints", "typing", "static typing", "mypy", "pyright"],
+    ["pytest", "testing", "unit testing", "test driven development", "tdd"],
+    ["sqlalchemy", "orm", "sqlalchemy 2.0"],
+    ["fastapi", "starlette"],
+    ["langchain", "langchain core"],
+    ["langgraph", "langchain graph", "agent graphs"],
+    ["agents", "ai agents", "llm agents", "autonomous agents"],
+    ["function calling", "tool use", "tool calling", "tools"],
+    ["observability", "tracing", "telemetry", "opentelemetry", "otel", "monitoring"],
+    ["langfuse", "llm observability", "llm tracing"],
+    ["sse", "server sent events", "server-sent events", "event streaming"],
+    ["sentence transformers", "sentence-transformers", "sbert"],
+]
+
+
+def _build_alias_index(groups: list[list[str]]) -> dict[str, frozenset[str]]:
+    """Map every term to the frozenset of its synonyms (including itself)."""
+    index: dict[str, frozenset[str]] = {}
+    for group in groups:
+        members = frozenset(group)
+        for term in group:
+            index[term] = members
+    return index
+
+
+_ALIAS_INDEX = _build_alias_index(_ALIAS_GROUPS)
+
+
 def _skill_matches(user_skills: set[str], job_skill: str) -> bool:
     """Check if a job skill matches any user skill (case-insensitive, fuzzy)."""
     normalized = _normalize_skill(job_skill)
@@ -30,39 +124,10 @@ def _skill_matches(user_skills: set[str], job_skill: str) -> bool:
     if normalized in user_skills:
         return True
 
-    # Common aliases
-    aliases: dict[str, list[str]] = {
-        "python": ["python"],
-        "typescript": ["typescript", "ts"],
-        "javascript": ["javascript", "js"],
-        "react": ["react", "react.js", "reactjs"],
-        "sql": ["sql", "postgresql", "postgres", "mysql"],
-        "docker": ["docker", "containerization", "containers"],
-        "git": ["git", "version control"],
-        "openai api": ["openai api", "openai", "gpt", "gpt 4", "chatgpt"],
-        "claude api": ["claude api", "claude", "anthropic"],
-        "pytorch": ["pytorch", "torch"],
-        "llm": ["llm", "large language model", "large language models"],
-        "rag": ["rag", "retrieval augmented generation"],
-        "rest api": ["rest api", "rest", "api design", "api development"],
-        "ci/cd": ["ci/cd", "ci cd", "github actions", "continuous integration"],
-        "agile": ["agile", "scrum", "kanban"],
-        "communication": ["communication", "collaboration", "teamwork", "team player"],
-        "ml": ["ml", "machine learning"],
-        "nlp": ["nlp", "natural language processing"],
-        "prompt engineering": ["prompt engineering", "prompting"],
-        "pydantic": ["pydantic", "structured outputs"],
-        "mcp": ["mcp", "model context protocol"],
-        "hugging face": ["hugging face", "huggingface", "hf"],
-        "fine tuning": ["fine tuning", "finetuning", "lora", "qlora"],
-        "c++": ["c++", "cpp"],
-        "c#": ["c#", "csharp"],
-    }
-
+    job_aliases = _ALIAS_INDEX.get(normalized, frozenset({normalized}))
     for user_skill in user_skills:
-        user_aliases = aliases.get(user_skill, [user_skill])
-        job_aliases = aliases.get(normalized, [normalized])
-        if set(user_aliases) & set(job_aliases):
+        user_aliases = _ALIAS_INDEX.get(user_skill, frozenset({user_skill}))
+        if user_aliases & job_aliases:
             return True
 
     return False

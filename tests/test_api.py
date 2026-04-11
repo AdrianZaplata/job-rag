@@ -138,6 +138,43 @@ class TestMatchEndpoint:
 
 
 @pytest.mark.asyncio
+class TestAgentEndpoint:
+    async def test_agent_returns_answer(self):
+        with patch("job_rag.api.routes.run_agent", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = {
+                "query": "test",
+                "answer": "Synthesized answer.",
+                "tool_calls": [{"name": "search_jobs", "args": {"query": "rag"}}],
+                "message_count": 3,
+            }
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post("/agent", json={"query": "test"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["answer"] == "Synthesized answer."
+        assert len(data["tool_calls"]) == 1
+
+    async def test_agent_stream_emits_sse_events(self):
+        async def fake_stream(_query):
+            yield {"type": "tool_start", "name": "search_jobs", "args": {"query": "rag"}}
+            yield {"type": "token", "content": "Hello"}
+            yield {"type": "final", "content": "Hello"}
+
+        with patch("job_rag.api.routes.stream_agent", side_effect=fake_stream):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/agent/stream", params={"q": "test"})
+                body = response.text
+
+        assert response.status_code == 200
+        assert "event: tool_start" in body
+        assert "event: token" in body
+        assert "event: final" in body
+
+
+@pytest.mark.asyncio
 class TestGapsEndpoint:
     async def test_gaps_no_postings(self):
         from job_rag.api.deps import get_session

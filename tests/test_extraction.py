@@ -70,4 +70,4 @@ class TestExtractPosting:
             assert usage_info["prompt_version"] == PROMPT_VERSION
 
     def test_prompt_version_is_set(self):
-        assert PROMPT_VERSION == "1.0"
+        assert PROMPT_VERSION == "1.1"

@@ -1,6 +1,5 @@
 from typing import Any
 
-import openai
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -12,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from job_rag.config import settings
 from job_rag.db.models import JobChunkDB, JobPostingDB
 from job_rag.logging import get_logger
+from job_rag.observability import get_langchain_callbacks, get_openai_client
 
 log = get_logger(__name__)
 
@@ -33,7 +33,7 @@ def _get_reranker() -> CrossEncoder:
 
 def _embed_query(query: str) -> list[float]:
     """Embed a single query string."""
-    client = openai.OpenAI(api_key=settings.openai_api_key)
+    client = get_openai_client()
     response = client.embeddings.create(model=settings.embedding_model, input=[query])
     return response.data[0].embedding
 
@@ -226,7 +226,11 @@ async def rag_query(
     )
 
     chain = prompt | llm | StrOutputParser()
-    answer = await chain.ainvoke({"context": context, "question": query})
+    callbacks = get_langchain_callbacks()
+    answer = await chain.ainvoke(
+        {"context": context, "question": query},
+        config={"callbacks": callbacks} if callbacks else None,
+    )
 
     log.info(
         "rag_query_complete",

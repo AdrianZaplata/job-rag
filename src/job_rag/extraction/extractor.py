@@ -1,13 +1,13 @@
 import re
 
 import instructor
-import openai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from job_rag.config import settings
 from job_rag.extraction.prompt import PROMPT_VERSION, SYSTEM_PROMPT
 from job_rag.logging import get_logger
 from job_rag.models import JobPosting
+from job_rag.observability import get_openai_client
 
 log = get_logger(__name__)
 
@@ -35,7 +35,7 @@ def extract_posting(raw_text: str) -> tuple[JobPosting, dict]:
     Returns a tuple of (JobPosting, usage_info) where usage_info contains
     token counts and cost.
     """
-    client = instructor.from_openai(openai.OpenAI(api_key=settings.openai_api_key))
+    client = instructor.from_openai(get_openai_client())
 
     posting, completion = client.chat.completions.create_with_completion(
         model=settings.openai_model,

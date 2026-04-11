@@ -162,3 +162,85 @@ def serve(
     import uvicorn
 
     uvicorn.run("job_rag.api.app:app", host=host, port=port, reload=reload)
+
+
+@app.command()
+def reset(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+) -> None:
+    """Delete all postings, requirements, and chunks — forces full re-extraction.
+
+    Useful after bumping PROMPT_VERSION or updating the extraction prompt.
+    """
+    from job_rag.db.engine import SessionLocal
+    from job_rag.db.models import JobPostingDB
+
+    session = SessionLocal()
+    try:
+        count = session.query(JobPostingDB).count()
+        if count == 0:
+            typer.echo("Database is already empty.")
+            return
+
+        if not yes:
+            confirm = typer.confirm(
+                f"Delete all {count} postings (and their requirements + chunks)?"
+            )
+            if not confirm:
+                typer.echo("Aborted.")
+                return
+
+        session.query(JobPostingDB).delete()
+        session.commit()
+        typer.echo(f"Deleted {count} postings.")
+    finally:
+        session.close()
+
+
+@app.command()
+def mcp() -> None:
+    """Start the MCP server over stdio (for Claude Code and other MCP clients)."""
+    from job_rag.mcp_server.server import run
+
+    run()
+
+
+@app.command()
+def agent(
+    query: str = typer.Argument(..., help="Question to ask the agent"),
+    stream: bool = typer.Option(False, "--stream", help="Stream tool calls and tokens"),
+) -> None:
+    """Run the LangGraph agent on a single query."""
+    import asyncio
+
+    from job_rag.observability import flush
+
+    async def _run() -> None:
+        if stream:
+            from job_rag.agent.stream import stream_agent
+
+            async for event in stream_agent(query):
+                etype = event["type"]
+                if etype == "token":
+                    typer.echo(event["content"], nl=False)
+                elif etype == "tool_start":
+                    typer.echo(f"\n[tool→ {event['name']}({event.get('args')})]")
+                elif etype == "tool_end":
+                    pass  # tool result already shown via token stream from next LLM call
+                elif etype == "final":
+                    typer.echo("")  # newline after final
+        else:
+            from job_rag.agent.graph import run_agent
+
+            result = await run_agent(query)
+            typer.echo(result["answer"])
+            if result["tool_calls"]:
+                typer.echo(
+                    f"\n[{len(result['tool_calls'])} tool calls: "
+                    f"{', '.join(c['name'] for c in result['tool_calls'])}]"
+                )
+
+    try:
+        asyncio.run(_run())
+    finally:
+        flush()
