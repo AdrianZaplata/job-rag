@@ -1,115 +1,121 @@
 {
-  "timestamp": "2026-04-09T11:06:47.891987+00:00",
+  "timestamp": "2026-04-11T19:22:33.705597+00:00",
   "num_queries": 18,
   "metrics": {
-    "faithfulness": 0.8231823369078272,
-    "answer_relevancy": 0.7416400605499723,
-    "context_precision": 0.6020833333075983,
-    "context_recall": 0.4705026455026455
+    "faithfulness": 0.8084027084027084,
+    "answer_relevancy": 0.680799376303511,
+    "context_precision": 0.671990740714566,
+    "context_recall": 0.4296075837742504
+  },
+  "sample_counts": {
+    "faithfulness": 17,
+    "answer_relevancy": 18,
+    "context_precision": 18,
+    "context_recall": 18
   },
   "per_query": [
     {
       "question": "Which jobs require LangChain experience?",
-      "answer_length": 473,
+      "answer_length": 484,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.9,
+        "faithfulness": 0.42857142857142855,
         "answer_relevancy": 0.9933831926239683,
         "context_precision": 0.99999999998,
-        "context_recall": 0.5714285714285714
+        "context_recall": 0.7142857142857143
       }
     },
     {
       "question": "Which postings require RAG experience?",
-      "answer_length": 483,
+      "answer_length": 444,
       "num_contexts": 5,
       "scores": {
         "faithfulness": 1.0,
         "answer_relevancy": 0.9063435608524788,
         "context_precision": 0.99999999998,
-        "context_recall": 0.5
+        "context_recall": 0.625
       }
     },
     {
       "question": "Find roles that require Python and FastAPI",
-      "answer_length": 650,
+      "answer_length": 382,
       "num_contexts": 5,
       "scores": {
         "faithfulness": 1.0,
-        "answer_relevancy": 0.9033893441694073,
-        "context_precision": 0.9999999999666667,
-        "context_recall": 0.75
+        "answer_relevancy": 0.889072527783683,
+        "context_precision": 0.99999999995,
+        "context_recall": 0.5
       }
     },
     {
       "question": "Which jobs want Docker experience?",
-      "answer_length": 527,
+      "answer_length": 536,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.7272727272727273,
-        "answer_relevancy": 0.9662370369600786,
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.9662346635873091,
         "context_precision": 0.9999999999666667,
         "context_recall": 0.6
       }
     },
     {
       "question": "What roles require PyTorch experience?",
-      "answer_length": 475,
+      "answer_length": 561,
       "num_contexts": 5,
       "scores": {
         "faithfulness": 1.0,
-        "answer_relevancy": 1.0,
+        "answer_relevancy": 0.9999996505392085,
         "context_precision": 0.99999999998,
-        "context_recall": 1.0
+        "context_recall": 0.7142857142857143
       }
     },
     {
       "question": "Which postings mention agentic AI or agent-based systems?",
-      "answer_length": 843,
+      "answer_length": 872,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 1.0,
-        "answer_relevancy": 0.8708578522840092,
+        "faithfulness": 0.9285714285714286,
+        "answer_relevancy": 0.8590498062175124,
         "context_precision": 0.99999999998,
-        "context_recall": 0.6666666666666666
+        "context_recall": 0.7777777777777778
       }
     },
     {
       "question": "What remote-friendly senior roles are available?",
-      "answer_length": 477,
+      "answer_length": 820,
       "num_contexts": 5,
       "scores": {
         "faithfulness": 0.8888888888888888,
-        "answer_relevancy": 0.9893875856829567,
-        "context_precision": 0.32499999998375,
-        "context_recall": 0.3333333333333333
+        "answer_relevancy": 1.0,
+        "context_precision": 0.6791666666496875,
+        "context_recall": 0.4444444444444444
       }
     },
     {
       "question": "Show me roles based in Berlin",
-      "answer_length": 267,
+      "answer_length": 556,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 1.0,
-        "answer_relevancy": 0.7221539764036299,
-        "context_precision": 0.3333333333,
+        "faithfulness": 0.9230769230769231,
+        "answer_relevancy": 0.6858461907399982,
+        "context_precision": 0.4166666666458333,
         "context_recall": 0.16666666666666666
       }
     },
     {
       "question": "Which entry-level or associate positions are available?",
-      "answer_length": 413,
+      "answer_length": 263,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.8,
-        "answer_relevancy": 0.6059531519262236,
-        "context_precision": 0.49999999995,
+        "faithfulness": 0.5,
+        "answer_relevancy": 0.7579305686552104,
+        "context_precision": 0.0,
         "context_recall": 0.0
       }
     },
     {
       "question": "Which companies offer 30 vacation days?",
-      "answer_length": 197,
+      "answer_length": 200,
       "num_contexts": 5,
       "scores": {
         "faithfulness": 1.0,
@@ -120,10 +126,10 @@
     },
     {
       "question": "Which jobs offer the highest salary?",
-      "answer_length": 188,
+      "answer_length": 275,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 1.0,
+        "faithfulness": 0.5,
         "answer_relevancy": 0.0,
         "context_precision": 0.0,
         "context_recall": 0.0
@@ -131,21 +137,21 @@
     },
     {
       "question": "What salary range do AI Engineer roles offer in Germany?",
-      "answer_length": 527,
+      "answer_length": 476,
       "num_contexts": 5,
       "scores": {
         "faithfulness": 0.2,
-        "answer_relevancy": 0.9854122478545154,
-        "context_precision": 0.0,
-        "context_recall": 1.0
+        "answer_relevancy": 0.0,
+        "context_precision": 0.9999999999,
+        "context_recall": 0.0
       }
     },
     {
       "question": "Which companies offer the best benefits packages?",
-      "answer_length": 401,
+      "answer_length": 313,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.5,
+        "faithfulness": 1.0,
         "answer_relevancy": 0.0,
         "context_precision": 0.0,
         "context_recall": 0.0
@@ -153,10 +159,10 @@
     },
     {
       "question": "Compare the skill requirements between Trimble and GitLab",
-      "answer_length": 1665,
+      "answer_length": 2312,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 1.0,
+        "faithfulness": NaN,
         "answer_relevancy": 0.7345019542252006,
         "context_precision": 0.99999999995,
         "context_recall": 1.0
@@ -164,10 +170,10 @@
     },
     {
       "question": "Which roles require the most must-have skills?",
-      "answer_length": 1270,
+      "answer_length": 662,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.9285714285714286,
+        "faithfulness": 1.0,
         "answer_relevancy": 0.9699261518670766,
         "context_precision": 0.0,
         "context_recall": 0.0
@@ -175,35 +181,35 @@
     },
     {
       "question": "Which roles require German language skills?",
-      "answer_length": 474,
+      "answer_length": 525,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.6666666666666666,
-        "answer_relevancy": 1.0,
-        "context_precision": 0.6791666666496875,
-        "context_recall": 0.7142857142857143
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.9841398947970127,
+        "context_precision": 0.99999999998,
+        "context_recall": 0.8571428571428571
       }
     },
     {
       "question": "Find roles where an automotive or HMI background would be relevant",
-      "answer_length": 905,
+      "answer_length": 660,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.7058823529411765,
-        "answer_relevancy": 0.858207993529367,
-        "context_precision": 0.9999999999,
+        "faithfulness": 0.8181818181818182,
+        "answer_relevancy": 0.6641904855153139,
+        "context_precision": 0.99999999995,
         "context_recall": 0.6666666666666666
       }
     },
     {
       "question": "Which roles would be a good fit for someone with strong TypeScript and React experience?",
-      "answer_length": 739,
+      "answer_length": 681,
       "num_contexts": 5,
       "scores": {
-        "faithfulness": 0.5,
-        "answer_relevancy": 0.8437670415205899,
+        "faithfulness": 0.5555555555555556,
+        "answer_relevancy": 0.8437701260592246,
         "context_precision": 0.99999999995,
-        "context_recall": 0.5
+        "context_recall": 0.6666666666666666
       }
     }
   ]

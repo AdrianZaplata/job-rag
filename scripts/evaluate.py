@@ -14,6 +14,7 @@ Usage:
 
 import asyncio
 import json
+import math
 import os
 import sys
 from datetime import UTC, datetime
@@ -119,38 +120,53 @@ async def run_evaluation() -> None:
         "context_recall": [],
     }
 
+    async def _safe_score(name: str, coro):
+        try:
+            return float(await coro)
+        except Exception as e:
+            log.warning("metric_failed", metric=name, error=str(e)[:200])
+            return float("nan")
+
     for i, qd in enumerate(query_data):
         log.info("scoring_query", index=i + 1, question=qd["question"][:50])
 
-        f_result = await faithfulness.ascore(
-            user_input=qd["question"],
-            response=qd["answer"],
-            retrieved_contexts=qd["contexts"],
-        )
-        ar_result = await answer_relevancy.ascore(
-            user_input=qd["question"],
-            response=qd["answer"],
-        )
-        cp_result = await context_precision.ascore(
-            user_input=qd["question"],
-            reference=qd["ground_truth"],
-            retrieved_contexts=qd["contexts"],
-        )
-        cr_result = await context_recall.ascore(
-            user_input=qd["question"],
-            retrieved_contexts=qd["contexts"],
-            reference=qd["ground_truth"],
-        )
-
         scores = {
-            "faithfulness": float(f_result),
-            "answer_relevancy": float(ar_result),
-            "context_precision": float(cp_result),
-            "context_recall": float(cr_result),
+            "faithfulness": await _safe_score(
+                "faithfulness",
+                faithfulness.ascore(
+                    user_input=qd["question"],
+                    response=qd["answer"],
+                    retrieved_contexts=qd["contexts"],
+                ),
+            ),
+            "answer_relevancy": await _safe_score(
+                "answer_relevancy",
+                answer_relevancy.ascore(
+                    user_input=qd["question"],
+                    response=qd["answer"],
+                ),
+            ),
+            "context_precision": await _safe_score(
+                "context_precision",
+                context_precision.ascore(
+                    user_input=qd["question"],
+                    reference=qd["ground_truth"],
+                    retrieved_contexts=qd["contexts"],
+                ),
+            ),
+            "context_recall": await _safe_score(
+                "context_recall",
+                context_recall.ascore(
+                    user_input=qd["question"],
+                    retrieved_contexts=qd["contexts"],
+                    reference=qd["ground_truth"],
+                ),
+            ),
         }
 
         for k, v in scores.items():
-            agg[k].append(v)
+            if not math.isnan(v):
+                agg[k].append(v)
 
         per_query_results.append({
             "question": qd["question"],
@@ -159,15 +175,19 @@ async def run_evaluation() -> None:
             "scores": scores,
         })
 
-    # Compute averages
-    avg_scores = {k: sum(v) / len(v) for k, v in agg.items()}
+    # Compute averages over successful scores only
+    avg_scores = {
+        k: (sum(v) / len(v) if v else float("nan")) for k, v in agg.items()
+    }
+    sample_counts = {k: len(v) for k, v in agg.items()}
 
     # Print results
     print("\n" + "=" * 60)
     print("RAGAS Evaluation Results")
     print("=" * 60)
     for metric_name, score in avg_scores.items():
-        print(f"  {metric_name:<35} {score:.4f}")
+        n = sample_counts[metric_name]
+        print(f"  {metric_name:<25} {score:.4f}  (n={n}/{len(query_data)})")
     print("=" * 60)
 
     # Save results to file
@@ -175,6 +195,7 @@ async def run_evaluation() -> None:
         "timestamp": datetime.now(UTC).isoformat(),
         "num_queries": len(golden_queries),
         "metrics": avg_scores,
+        "sample_counts": sample_counts,
         "per_query": per_query_results,
     }
 

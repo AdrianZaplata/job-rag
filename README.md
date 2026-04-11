@@ -112,20 +112,20 @@ One tool implementation (`mcp_server/tools.py`) is reused by all three entry poi
 
 Quality is measured with [RAGAS](https://docs.ragas.io/) against a golden dataset of 18 queries with manually-verified ground truth answers, across 5 categories: skill-based, filter-based, salary/benefits, comparative, and profile-relevant.
 
-| Metric | Score | Interpretation |
-|---|---|---|
-| Faithfulness | 0.82 | 82% of answer statements are grounded in the retrieved context |
-| Answer Relevancy | 0.74 | Answers stay on-topic for most queries |
-| Context Precision | 0.60 | Top-ranked retrieved postings contain the answer ~60% of the time |
-| Context Recall | 0.47 | About half of relevant postings appear in the retrieval window |
+| Metric | v1.1 | v1.0 | Δ |
+|---|---|---|---|
+| Faithfulness | **0.81** (n=17/18) | 0.82 | ≈ flat |
+| Answer Relevancy | **0.68** | 0.74 | −0.06 |
+| Context Precision | **0.67** | 0.60 | **+0.07** |
+| Context Recall | **0.43** | 0.47 | −0.04 |
 
-Skill queries (the system's sweet spot) score 0.95+ on faithfulness and 1.00 on context precision. Metadata queries like "which jobs offer 30 vacation days?" score 0.00 on context precision, because the embeddings encode *what a job is about*, not *what benefits it offers* — a real known limitation that hybrid retrieval (dense + keyword) would fix.
+The v1.1 extraction prompt rewrite (atomic-skill decomposition) produced a clear improvement in **context precision** — the metric it was expected to affect — from 0.60 to 0.67. Skill queries (LangChain, PyTorch, Docker, agentic AI) score 0.93+ on faithfulness and 1.00 on context precision; domain queries (German, automotive/HMI) score 1.00 on precision and 0.67–0.86 on recall now that compound phrases are decomposed. Metadata queries like "which companies offer 30 vacation days?" still score 0.00 on precision because the embeddings encode *what a job is about*, not *what benefits it offers* — a real known limitation that hybrid retrieval (dense + BM25 keyword) would fix.
+
+One query (Trimble vs GitLab comparative) hits GPT-4o-mini's `max_tokens` ceiling on the faithfulness scorer due to the length of the comparative answer; the script catches this and excludes the failed sample, giving faithfulness n=17/18.
 
 ```bash
 uv run python scripts/evaluate.py   # ~$0.13, ~1 minute
 ```
-
-_Note: scores above are baseline from extraction prompt v1.0. The v1.1 prompt with atomic-skill decomposition should produce better context precision — re-running the eval is a pending item._
 
 ---
 
