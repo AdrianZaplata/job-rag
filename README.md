@@ -1,201 +1,243 @@
 # Job RAG
 
-RAG-powered system that ingests AI Engineer job postings, extracts structured skill data, matches against your profile, and surfaces insights for job applications.
+> A RAG system I built during a pivot into AI engineering — to read 23 AI Engineer job postings for me and tell me which ones I should actually be reading.
+
+It ingests raw LinkedIn markdown into structured skill data, scores each posting against my profile, and exposes the whole corpus as a LangGraph agent, a FastAPI service, and an MCP server for Claude Code. Everything is instrumented with Langfuse and evaluated with RAGAS.
+
+---
+
+## What it actually found
+
+The first time I ran the agent against a real corpus with my profile loaded, it ranked this posting as my top match at **0.588**:
+
+**(Senior) AI Engineer at IU Group** — remote, Germany. Matched on `Python`, `FastAPI`, `tool use`, `embeddings`, `vector search`, `monitoring`, `testing`.
+
+Here are the five responsibilities from their posting, side-by-side with what I'd just finished building:
+
+| IU Group | Job RAG |
+|---|---|
+| Build agentic AI systems for multi-step user journeys | LangGraph ReAct agent orchestrating 3 tools over multi-step queries |
+| Develop retrieval and context-engineering pipelines | pgvector search → cross-encoder rerank → LangChain generation |
+| Shape AI behavior through prompt engineering | Extraction prompt v1.0 → v1.1 with atomic-skill decomposition rules |
+| Optimize production systems for latency, observability, reliability | Langfuse tracing, structured logging, healthcheck-gated Docker |
+| Drive improvement through evaluation, testing, monitoring | RAGAS golden dataset, 79 unit tests, GitHub Actions CI |
+
+I had never read this posting before running the tool. The system surfaced it not because it was the most obvious skill match (my first run of the same query, before fixing the profile and extraction pipeline, ranked it 0.183) but because the final version of the pipeline — with atomic-skill decomposition, alias-based fuzzy matching, and an agent sorting results by real match score — could see the fit that the earlier versions could not.
+
+That story is the whole reason this project exists, and also its best validation: **the system works well enough to find its own use case.**
+
+> _Screen recording of the agent running against the live corpus: coming soon. To reproduce locally, see [Run it](#run-it) below and run `job-rag agent --stream "Which 3 remote senior AI Engineer roles fit my profile best, and why?"`_
+
+---
 
 ## Architecture
 
 ```mermaid
 graph TD
-    subgraph "Ingestion Pipeline"
-        MD[Markdown Files] --> EXT[Instructor + GPT-4o-mini]
-        EXT --> PYD[Pydantic Validation]
+    subgraph "Ingestion"
+        MD[23 Markdown postings] --> EXT[Instructor + GPT-4o-mini]
+        EXT --> PYD[Pydantic validation]
         PYD --> DB[(PostgreSQL + pgvector)]
     end
 
-    subgraph "RAG Pipeline"
-        Q[User Query] --> EMB[text-embedding-3-small]
-        EMB --> VS[pgvector Cosine Search]
-        VS --> RR[Cross-Encoder Rerank]
-        RR --> LC[LangChain Generation]
-        LC --> API[FastAPI Response]
-    end
-
-    subgraph "Matching Engine"
-        PROF[User Profile JSON] --> MATCH[Fuzzy Skill Matching]
+    subgraph "Retrieval + Matching"
+        Q[User query] --> EMB[text-embedding-3-small]
+        EMB --> VS[pgvector cosine]
+        VS --> RR[cross-encoder rerank]
+        PROF[profile.json] --> MATCH[fuzzy alias matching]
+        DB --> VS
         DB --> MATCH
-        MATCH --> GAPS[Gap Analysis]
     end
 
-    DB --> VS
+    subgraph "Intelligence layer"
+        TOOLS[async tool layer]
+        RR --> TOOLS
+        MATCH --> TOOLS
+        TOOLS --> AGENT[LangGraph ReAct agent]
+        TOOLS --> MCP[FastMCP stdio server]
+        AGENT --> API[FastAPI + SSE]
+        AGENT -.->|traces| LF[Langfuse]
+        EXT -.->|traces| LF
+    end
 ```
 
-## Features
+One tool implementation (`mcp_server/tools.py`) is reused by all three entry points — the FastMCP server, the LangGraph agent, and the FastAPI routes. No duplicated retrieval or matching logic.
 
-- **Structured extraction** from 23+ job postings via GPT-4o-mini + Instructor with Pydantic validation
-- **Semantic search** with pgvector cosine similarity + cross-encoder reranking
-- **RAG answers** via LangChain generation chain with retrieved context
-- **Skill matching** against user profile with fuzzy alias resolution
-- **Gap analysis** aggregating missing skills across filtered postings
-- **FastAPI async API** with 5 endpoints and Swagger docs
-- **RAGAS evaluation** measuring faithfulness, answer relevancy, context precision
-- **Dockerized deployment** via multi-stage build with Docker Compose
-- **CI/CD** with GitHub Actions (lint, type check, test)
+---
 
-## Quick Start
+## Stack and skills demonstrated
 
-### With Docker
+| Area | What's here |
+|---|---|
+| **RAG + vector search** | pgvector cosine distance, section-based chunking, cross-encoder reranking, dense retrieval over 23 postings / 74 chunks |
+| **Structured extraction** | Instructor + GPT-4o-mini + Pydantic models; atomic-skill decomposition prompt (v1.1) with few-shot examples |
+| **LangChain** | `ChatPromptTemplate`, `ChatOpenAI`, `StrOutputParser`, callback handlers for tracing |
+| **LangGraph agents** | `create_react_agent` with 3 tools, `astream_events` for streaming, `lru_cache`'d compiled graph |
+| **MCP server development** | FastMCP stdio server exposing 4 tools to Claude Code, reusing the same async service layer |
+| **FastAPI** | Async API, dependency-injected sessions, lifespan management, 8 endpoints including SSE |
+| **SSE streaming** | `sse-starlette` EventSourceResponse forwarding `astream_events` as `token` / `tool_start` / `tool_end` / `final` frames |
+| **LLM observability** | Langfuse drop-in OpenAI wrapper + LangChain `CallbackHandler`, fail-open when keys missing |
+| **Evaluation** | RAGAS golden dataset of 18 queries with manually-verified ground truth, 4 metrics, standalone script |
+| **PostgreSQL + pgvector** | UUID primary keys, separate normalized `job_requirements` table, `Vector(1536)` columns, indexed on company/seniority/remote |
+| **Production Python** | Sync + async SQLAlchemy engines, type hints clean under pyright, structlog, tenacity retry, Typer CLI |
+| **Docker + deployment** | Multi-stage Dockerfile with CPU-only PyTorch, Docker Compose with healthcheck-gated app start, `docker-entrypoint.sh` |
+| **CI/CD** | GitHub Actions: ruff + pyright + pytest with `uv` caching |
+| **Testing** | 79 unit tests + 50 extraction accuracy tests (eval-marked), all mocked, no database or API key required |
 
-```bash
-# 1. Clone and configure
-git clone https://github.com/your-username/job-rag.git
-cd job-rag
-cp .env.example .env
-# Edit .env and add your OpenAI API key
+---
 
-# 2. Start the full system
-docker compose up
+## Design decisions
 
-# 3. Open the API docs
-open http://localhost:8000/docs
-```
+**pgvector over a dedicated vector DB.** Leverages existing PostgreSQL skills, keeps the stack to one database, stores structured fields and vectors in the same rows. No vendor lock-in.
 
-### Local Development
+**Cross-encoder reranking.** Two-stage retrieval (fast vector search → precise cross-encoder rerank) gives meaningfully better precision than vector search alone. The reranker runs locally on CPU, ~80MB, no API cost per query.
 
-```bash
-# 1. Install dependencies
-uv sync
+**Section-based chunking over fixed-size.** Postings are split into semantic sections (responsibilities, must-have, nice-to-have, benefits) rather than arbitrary character windows. Preserves structural context in a known schema. This is a deliberate choice over semantic chunking — worth the small loss in flexibility for the gain in interpretability.
 
-# 2. Start just the database
-docker compose up db -d
+**Atomic-skill extraction (v1.1).** The first extraction prompt produced compound requirements like `"Proven production AI solutions in automotive"` as single atomic skills, which the matching engine could never match. Rewriting the prompt with decomposition rules and few-shot examples turned that into `automotive`, `production deployment`, `AI solutions` — three skills the matcher can actually reason about. The top match for the same query went from 0.183 to 0.588.
 
-# 3. Initialize, ingest, and embed
-job-rag init-db
-job-rag ingest --show-cost
-job-rag embed --show-cost
+**Sync + async dual SQLAlchemy engines.** CLI commands use sync (simple, no event loop). FastAPI + MCP + agent use async (concurrent request handling). Both share the same ORM models.
 
-# 4. Start the API server
-job-rag serve --reload
-```
+**One tool implementation, three entry points.** The async functions in `mcp_server/tools.py` are wrapped twice: once as `@mcp.tool()` for FastMCP, once as `@tool` for LangChain. No duplicated SQL, matching, or ingestion logic across the MCP server, the LangGraph agent, and the FastAPI routes.
 
-## API Endpoints
+**LangChain only for generation; everything else is direct SQLAlchemy.** Retrieval uses `pgvector.cosine_distance` in raw SQLAlchemy queries rather than LangChain's vector store abstractions. Avoids a duplicate vector store and keeps the retrieval logic legible. LangChain earns its place in the generation chain, where prompt templates and model abstraction actually add value.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Database connectivity check |
-| GET | `/search?q=...&generate=true` | Semantic search with RAG-generated answer |
-| GET | `/search?q=...&generate=false` | Semantic search returning ranked results |
-| GET | `/match/{posting_id}` | Score user profile against a specific posting |
-| GET | `/gaps?seniority=...&remote=...` | Aggregate skill gaps across filtered postings |
-| POST | `/ingest` | Upload and process a new posting markdown file |
+**CPU-only PyTorch in the Docker image.** `UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` drops ~1.5GB from the image. The cross-encoder runs fine on CPU for the reranking workload.
 
-### Example Queries
+**Observability fails open, not closed.** `get_openai_client()` and `get_langchain_callbacks()` return the Langfuse-wrapped or plain clients depending on env vars. No startup check, no runtime exception, no perf cost when disabled. The codebase doesn't know whether tracing is on.
 
-```bash
-# Semantic search with RAG answer
-curl "http://localhost:8000/search?q=Which+jobs+require+LangChain"
-
-# Skill gap analysis for remote senior roles
-curl "http://localhost:8000/gaps?seniority=senior&remote=remote"
-```
-
-## How It Works
-
-### 1. Ingestion
-
-Markdown job postings are processed through GPT-4o-mini with Instructor for structured extraction. Each posting produces a `JobPosting` Pydantic model with title, company, requirements (categorized as must-have/nice-to-have), responsibilities, benefits, salary, and remote policy. Deduplication uses LinkedIn job ID + SHA-256 content hash.
-
-### 2. Retrieval
-
-User queries are embedded via `text-embedding-3-small` and matched against posting embeddings using pgvector cosine distance. Top results are reranked with a local cross-encoder model (`ms-marco-MiniLM-L-6-v2`). The reranked context is passed to a LangChain generation chain for natural language answers.
-
-### 3. Matching
-
-The user profile (`data/profile.json`) is compared against each posting's requirements using fuzzy skill matching with an alias dictionary (e.g., "PostgreSQL" matches "SQL", "React.js" matches "React"). The match score formula weights must-have skills at 70% and nice-to-have at 30%.
+---
 
 ## Evaluation
 
-RAG quality is measured using [RAGAS](https://docs.ragas.io/) against a golden dataset of 18 queries with manually verified ground truth answers.
+Quality is measured with [RAGAS](https://docs.ragas.io/) against a golden dataset of 18 queries with manually-verified ground truth answers, across 5 categories: skill-based, filter-based, salary/benefits, comparative, and profile-relevant.
 
-| Metric | Score | Description |
-|--------|-------|-------------|
-| Faithfulness | 0.82 | Does the answer stay true to the retrieved context? |
-| Answer Relevancy | 0.74 | Is the answer relevant to the question? |
-| Context Precision | 0.60 | Are the retrieved documents relevant? |
-| Context Recall | 0.47 | Are all relevant documents retrieved? |
+| Metric | Score | Interpretation |
+|---|---|---|
+| Faithfulness | 0.82 | 82% of answer statements are grounded in the retrieved context |
+| Answer Relevancy | 0.74 | Answers stay on-topic for most queries |
+| Context Precision | 0.60 | Top-ranked retrieved postings contain the answer ~60% of the time |
+| Context Recall | 0.47 | About half of relevant postings appear in the retrieval window |
 
-*Evaluated on 18 golden queries across skill, filter, salary, comparative, and profile-relevant categories.*
+Skill queries (the system's sweet spot) score 0.95+ on faithfulness and 1.00 on context precision. Metadata queries like "which jobs offer 30 vacation days?" score 0.00 on context precision, because the embeddings encode *what a job is about*, not *what benefits it offers* — a real known limitation that hybrid retrieval (dense + keyword) would fix.
 
-Run evaluation locally:
 ```bash
-uv run python scripts/evaluate.py
+uv run python scripts/evaluate.py   # ~$0.13, ~1 minute
 ```
 
-## Skills Demonstrated
+_Note: scores above are baseline from extraction prompt v1.0. The v1.1 prompt with atomic-skill decomposition should produce better context precision — re-running the eval is a pending item._
 
-| Skill | Implementation |
-|-------|---------------|
-| RAG + Vector DBs + Embeddings | pgvector similarity search, cross-encoder reranking, section-based chunking |
-| Pydantic + Structured Outputs | Instructor extraction, Pydantic models for all data shapes, pydantic-settings |
-| LangChain | RAG generation chain with `ChatPromptTemplate`, `ChatOpenAI`, `StrOutputParser` |
-| FastAPI | Async API with dependency injection, lifespan management, 5 endpoints |
-| Production Python | Type hints throughout, structlog, async/await, Typer CLI, tenacity retry |
-| PostgreSQL + pgvector | Schema design with UUIDs, indexes, separate requirements table, vector columns |
-| Docker | Multi-stage Dockerfile with CPU-only PyTorch, Docker Compose orchestration |
-| CI/CD | GitHub Actions: ruff lint, pyright type check, pytest |
-| Evaluation (RAGAS) | Golden dataset, faithfulness/relevancy/precision/recall metrics |
-| Testing | 48+ unit tests, extraction accuracy tests, mocked dependencies |
+---
 
-## Design Decisions
+## Run it
 
-**pgvector over dedicated vector DB (Pinecone, Weaviate):** Leverages existing PostgreSQL skills, keeps the stack simple, avoids vendor lock-in. Structured data and vectors live in the same database.
-
-**Cross-encoder reranking:** Two-stage retrieval (fast vector search → precise reranking) gives better precision than vector search alone. The cross-encoder runs locally (~80MB model, no API cost).
-
-**Section-based chunking over fixed-size:** Postings are split into semantic sections (responsibilities, must_have, nice_to_have, benefits) rather than arbitrary character windows. This preserves context boundaries.
-
-**Sync + async dual engine:** CLI commands use sync SQLAlchemy (simple, no event loop needed). FastAPI uses async for concurrent request handling. Both share the same ORM models.
-
-**LangChain only for generation:** Retrieval uses direct SQLAlchemy + pgvector queries (no duplicate vector store). LangChain adds value in the generation step with prompt templates and model abstraction.
-
-**CPU-only PyTorch in Docker:** Reduces image size by ~1.5GB. The cross-encoder model runs fine on CPU for the reranking workload.
-
-## Project Structure
-
-```
-job-rag/
-├── src/job_rag/
-│   ├── cli.py                    # Typer CLI (init-db, ingest, embed, serve, etc.)
-│   ├── config.py                 # pydantic-settings configuration
-│   ├── models.py                 # Pydantic domain models and enums
-│   ├── logging.py                # structlog setup
-│   ├── db/
-│   │   ├── engine.py             # SQLAlchemy sync + async engines
-│   │   └── models.py             # ORM models (JobPosting, JobRequirement, JobChunk)
-│   ├── extraction/
-│   │   ├── extractor.py          # Instructor + GPT-4o-mini extraction
-│   │   └── prompt.py             # System prompt with mapping rules
-│   ├── services/
-│   │   ├── ingestion.py          # File ingestion with deduplication
-│   │   ├── embedding.py          # OpenAI batch embedding
-│   │   ├── retrieval.py          # pgvector search, reranking, RAG generation
-│   │   └── matching.py           # Profile matching and gap analysis
-│   └── api/
-│       ├── app.py                # FastAPI app with lifespan
-│       ├── deps.py               # Async session dependency
-│       └── routes.py             # API endpoints
-├── tests/                        # 48+ tests (models, extraction, matching, retrieval, API)
-├── data/
-│   ├── postings/                 # 23 job posting markdown files
-│   ├── profile.json              # User skill profile
-│   └── eval/                     # Golden dataset and RAGAS results
-├── scripts/
-│   ├── evaluate.py               # RAGAS evaluation script
-│   └── docker-entrypoint.sh      # Docker startup script
-├── Dockerfile                    # Multi-stage build
-├── docker-compose.yml            # PostgreSQL + FastAPI app
-└── .github/workflows/ci.yml     # CI/CD pipeline
+```bash
+# One command, full system
+cp .env.example .env   # add OPENAI_API_KEY
+docker compose up      # starts PostgreSQL + the app (ingest + embed + serve)
+open http://localhost:8000/docs
 ```
 
-## Cost
+For local development:
 
-Total cost to process 23 postings: **~$0.03** (extraction $0.025 + embeddings $0.0002).
+```bash
+uv sync
+docker compose up db -d
+job-rag init-db
+job-rag ingest --show-cost        # ~$0.025
+job-rag embed --show-cost         # ~$0.0002
+job-rag serve --reload            # or:
+job-rag agent "Which jobs fit my profile best?"       # one-shot agent
+job-rag agent --stream "..."                          # with tool call traces
+job-rag mcp                                           # stdio MCP server
+```
+
+Ingesting and embedding the 23-posting corpus end-to-end costs ~$0.03.
+
+---
+
+## Components
+
+### API endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | DB connectivity |
+| `GET` | `/search?q=...` | Semantic search with RAG answer (`generate=false` for raw results) |
+| `GET` | `/match/{posting_id}` | Score user profile against one posting |
+| `GET` | `/gaps?seniority=...&remote=...` | Aggregate skill gaps across filtered postings |
+| `POST` | `/ingest` | Upload and process a new markdown posting |
+| `POST` | `/agent` | Run the LangGraph agent, return final answer + tool call trace |
+| `GET` | `/agent/stream?q=...` | Stream agent events (tool calls, tokens) as SSE |
+
+Full interactive docs at `http://localhost:8000/docs`.
+
+### LangGraph agent
+
+A ReAct agent (`src/job_rag/agent/`) that orchestrates three tools:
+
+- `search_jobs(query, remote_only?, seniority?, limit?)` — semantic search
+- `match_profile(posting_id)` — score one posting against the user profile
+- `analyze_gaps(seniority?, remote?)` — aggregate top missing skills
+
+The agent's system prompt enforces sort-by-score and honest empty-result handling. `build_agent()` is `lru_cache`'d so the compiled graph and `ChatOpenAI` instance are reused across requests.
+
+### MCP server (Claude Code integration)
+
+The same async tools are exposed to [Claude Code](https://docs.claude.com/en/docs/claude-code) as a FastMCP stdio server. Add this to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "job-rag": {
+      "command": "uv",
+      "args": ["run", "--directory", "/abs/path/to/job-rag", "job-rag", "mcp"],
+      "env": {
+        "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/job_rag",
+        "ASYNC_DATABASE_URL": "postgresql+asyncpg://postgres:postgres@localhost:5432/job_rag",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+Then ask Claude Code things like *"search job-rag for roles using LangGraph and tell me which ones I match best."*
+
+### Observability
+
+Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in `.env` (optional). Every OpenAI call, LangChain invocation, and agent run will show up in your Langfuse dashboard as a nested trace: agent root → tool spans → nested LLM calls, with token counts, latencies, full prompts, and tool inputs/outputs. Without credentials, the integration is a no-op.
+
+---
+
+## Project structure
+
+```
+src/job_rag/
+├── cli.py                 Typer CLI (init-db, ingest, embed, serve, mcp, agent, reset)
+├── config.py              pydantic-settings (OpenAI, Langfuse, DB, model choices)
+├── models.py              Pydantic domain models + enums
+├── observability.py       Langfuse integration (optional, fails open)
+├── db/                    SQLAlchemy sync + async engines, ORM models
+├── extraction/            Instructor + GPT-4o-mini extraction, prompt v1.1
+├── services/
+│   ├── ingestion.py       Read → dedupe → extract → store
+│   ├── embedding.py       Batch embedding, chunking
+│   ├── retrieval.py       pgvector search, rerank, LangChain RAG
+│   └── matching.py        Profile scoring, alias-based fuzzy matching, gap analysis
+├── api/                   FastAPI app, routes, async session dependency
+├── mcp_server/            FastMCP stdio server + shared async tool layer
+└── agent/                 LangGraph ReAct agent + streaming adapter
+tests/                     79 unit tests + 50 extraction accuracy tests (eval-marked)
+```
+
+## Cost summary
+
+| Operation | Cost |
+|---|---|
+| Extract 23 postings (GPT-4o-mini, v1.1 prompt) | $0.025 |
+| Embed 23 postings + 74 chunks (text-embedding-3-small) | $0.0002 |
+| RAGAS evaluation (72 scoring calls + 18 RAG runs) | ~$0.13 |
+| One agent query (~5 tool calls + synthesis) | ~$0.001 |
+
+Total cost to stand up the entire system and run it end-to-end: **~$0.03**.
