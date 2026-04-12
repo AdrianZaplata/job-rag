@@ -6,7 +6,7 @@ WORKDIR /app
 # Install CPU-only PyTorch to save ~1.5GB
 ENV UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 COPY src/ src/
 
 RUN uv sync --frozen --no-dev
