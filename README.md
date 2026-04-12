@@ -208,7 +208,11 @@ Then ask Claude Code things like *"search job-rag for roles using LangGraph and 
 
 ### Observability
 
-Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in `.env` (optional). Every OpenAI call, LangChain invocation, and agent run will show up in your Langfuse dashboard as a nested trace: agent root → tool spans → nested LLM calls, with token counts, latencies, full prompts, and tool inputs/outputs. Without credentials, the integration is a no-op.
+Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in `.env` (optional). Every OpenAI call, LangChain invocation, and agent run will show up in your Langfuse dashboard as a nested trace: agent root, tool spans, nested LLM calls, with token counts, latencies, full prompts, and tool inputs/outputs. Without credentials, the integration is a no-op.
+
+![Langfuse trace of one agent run showing nested LLM calls, tool invocations, token counts, and the system prompt](docs/images/langfuse-trace.png)
+
+*A single agent query traced end-to-end: the LLM's first reasoning step (536 tokens, $0.000095) chose `search_jobs` with `remote_only: true, seniority: "senior"`. The full tree shows error recovery, five `match_profile` calls, and the final synthesis (3480 tokens). Total cost: $0.001.*
 
 ---
 
