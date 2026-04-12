@@ -23,7 +23,7 @@ dependencies = [
     "tenacity",
     "fastapi",
     "uvicorn[standard]",
-    "langchain-core",
+    "langchain-core>=1.2.28",
     "langchain-openai",
     "sentence-transformers",
     "python-multipart",
@@ -48,7 +48,7 @@ pythonVersion = "3.12"
 typeCheckingMode = "basic"
 
 [dependency-groups]
-dev = ["pytest", "pytest-asyncio", "httpx", "ruff", "pyright", "ragas>=0.2.0"]
+dev = ["pytest", "pytest-asyncio", "httpx", "ruff", "pyright", "ragas>=0.2.0", "pip-audit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

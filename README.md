@@ -82,9 +82,10 @@ One tool implementation (`mcp_server/tools.py`) is reused by all three entry poi
 | **Evaluation** | RAGAS golden dataset of 18 queries with manually-verified ground truth, 4 metrics, standalone script |
 | **PostgreSQL + pgvector** | UUID primary keys, separate normalized `job_requirements` table, `Vector(1536)` columns, indexed on company/seniority/remote |
 | **Production Python** | Sync + async SQLAlchemy engines, type hints clean under pyright, structlog, tenacity retry, Typer CLI |
-| **Docker + deployment** | Multi-stage Dockerfile with CPU-only PyTorch, Docker Compose with healthcheck-gated app start, `docker-entrypoint.sh` |
-| **CI/CD** | GitHub Actions: ruff + pyright + pytest with `uv` caching |
-| **Testing** | 79 unit tests + 50 extraction accuracy tests (eval-marked), all mocked, no database or API key required |
+| **Security** | Bearer token auth, per-endpoint rate limiting, path traversal protection, prompt injection mitigations, 1 MB upload caps |
+| **Docker + deployment** | Multi-stage Dockerfile with CPU-only PyTorch, non-root container user, Docker Compose with healthcheck-gated app start, DB credentials via env vars |
+| **CI/CD** | GitHub Actions: ruff + pyright + pytest + pip-audit with `uv` caching |
+| **Testing** | 89 unit tests (incl. security suite) + 50 extraction accuracy tests (eval-marked), all mocked, no database or API key required |
 
 ---
 
@@ -135,7 +136,8 @@ uv run python scripts/evaluate.py   # ~$0.13, ~1 minute
 
 ```bash
 # One command, full system
-cp .env.example .env   # add OPENAI_API_KEY
+cp .env.example .env   # set OPENAI_API_KEY and POSTGRES_PASSWORD (required)
+                       # optionally set JOB_RAG_API_KEY to enable API auth
 docker compose up      # starts PostgreSQL + the app (ingest + embed + serve)
 open http://localhost:8000/docs
 ```
@@ -162,15 +164,17 @@ Ingesting and embedding the 23-posting corpus end-to-end costs ~$0.03.
 
 ### API endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | DB connectivity |
-| `GET` | `/search?q=...` | Semantic search with RAG answer (`generate=false` for raw results) |
-| `GET` | `/match/{posting_id}` | Score user profile against one posting |
-| `GET` | `/gaps?seniority=...&remote=...` | Aggregate skill gaps across filtered postings |
-| `POST` | `/ingest` | Upload and process a new markdown posting |
-| `POST` | `/agent` | Run the LangGraph agent, return final answer + tool call trace |
-| `GET` | `/agent/stream?q=...` | Stream agent events (tool calls, tokens) as SSE |
+| Method | Endpoint | Auth | Rate limit | Description |
+|---|---|---|---|---|
+| `GET` | `/health` | No | - | DB connectivity |
+| `GET` | `/search?q=...` | Yes | 30/min | Semantic search with RAG answer (`generate=false` for raw results) |
+| `GET` | `/match/{posting_id}` | Yes | 30/min | Score user profile against one posting |
+| `GET` | `/gaps?seniority=...&remote=...` | Yes | 30/min | Aggregate skill gaps across filtered postings |
+| `POST` | `/ingest` | Yes | 5/min | Upload and process a new markdown posting (max 1 MB) |
+| `POST` | `/agent` | Yes | 10/min | Run the LangGraph agent, return final answer + tool call trace |
+| `GET` | `/agent/stream?q=...` | Yes | 10/min | Stream agent events (tool calls, tokens) as SSE |
+
+Set `JOB_RAG_API_KEY` in `.env` to enable Bearer token authentication on protected endpoints. When the key is empty, auth is disabled (for local development). Rate limits are per-IP, in-memory, and per-process.
 
 Full interactive docs at `http://localhost:8000/docs`.
 
@@ -195,8 +199,8 @@ The same async tools are exposed to [Claude Code](https://docs.claude.com/en/doc
       "command": "uv",
       "args": ["run", "--directory", "/abs/path/to/job-rag", "job-rag", "mcp"],
       "env": {
-        "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/job_rag",
-        "ASYNC_DATABASE_URL": "postgresql+asyncpg://postgres:postgres@localhost:5432/job_rag",
+        "DATABASE_URL": "postgresql://postgres:your-password@localhost:5432/job_rag",
+        "ASYNC_DATABASE_URL": "postgresql+asyncpg://postgres:your-password@localhost:5432/job_rag",
         "OPENAI_API_KEY": "sk-..."
       }
     }
@@ -221,7 +225,7 @@ Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in `.env` (optional). Every 
 ```
 src/job_rag/
 ├── cli.py                 Typer CLI (init-db, ingest, embed, serve, mcp, agent, reset)
-├── config.py              pydantic-settings (OpenAI, Langfuse, DB, model choices)
+├── config.py              pydantic-settings (OpenAI, Langfuse, DB, API key, model choices)
 ├── models.py              Pydantic domain models + enums
 ├── observability.py       Langfuse integration (optional, fails open)
 ├── db/                    SQLAlchemy sync + async engines, ORM models
@@ -231,10 +235,10 @@ src/job_rag/
 │   ├── embedding.py       Batch embedding, chunking
 │   ├── retrieval.py       pgvector search, rerank, LangChain RAG
 │   └── matching.py        Profile scoring, alias-based fuzzy matching, gap analysis
-├── api/                   FastAPI app, routes, async session dependency
+├── api/                   FastAPI app, routes, auth + rate limiting, async session dependency
 ├── mcp_server/            FastMCP stdio server + shared async tool layer
 └── agent/                 LangGraph ReAct agent + streaming adapter
-tests/                     79 unit tests + 50 extraction accuracy tests (eval-marked)
+tests/                     89 unit tests (incl. security) + 50 extraction accuracy tests (eval-marked)
 ```
 
 ## Cost summary

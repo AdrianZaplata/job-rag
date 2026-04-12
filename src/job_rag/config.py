@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +18,7 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
     agent_model: str = "gpt-4o-mini"
+    api_key: str = Field(default="", validation_alias="JOB_RAG_API_KEY")
 
 
 settings = Settings()

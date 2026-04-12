@@ -1,6 +1,7 @@
 import hashlib
 from pathlib import Path
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from job_rag.config import settings
@@ -77,10 +78,10 @@ def _store_posting(
     return db_posting
 
 
-def ingest_file(session: Session, file_path: Path) -> tuple[bool, str]:
+def ingest_file(session: Session, file_path: Path) -> tuple[bool, str, str | None]:
     """Ingest a single markdown posting file.
 
-    Returns (was_ingested, reason).
+    Returns (was_ingested, reason, posting_id).
     """
     raw_text = file_path.read_text(encoding="utf-8")
     c_hash = _content_hash(raw_text)
@@ -94,7 +95,7 @@ def ingest_file(session: Session, file_path: Path) -> tuple[bool, str]:
 
     if _posting_exists(session, c_hash, linkedin_id):
         log.info("skipped_duplicate", file=file_path.name, linkedin_id=linkedin_id)
-        return False, "duplicate"
+        return False, "duplicate", None
 
     posting, usage = extract_posting(raw_text)
     # Ensure raw_text is the original file content
@@ -104,10 +105,15 @@ def ingest_file(session: Session, file_path: Path) -> tuple[bool, str]:
     if not linkedin_id:
         linkedin_id = extract_linkedin_id(posting.source_url)
 
-    _store_posting(session, posting, c_hash, linkedin_id)
-    session.commit()
+    try:
+        db_posting = _store_posting(session, posting, c_hash, linkedin_id)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        log.info("skipped_concurrent_duplicate", file=file_path.name)
+        return False, "duplicate", None
 
-    return True, f"ingested (${usage['cost_usd']:.4f})"
+    return True, f"ingested (${usage['cost_usd']:.4f})", str(db_posting.id)
 
 
 def ingest_directory(session: Session, directory: Path | None = None) -> dict:
@@ -128,7 +134,7 @@ def ingest_directory(session: Session, directory: Path | None = None) -> dict:
 
     for f in files:
         try:
-            was_ingested, reason = ingest_file(session, f)
+            was_ingested, reason, _posting_id = ingest_file(session, f)
             if was_ingested:
                 ingested += 1
                 # Parse cost from reason string
