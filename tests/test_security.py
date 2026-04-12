@@ -8,7 +8,6 @@ from httpx import ASGITransport, AsyncClient
 from job_rag.api.app import app
 from job_rag.mcp_server import tools
 
-
 # ---------------------------------------------------------------------------
 # Auth tests
 # ---------------------------------------------------------------------------
