@@ -160,27 +160,30 @@ async def ingest(file: UploadFile) -> dict[str, Any]:
     from job_rag.services.embedding import embed_and_store_posting
     from job_rag.services.ingestion import ingest_file
 
-    content = await file.read()
+    MAX_UPLOAD_BYTES = 1_000_000  # 1 MB
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large (max 1 MB)")
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".md", delete=False) as tmp:
         tmp.write(content)
         tmp_path = Path(tmp.name)
 
     session = SessionLocal()
     try:
-        was_ingested, reason = ingest_file(session, tmp_path)
+        was_ingested, reason, posting_id = ingest_file(session, tmp_path)
         if not was_ingested:
             return {"ingested": False, "reason": reason}
 
-        # Auto-embed the new posting
-        posting = (
-            session.query(JobPostingDB)
-            .filter(JobPostingDB.embedding.is_(None))
-            .order_by(JobPostingDB.created_at.desc())
-            .first()
-        )
-        if posting:
-            embed_and_store_posting(session, posting)
-            session.commit()
+        # Auto-embed the newly ingested posting by its ID
+        if posting_id:
+            posting = (
+                session.query(JobPostingDB)
+                .filter(JobPostingDB.id == posting_id)
+                .first()
+            )
+            if posting:
+                embed_and_store_posting(session, posting)
+                session.commit()
 
         return {"ingested": True, "reason": reason}
     finally:

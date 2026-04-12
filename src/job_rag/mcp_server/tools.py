@@ -139,21 +139,22 @@ def _ingest_path_sync(path: Path) -> dict[str, Any]:
 
     session = SessionLocal()
     try:
-        was_ingested, reason = ingest_file(session, path)
+        was_ingested, reason, posting_id = ingest_file(session, path)
         if not was_ingested:
             return {"ingested": False, "reason": reason}
 
-        posting = (
-            session.query(JobPostingDB)
-            .filter(JobPostingDB.embedding.is_(None))
-            .order_by(JobPostingDB.created_at.desc())
-            .first()
-        )
+        # Embed the specific posting by ID to avoid race conditions
         embedded = False
-        if posting:
-            embed_and_store_posting(session, posting)
-            session.commit()
-            embedded = True
+        if posting_id:
+            posting = (
+                session.query(JobPostingDB)
+                .filter(JobPostingDB.id == posting_id)
+                .first()
+            )
+            if posting:
+                embed_and_store_posting(session, posting)
+                session.commit()
+                embedded = True
 
         return {
             "ingested": True,

@@ -202,9 +202,19 @@ class TestIngestPosting:
         f = tmp_path / "posting.md"
         f.write_text("# Sample", encoding="utf-8")
 
-        with patch("job_rag.mcp_server.tools._ingest_path_sync") as mock_sync:
+        with (
+            patch("job_rag.mcp_server.tools._ingest_path_sync") as mock_sync,
+            patch("job_rag.mcp_server.tools._allowed_path", return_value=True),
+        ):
             mock_sync.return_value = {"ingested": True, "embedded": True, "reason": "ok"}
             result = await tools.ingest_posting(file_path=str(f))
 
         assert result["ingested"] is True
         mock_sync.assert_called_once_with(f)
+
+    async def test_ingest_path_not_allowed(self, tmp_path):
+        f = tmp_path / "posting.md"
+        f.write_text("# Sample", encoding="utf-8")
+
+        result = await tools.ingest_posting(file_path=str(f))
+        assert result["error"] == "path_not_allowed"
