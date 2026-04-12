@@ -188,6 +188,9 @@ async def ingest_posting(
 
     if content is None:
         return {"error": "content_required_when_file_path_not_provided"}
+    MAX_CONTENT_BYTES = 1_000_000  # 1 MB
+    if len(content.encode("utf-8")) > MAX_CONTENT_BYTES:
+        return {"error": "content_too_large", "max_bytes": MAX_CONTENT_BYTES}
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".md", delete=False, encoding="utf-8"
     ) as tmp:

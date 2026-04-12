@@ -3,7 +3,7 @@
 import time
 from collections import defaultdict
 
-from fastapi import Depends, HTTPException, Request, Security
+from fastapi import HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from job_rag.config import settings
@@ -25,7 +25,14 @@ async def require_api_key(
 
 
 class RateLimiter:
-    """Simple in-memory sliding-window rate limiter (no external deps)."""
+    """Simple in-memory sliding-window rate limiter.
+
+    NOTE: This is per-process and keyed by client IP. Behind a reverse
+    proxy or NAT, multiple users may share one bucket. In multi-worker
+    deployments each worker has its own state, so effective limits scale
+    with worker count. For production use behind a load balancer,
+    replace with a Redis-backed limiter (e.g. slowapi + redis).
+    """
 
     def __init__(self, calls: int, period: int) -> None:
         self.calls = calls

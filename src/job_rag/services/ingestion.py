@@ -1,6 +1,7 @@
 import hashlib
 from pathlib import Path
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from job_rag.config import settings
@@ -104,8 +105,13 @@ def ingest_file(session: Session, file_path: Path) -> tuple[bool, str, str | Non
     if not linkedin_id:
         linkedin_id = extract_linkedin_id(posting.source_url)
 
-    db_posting = _store_posting(session, posting, c_hash, linkedin_id)
-    session.commit()
+    try:
+        db_posting = _store_posting(session, posting, c_hash, linkedin_id)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        log.info("skipped_concurrent_duplicate", file=file_path.name)
+        return False, "duplicate", None
 
     return True, f"ingested (${usage['cost_usd']:.4f})", str(db_posting.id)
 

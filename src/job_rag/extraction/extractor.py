@@ -28,6 +28,11 @@ def extract_linkedin_id(url: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _sanitize_delimiters(text: str) -> str:
+    """Strip delimiter tags from text to prevent prompt injection escape."""
+    return text.replace("<job_posting>", "").replace("</job_posting>", "")
+
+
 @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
 def extract_posting(raw_text: str) -> tuple[JobPosting, dict]:
     """Extract structured data from a job posting using Instructor.
@@ -46,7 +51,7 @@ def extract_posting(raw_text: str) -> tuple[JobPosting, dict]:
                 "role": "user",
                 "content": (
                     "<job_posting>\n"
-                    f"{raw_text}\n"
+                    f"{_sanitize_delimiters(raw_text)}\n"
                     "</job_posting>"
                 ),
             },
