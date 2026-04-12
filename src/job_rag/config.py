@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
     agent_model: str = "gpt-4o-mini"
+    api_key: str = ""  # When empty, API auth is disabled (local dev)
 
 
 settings = Settings()

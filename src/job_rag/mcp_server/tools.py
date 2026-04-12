@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from job_rag.config import settings
 from job_rag.db.engine import AsyncSessionLocal, SessionLocal
 from job_rag.db.models import JobPostingDB
 from job_rag.logging import get_logger
@@ -125,6 +126,12 @@ async def skill_gaps(
         return aggregate_gaps(profile, postings)
 
 
+def _allowed_path(path: Path) -> bool:
+    """Check that a path resolves inside the configured data directory."""
+    allowed = Path(settings.data_dir).resolve()
+    return path.resolve().is_relative_to(allowed)
+
+
 def _ingest_path_sync(path: Path) -> dict[str, Any]:
     """Sync helper that runs the existing ingestion + embedding pipeline."""
     from job_rag.services.embedding import embed_and_store_posting
@@ -134,7 +141,7 @@ def _ingest_path_sync(path: Path) -> dict[str, Any]:
     try:
         was_ingested, reason = ingest_file(session, path)
         if not was_ingested:
-            return {"ingested": False, "reason": reason, "path": str(path)}
+            return {"ingested": False, "reason": reason}
 
         posting = (
             session.query(JobPostingDB)
@@ -152,7 +159,6 @@ def _ingest_path_sync(path: Path) -> dict[str, Any]:
             "ingested": True,
             "embedded": embedded,
             "reason": reason,
-            "path": str(path),
         }
     finally:
         session.close()
@@ -174,10 +180,13 @@ async def ingest_posting(
     if file_path:
         path = Path(file_path)
         if not path.exists():
-            return {"error": "file_not_found", "path": file_path}
+            return {"error": "file_not_found"}
+        if not _allowed_path(path):
+            return {"error": "path_not_allowed"}
         return await asyncio.to_thread(_ingest_path_sync, path)
 
-    assert content is not None
+    if content is None:
+        return {"error": "content_required_when_file_path_not_provided"}
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".md", delete=False, encoding="utf-8"
     ) as tmp:

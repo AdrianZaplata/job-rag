@@ -42,7 +42,14 @@ def extract_posting(raw_text: str) -> tuple[JobPosting, dict]:
         response_model=JobPosting,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": raw_text},
+            {
+                "role": "user",
+                "content": (
+                    "<job_posting>\n"
+                    f"{raw_text}\n"
+                    "</job_posting>"
+                ),
+            },
         ],
     )
 

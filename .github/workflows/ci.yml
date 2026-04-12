@@ -31,3 +31,6 @@ jobs:
 
       - name: Test (pytest)
         run: uv run pytest -m "not eval"
+
+      - name: Audit dependencies
+        run: uv run pip-audit
