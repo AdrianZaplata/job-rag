@@ -1,5 +1,6 @@
 """API authentication and rate limiting."""
 
+import hmac
 import time
 from collections import defaultdict
 
@@ -20,7 +21,7 @@ async def require_api_key(
     """
     if not settings.api_key:
         return
-    if not credentials or credentials.credentials != settings.api_key:
+    if not credentials or not hmac.compare_digest(credentials.credentials, settings.api_key):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
@@ -47,6 +48,14 @@ class RateLimiter:
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
         window.append(now)
         self._requests[client_ip] = window
+
+        # Prune IPs whose entire window has expired
+        stale = [
+            ip for ip, ts in self._requests.items()
+            if ip != client_ip and ts and now - ts[-1] >= self.period
+        ]
+        for ip in stale:
+            del self._requests[ip]
 
 
 # Pre-configured limiters

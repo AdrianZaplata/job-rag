@@ -30,7 +30,7 @@ def extract_linkedin_id(url: str) -> str | None:
 
 def _sanitize_delimiters(text: str) -> str:
     """Strip delimiter tags from text to prevent prompt injection escape."""
-    return text.replace("<job_posting>", "").replace("</job_posting>", "")
+    return re.sub(r"</?job_posting\s*>", "", text, flags=re.IGNORECASE)
 
 
 @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
