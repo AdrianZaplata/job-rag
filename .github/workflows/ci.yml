@@ -33,4 +33,4 @@ jobs:
         run: uv run pytest -m "not eval"
 
       - name: Audit dependencies
-        run: uv run pip-audit
+        run: uv run pip-audit --ignore-vuln CVE-2025-69872  # diskcache 5.6.3, no fix available (transitive via ragas)
