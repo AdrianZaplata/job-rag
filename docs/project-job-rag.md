@@ -211,8 +211,8 @@ graph TD
 | `Dockerfile` | Multi-stage build: uv + CPU-only PyTorch + pre-downloaded cross-encoder → slim runtime |
 | `scripts/docker-entrypoint.sh` | Container startup: init-db → ingest → embed → uvicorn |
 | `docker-compose.yml` | Added `app` service with healthcheck-gated `depends_on` and env overrides |
-| `.env.example` | Template with DATABASE_URL, ASYNC_DATABASE_URL, OPENAI_API_KEY |
-| `.github/workflows/ci.yml` | GitHub Actions: ruff → pyright → pytest with uv caching |
+| `.env.example` | Template with DATABASE_URL, ASYNC_DATABASE_URL, OPENAI_API_KEY, POSTGRES_PASSWORD, JOB_RAG_API_KEY |
+| `.github/workflows/ci.yml` | GitHub Actions: ruff, pyright, pytest, pip-audit with uv caching |
 | `README.md` | Portfolio showcase: Mermaid architecture, API docs, skills table, design decisions, RAGAS results |
 | `docs/how-it-works.md` | Extended walkthrough covering evaluation, Docker, and CI/CD |
 | `pyproject.toml` | Added `ragas` dev dependency and `eval` pytest marker |
@@ -310,8 +310,8 @@ Implemented as a FastMCP stdio server reusing the existing retrieval, matching, 
 
 ### Results
 
-- **123 tests collected** - 73 unit tests pass (was 48), +25 covering MCP, agent, observability, SSE; 50 eval tests still gated behind `-m eval`
-- **ruff clean, pyright clean** - 0 errors, 0 warnings across `src/`
+- **139 tests collected** - 89 unit tests pass (was 48), +25 covering MCP, agent, observability, SSE, +9 security tests (auth, rate limiting, delimiter escape, size caps); 50 eval tests still gated behind `-m eval`
+- **ruff clean, pyright clean, pip-audit clean** - 0 errors, 0 warnings across `src/`
 - **MCP server smoke-tested** - `mcp.list_tools()` returns all 4 tools with descriptions
 - **SSE endpoint smoke-tested** - `/agent/stream` emits well-formed `event: <type>\ndata: <json>` frames
 - **Skills closed:** LangGraph orchestration, MCP server development, Langfuse observability, SSE streaming, tool use / function calling - all five Phase 4 skill targets met

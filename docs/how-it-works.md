@@ -843,20 +843,22 @@ These tests don't call the OpenAI API - they compare stored outputs against stor
 
 | Method | Endpoint | What it does |
 |---|---|---|
-| `GET` | `/health` | Checks if the database is reachable |
-| `GET` | `/search?q=...&generate=true` | Semantic search with RAG-generated answer |
-| `GET` | `/search?q=...&generate=false` | Semantic search, raw ranked results (no LLM answer) |
-| `GET` | `/search?q=...&seniority=senior` | Search with filters |
-| `GET` | `/match/{posting_id}` | Score user profile against one posting |
-| `GET` | `/gaps` | Top missing skills across all postings |
-| `GET` | `/gaps?seniority=senior` | Gaps for senior roles only |
-| `POST` | `/ingest` | Upload a new markdown file (multipart) |
-| `POST` | `/agent` | Run the LangGraph agent on a query, return final answer + tool call trace |
-| `GET` | `/agent/stream?q=...` | Stream the agent as SSE events (tool_start, token, tool_end, final) |
+| `GET` | `/health` | Checks if the database is reachable (no auth required) |
+| `GET` | `/search?q=...&generate=true` | Semantic search with RAG-generated answer (30 req/min) |
+| `GET` | `/search?q=...&generate=false` | Semantic search, raw ranked results, no LLM answer (30 req/min) |
+| `GET` | `/search?q=...&seniority=senior` | Search with filters (30 req/min) |
+| `GET` | `/match/{posting_id}` | Score user profile against one posting (30 req/min) |
+| `GET` | `/gaps` | Top missing skills across all postings (30 req/min) |
+| `GET` | `/gaps?seniority=senior` | Gaps for senior roles only (30 req/min) |
+| `POST` | `/ingest` | Upload a new markdown file, max 1 MB (5 req/min) |
+| `POST` | `/agent` | Run the LangGraph agent on a query, return final answer + tool call trace (10 req/min) |
+| `GET` | `/agent/stream?q=...` | Stream the agent as SSE events: tool_start, token, tool_end, final (10 req/min) |
+
+All endpoints except `/health` require a Bearer token when `JOB_RAG_API_KEY` is set. When the key is empty (the default), auth is disabled for local development. Rate limits are per-IP, in-memory, and per-process.
 
 Visit `http://localhost:8000/docs` for interactive API documentation where you can try each endpoint in your browser.
 
-Under the hood, every route uses `Depends(get_session)` to get an async SQLAlchemy session. The lifespan handler in `api/app.py` disposes the async engine on shutdown.
+Under the hood, every route uses `Depends(get_session)` to get an async SQLAlchemy session, plus `Depends(require_api_key)` and a rate limiter dependency. The lifespan handler in `api/app.py` disposes the async engine on shutdown.
 
 ---
 
@@ -908,12 +910,12 @@ Uses a **multi-stage build** to keep the final image small:
 
 One important optimization: `ENV UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` installs **CPU-only PyTorch**. The default PyTorch includes CUDA support (~1.5GB), which is wasted space since the cross-encoder runs fine on CPU.
 
-**Stage 2 (runtime)**: starts with a clean slim Python 3.12 image. Copies only:
+**Stage 2 (runtime)**: starts with a clean slim Python 3.12 image. Creates a non-root `appuser` (UID 1000) and copies only:
 - The virtual environment from stage 1
-- The cached Hugging Face model
+- The cached Hugging Face model (into the user's home directory)
 - The source code and data directory
 
-Build tools are discarded. Final image is smaller and more secure.
+Build tools are discarded. The container runs as `appuser`, not root, for defense in depth.
 
 ```dockerfile
 # Stage 1: install everything
@@ -925,15 +927,19 @@ COPY src/ src/
 RUN uv sync --frozen --no-dev
 RUN uv run python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
 
-# Stage 2: copy only what's needed
+# Stage 2: copy only what's needed, run as non-root
 FROM python:3.12-slim-bookworm
 WORKDIR /app
+RUN useradd -m -u 1000 appuser
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /root/.cache/huggingface /root/.cache/huggingface
+COPY --from=builder /root/.cache/huggingface /home/appuser/.cache/huggingface
+RUN chown -R appuser:appuser /home/appuser/.cache
 COPY src/ src/
 COPY data/ data/
+RUN chown -R appuser:appuser /app
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
+USER appuser
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 ```
 
@@ -954,17 +960,24 @@ On the first run, it does all the work. On subsequent runs, ingest and embed det
 
 `docker-compose.yml` defines two services:
 
-**db** - PostgreSQL with pgvector, plus a healthcheck:
+**db** - PostgreSQL with pgvector, plus a healthcheck. The database port is not exposed to the host (only reachable by other containers on the Docker network). Credentials come from environment variables:
 
 ```yaml
-healthcheck:
-  test: ["CMD-SHELL", "pg_isready -U postgres"]
-  interval: 5s
-  timeout: 5s
-  retries: 5
+db:
+  image: pgvector/pgvector:pg17
+  expose:
+    - "5432"
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
 ```
 
-This tells Docker to periodically check if PostgreSQL is ready to accept connections.
+`POSTGRES_PASSWORD` is required. If it is not set in `.env`, Docker Compose will refuse to start.
 
 **app** - the FastAPI application:
 
@@ -974,15 +987,16 @@ app:
   ports:
     - "8000:8000"
   environment:
-    DATABASE_URL: postgresql://postgres:postgres@db:5432/job_rag
-    ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/job_rag
+    DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/job_rag
+    ASYNC_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/job_rag
     OPENAI_API_KEY: ${OPENAI_API_KEY}
+    JOB_RAG_API_KEY: ${JOB_RAG_API_KEY:-}
   depends_on:
     db:
       condition: service_healthy
 ```
 
-Three important details:
+Four important details:
 
 1. **`DATABASE_URL` uses `db` not `localhost`** - inside Docker's network, containers find each other by service name. The `app` container reaches PostgreSQL at `db:5432`. These env vars override the `localhost` defaults in `config.py`.
 
@@ -990,10 +1004,13 @@ Three important details:
 
 3. **`OPENAI_API_KEY: ${OPENAI_API_KEY}`** - reads the key from your host machine's environment (or `.env`) and passes it through.
 
+4. **`JOB_RAG_API_KEY`** - when set, all API endpoints except `/health` require a `Bearer <key>` header. When empty (the default), auth is disabled for local development.
+
 ### Running it
 
 ```bash
-cp .env.example .env          # add your OpenAI key (Langfuse keys optional)
+cp .env.example .env          # set OPENAI_API_KEY and POSTGRES_PASSWORD (both required)
+                              # optionally set JOB_RAG_API_KEY to enable API auth
 docker compose up             # build image + start both services
 # Wait for "Starting API server..."
 open http://localhost:8000/docs
@@ -1009,7 +1026,7 @@ You push code to GitHub. Did you break anything? Lint errors? Type errors? Faili
 
 ### GitHub Actions
 
-The configuration is in `.github/workflows/ci.yml`. Every push to `master` and every pull request targeting `master` triggers the workflow, which runs three steps.
+The configuration is in `.github/workflows/ci.yml`. Every push to `master` and every pull request targeting `master` triggers the workflow, which runs four steps.
 
 **1. Lint with ruff:**
 
@@ -1033,7 +1050,15 @@ If a function says it returns `str` but actually returns `int`, pyright catches 
 uv run pytest -m "not eval"
 ```
 
-Runs all **79 unit tests**. The `-m "not eval"` flag skips the 50 extraction accuracy tests (which need eval data files). All 79 unit tests are fully mocked - no database, no OpenAI key, no network required.
+Runs all **89 unit tests** (including a security test suite covering auth, rate limiting, delimiter injection, and content size caps). The `-m "not eval"` flag skips the 50 extraction accuracy tests (which need eval data files). All 89 unit tests are fully mocked - no database, no OpenAI key, no network required.
+
+**4. Audit dependencies with pip-audit:**
+
+```bash
+uv run pip-audit
+```
+
+Scans all installed packages against known vulnerability databases (PyPI, OSV). Fails the build if any dependency has a published CVE with an available fix.
 
 ### Caching
 
@@ -1078,6 +1103,7 @@ job-rag/
 │   │
 │   ├── api/
 │   │   ├── app.py                FastAPI app with lifespan
+│   │   ├── auth.py               Bearer token auth + per-endpoint rate limiting
 │   │   ├── deps.py               Async session dependency
 │   │   └── routes.py             All endpoints incl. /agent and /agent/stream
 │   │
@@ -1100,6 +1126,7 @@ job-rag/
 │   ├── test_mcp_server.py        MCP tool tests (mocked sessions)
 │   ├── test_agent.py             Agent + streaming tests (mocked LangGraph)
 │   ├── test_observability.py     Langfuse enabled/disabled path tests
+│   ├── test_security.py         Auth, rate limiting, delimiter escape, size cap tests
 │   └── test_extraction_accuracy.py  50 eval-marked ground truth comparisons
 │
 ├── scripts/
@@ -1112,7 +1139,7 @@ job-rag/
 │
 ├── .env                          API keys and DB URLs (not in git)
 ├── .env.example                  Template for .env
-├── .github/workflows/ci.yml      CI pipeline: ruff + pyright + pytest
+├── .github/workflows/ci.yml      CI pipeline: ruff + pyright + pytest + pip-audit
 ├── Dockerfile                    Multi-stage build (uv + CPU PyTorch → slim runtime)
 ├── docker-compose.yml            PostgreSQL + FastAPI orchestration
 ├── pyproject.toml                Project metadata + dependencies
@@ -1127,7 +1154,7 @@ job-rag/
 ### The Docker way (one command)
 
 ```
-1. cp .env.example .env           Edit and add your OpenAI API key
+1. cp .env.example .env           Set OPENAI_API_KEY and POSTGRES_PASSWORD
 2. docker compose up              Build image + start database + start app
 
    [db]  PostgreSQL ready ✓
@@ -1172,7 +1199,7 @@ curl -N "http://localhost:8000/agent/stream?q=Find+remote+senior+roles"
 Run the test suites:
 
 ```bash
-uv run pytest                       # 79 unit tests (mocked, fast, free)
+uv run pytest                       # 89 unit tests (mocked, fast, free)
 uv run pytest -m eval                # 50 extraction accuracy tests (stored comparisons)
 uv run python scripts/evaluate.py    # RAGAS eval (~$0.13)
 ```
