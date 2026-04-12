@@ -1,4 +1,4 @@
-# How Job RAG Works — A Complete Walkthrough
+# How Job RAG Works - A Complete Walkthrough
 
 This is a ground-up walkthrough of every piece of the Job RAG system. It assumes you know how to program but doesn't assume you know anything about RAG, vector databases, LangChain, LangGraph, MCP, or LLM observability. By the end you should understand every moving part and be able to explain why each one exists.
 
@@ -9,10 +9,10 @@ Read it top to bottom the first time. After that, use the table of contents to j
 1. [What the system does](#what-does-this-system-do)
 2. [The building blocks](#the-building-blocks)
 3. [The database tables](#the-database-tables)
-4. [Pipeline 1 — Ingestion](#pipeline-1-ingestion--getting-data-in)
-5. [Pipeline 2 — Embedding](#pipeline-2-embedding--making-search-possible)
-6. [Pipeline 3 — Retrieval](#pipeline-3-retrieval--answering-questions)
-7. [Pipeline 4 — Profile matching](#pipeline-4-profile-matching--how-well-do-you-fit)
+4. [Pipeline 1 - Ingestion](#pipeline-1-ingestion--getting-data-in)
+5. [Pipeline 2 - Embedding](#pipeline-2-embedding--making-search-possible)
+6. [Pipeline 3 - Retrieval](#pipeline-3-retrieval--answering-questions)
+7. [Pipeline 4 - Profile matching](#pipeline-4-profile-matching--how-well-do-you-fit)
 8. [The intelligence layer (agent, MCP, streaming)](#the-intelligence-layer)
 9. [Observability with Langfuse](#observability--tracing-every-llm-call-with-langfuse)
 10. [Evaluation with RAGAS](#evaluation--proving-the-system-works)
@@ -34,12 +34,12 @@ You have 23 AI Engineer job postings saved as markdown files. This system:
 3. **Understands meaning** by converting each posting into a vector of numbers (an embedding)
 4. **Answers questions** like *"which jobs want LangChain experience?"* by searching for meaning, not keywords
 5. **Scores how well you match** each job against a profile you define, and tells you what skills you're missing
-6. **Runs an agent** — a small LLM-driven program that decides which tools to call, in what order, to answer multi-step questions like *"which 3 remote senior roles fit my profile best, and why?"*
+6. **Runs an agent** - a small LLM-driven program that decides which tools to call, in what order, to answer multi-step questions like *"which 3 remote senior roles fit my profile best, and why?"*
 7. **Exposes the same tools to Claude Code** via an MCP server, so you can call them from any Claude Code conversation
 8. **Streams results in real time** via Server-Sent Events so the UI feels responsive
 9. **Traces every LLM call** with Langfuse so you can debug what the system is doing
 10. **Proves it works** with RAGAS evaluation metrics against a golden dataset of queries
-11. **Runs anywhere** via Docker — one command starts the entire stack
+11. **Runs anywhere** via Docker - one command starts the entire stack
 
 The project is divided into four conceptual phases, roughly matching how it was built:
 - **Phase 1**: structured extraction + PostgreSQL storage
@@ -55,15 +55,15 @@ Before diving into the workflow, here's what each technology does and why it's n
 
 ### PostgreSQL (the database)
 
-A database is just an organized place to store data in tables — like spreadsheets with rows and columns. PostgreSQL is one of the most popular ones. We use it to store job postings, their individual skill requirements, their embeddings, and the section-level chunks used for retrieval.
+A database is just an organized place to store data in tables - like spreadsheets with rows and columns. PostgreSQL is one of the most popular ones. We use it to store job postings, their individual skill requirements, their embeddings, and the section-level chunks used for retrieval.
 
 ### pgvector (the vector extension)
 
-Normal databases store text and numbers. pgvector is an add-on that lets PostgreSQL also store and search **vectors** — lists of numbers that represent meaning (more on this in the embedding section). Without pgvector, we'd need a second database just for semantic search.
+Normal databases store text and numbers. pgvector is an add-on that lets PostgreSQL also store and search **vectors** - lists of numbers that represent meaning (more on this in the embedding section). Without pgvector, we'd need a second database just for semantic search.
 
 ### Docker + Docker Compose
 
-Instead of installing PostgreSQL on your computer (which involves version conflicts, configuration, and admin rights), Docker runs it in an isolated container — think "tiny virtual computer that only runs one thing." `docker-compose.yml` is a recipe file that says which containers to start and how they connect.
+Instead of installing PostgreSQL on your computer (which involves version conflicts, configuration, and admin rights), Docker runs it in an isolated container - think "tiny virtual computer that only runs one thing." `docker-compose.yml` is a recipe file that says which containers to start and how they connect.
 
 `docker compose up` starts the stack. `docker compose down` stops it. Your data survives both.
 
@@ -77,7 +77,7 @@ uv is a fast replacement for pip/poetry. It reads `pyproject.toml` to figure out
 
 ### SQLAlchemy (the database toolkit)
 
-Instead of writing raw SQL queries, SQLAlchemy lets you describe database tables as Python classes (`JobPostingDB` has `title`, `company`, `location` fields) and interact with them using Python. It also provides two interfaces: a **sync** one (for simple scripts and CLI commands) and an **async** one (for FastAPI, which needs to handle many concurrent requests without blocking). This project uses both — the CLI uses sync, the web API uses async, both share the same ORM models.
+Instead of writing raw SQL queries, SQLAlchemy lets you describe database tables as Python classes (`JobPostingDB` has `title`, `company`, `location` fields) and interact with them using Python. It also provides two interfaces: a **sync** one (for simple scripts and CLI commands) and an **async** one (for FastAPI, which needs to handle many concurrent requests without blocking). This project uses both - the CLI uses sync, the web API uses async, both share the same ORM models.
 
 ### Pydantic (data validation)
 
@@ -86,8 +86,8 @@ Pydantic makes sure data has the right shape. You define a class like `JobPostin
 ### OpenAI API (the LLM provider)
 
 The system calls OpenAI's servers to use two models:
-- **GPT-4o-mini** — reads job postings and extracts structured data, and later generates RAG answers and drives the agent
-- **text-embedding-3-small** — converts text into 1536-number vectors
+- **GPT-4o-mini** - reads job postings and extracts structured data, and later generates RAG answers and drives the agent
+- **text-embedding-3-small** - converts text into 1536-number vectors
 
 Both cost a small amount per call. Processing the full 23-posting corpus end-to-end costs about **$0.03**. One agent query costs about **$0.001**.
 
@@ -108,14 +108,14 @@ FastAPI turns Python functions into HTTP endpoints. You write `async def search(
 ### LangChain (LLM orchestration)
 
 LangChain is a library for composing LLM calls into chains. In this project we use it in two places:
-1. **RAG generation** — a chain that takes `{context, question}`, formats them into a prompt, sends to GPT-4o-mini, parses the string output
-2. **Agent tools** — `@tool` decorators that turn Python functions into things the LangGraph agent can call
+1. **RAG generation** - a chain that takes `{context, question}`, formats them into a prompt, sends to GPT-4o-mini, parses the string output
+2. **Agent tools** - `@tool` decorators that turn Python functions into things the LangGraph agent can call
 
 LangChain is *not* used for retrieval. We do that with raw SQLAlchemy + pgvector queries because it's simpler and avoids a duplicate vector store.
 
 ### LangGraph (agent orchestration)
 
-LangGraph is a library for building **agents** — programs where an LLM decides what to do next in a loop. The `create_react_agent` helper builds a "ReAct" agent (Reason + Act): the model reads the user's question, picks a tool, runs it, reads the result, and decides whether to call another tool or write the final answer.
+LangGraph is a library for building **agents** - programs where an LLM decides what to do next in a loop. The `create_react_agent` helper builds a "ReAct" agent (Reason + Act): the model reads the user's question, picks a tool, runs it, reads the result, and decides whether to call another tool or write the final answer.
 
 Think of it as GPT-4o-mini being given a steering wheel and three pedals (the three tools), with a text prompt saying "here's the road, go find the best match."
 
@@ -139,17 +139,17 @@ It's optional. If you don't set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` 
 
 ### Cross-encoder (reranking)
 
-A small AI model (~80MB) that runs locally in the Python process — no API calls, no server, no cost per use. It reads pairs of texts (your query + a candidate posting) and scores how well they match. Slower than vector search but much more accurate. We use it as a second pass: vector search returns 20 candidates, the cross-encoder picks the best 5.
+A small AI model (~80MB) that runs locally in the Python process - no API calls, no server, no cost per use. It reads pairs of texts (your query + a candidate posting) and scores how well they match. Slower than vector search but much more accurate. We use it as a second pass: vector search returns 20 candidates, the cross-encoder picks the best 5.
 
-The specific model is `cross-encoder/ms-marco-MiniLM-L-6-v2`, downloaded automatically from Hugging Face the first time you run the code and cached at `~/.cache/huggingface/`. It's very different from large language models like GPT-4o — it has ~22 million parameters (vs ~200 billion for GPT-4o) and doesn't generate text, it only scores match quality. Small enough to run on any laptop CPU in milliseconds.
+The specific model is `cross-encoder/ms-marco-MiniLM-L-6-v2`, downloaded automatically from Hugging Face the first time you run the code and cached at `~/.cache/huggingface/`. It's very different from large language models like GPT-4o - it has ~22 million parameters (vs ~200 billion for GPT-4o) and doesn't generate text, it only scores match quality. Small enough to run on any laptop CPU in milliseconds.
 
 ### structlog (logging)
 
-Records what the system does as structured JSON events — how many files were processed, how many tokens used, which tool the agent called, how much it cost. Structured logs are easier to search and aggregate than plain text.
+Records what the system does as structured JSON events - how many files were processed, how many tokens used, which tool the agent called, how much it cost. Structured logs are easier to search and aggregate than plain text.
 
 ### RAGAS (evaluation)
 
-A Python library that scores RAG system quality on a set of known questions. It uses an LLM (GPT-4o-mini) as a judge — reading the question, answer, retrieved context, and ground truth, then assigning scores from 0 to 1 on four metrics (faithfulness, relevancy, context precision, context recall).
+A Python library that scores RAG system quality on a set of known questions. It uses an LLM (GPT-4o-mini) as a judge - reading the question, answer, retrieved context, and ground truth, then assigning scores from 0 to 1 on four metrics (faithfulness, relevancy, context precision, context recall).
 
 ### pytest
 
@@ -165,7 +165,7 @@ GitHub's built-in automation. Every push runs lint (ruff), type check (pyright),
 
 The database has three tables. Think of each as a spreadsheet.
 
-### `job_postings` — one row per job (23 rows)
+### `job_postings` - one row per job (23 rows)
 
 | Column | Example | Purpose |
 |---|---|---|
@@ -189,7 +189,7 @@ The database has three tables. Think of each as a spreadsheet.
 | embedding | `[0.012, -0.034, ...]` | 1536 numbers, posting-level semantic summary |
 | created_at | `2026-04-10 ...` | Timestamp |
 
-### `job_requirements` — one row per skill per job (~509 rows)
+### `job_requirements` - one row per skill per job (~509 rows)
 
 | Column | Example | Purpose |
 |---|---|---|
@@ -201,9 +201,9 @@ The database has three tables. Think of each as a spreadsheet.
 
 Why a separate table instead of a JSON column? Because this schema lets you answer questions like *"which skill appears in the most postings?"* or *"which postings require Docker?"* with a single SQL query. It also lets you index on `skill` for fast lookups.
 
-The row count depends on the extraction prompt version. With v1.0 (Phase 1) the corpus had 359 requirements. With v1.1 (Phase 4, atomic-skill decomposition), it has **509** — roughly 42% more skills per posting on average because compound phrases got decomposed into atomic ones. More on that in the Pipeline 1 section.
+The row count depends on the extraction prompt version. With v1.0 (Phase 1) the corpus had 359 requirements. With v1.1 (Phase 4, atomic-skill decomposition), it has **509** - roughly 42% more skills per posting on average because compound phrases got decomposed into atomic ones. More on that in the Pipeline 1 section.
 
-### `job_chunks` — sections of each posting (76 rows)
+### `job_chunks` - sections of each posting (76 rows)
 
 | Column | Example | Purpose |
 |---|---|---|
@@ -213,11 +213,11 @@ The row count depends on the extraction prompt version. With v1.0 (Phase 1) the 
 | content | `Senior AI Eng at GitLab\nMust-have: Python, LangChain...` | The text of that section |
 | embedding | `[0.008, -0.021, ...]` | 1536 numbers for this section |
 
-Each posting is split into sections so retrieval can find the *specific part* of a posting that's relevant, not just "this posting is somewhat related." Not every posting has all four sections — some don't list benefits, some have no nice-to-haves — which is why 23 postings produce 76 chunks, not 92.
+Each posting is split into sections so retrieval can find the *specific part* of a posting that's relevant, not just "this posting is somewhat related." Not every posting has all four sections - some don't list benefits, some have no nice-to-haves - which is why 23 postings produce 76 chunks, not 92.
 
 ---
 
-## Pipeline 1: Ingestion — Getting Data In
+## Pipeline 1: Ingestion - Getting Data In
 
 **Command:** `job-rag ingest --dir data/postings`
 
@@ -225,20 +225,20 @@ This processes all 23 markdown files and stores them in the database. Here's wha
 
 ### Step 1: Read the file
 
-The system reads a markdown file like `iu-senior-ai-engineer.md`. It's just text — headings, bullet points, paragraphs. No parsing yet.
+The system reads a markdown file like `iu-senior-ai-engineer.md`. It's just text - headings, bullet points, paragraphs. No parsing yet.
 
 ### Step 2: Check for duplicates
 
 Before doing anything expensive (calling the LLM), the system checks if this posting is already in the database. It does this two ways:
 
-- **Content hash** — takes the full text and generates a SHA-256 fingerprint. If the same bytes were already processed, skip it.
-- **LinkedIn ID** — extracts the job ID from the URL (e.g., `/jobs/view/4396945951/` → `4396945951`). If a posting with the same LinkedIn ID exists, skip it.
+- **Content hash** - takes the full text and generates a SHA-256 fingerprint. If the same bytes were already processed, skip it.
+- **LinkedIn ID** - extracts the job ID from the URL (e.g., `/jobs/view/4396945951/` → `4396945951`). If a posting with the same LinkedIn ID exists, skip it.
 
 This is why running `job-rag ingest` a second time is free and instant: every posting is flagged as a duplicate before the LLM is ever called.
 
 ### Step 3: Extract structured data with the LLM
 
-The raw markdown is sent to GPT-4o-mini along with a detailed system prompt. Instructor forces the model to return data in the exact shape defined by the `JobPosting` Pydantic model. If it returns an invalid value (like `"seniority": "experienced"` — which isn't in the enum), Pydantic rejects it and Instructor asks the model to try again. Up to 3 retries with exponential backoff (handled by tenacity).
+The raw markdown is sent to GPT-4o-mini along with a detailed system prompt. Instructor forces the model to return data in the exact shape defined by the `JobPosting` Pydantic model. If it returns an invalid value (like `"seniority": "experienced"` - which isn't in the enum), Pydantic rejects it and Instructor asks the model to try again. Up to 3 retries with exponential backoff (handled by tenacity).
 
 **Cost**: ~$0.001 per posting. Full corpus: ~$0.025.
 
@@ -260,7 +260,7 @@ The v1.1 prompt (introduced in Phase 4) adds explicit decomposition rules and fe
 - `bus systems`, `CAN`, `LIN`, `Ethernet` (split on parens)
 - `Electrical Engineering`, `Computer Science`, `Mechatronics`, `AI specialization` (split on the degree list)
 
-Concrete measurable impact: running the agent on the query *"Which 3 remote senior AI Engineer roles fit my profile best?"*, the top match moved from 0.183 (under v1.0) to 0.588 (under v1.1 + profile expansion + alias dictionary updates). That single change — rewriting the extraction prompt — accounts for roughly half of the total improvement.
+Concrete measurable impact: running the agent on the query *"Which 3 remote senior AI Engineer roles fit my profile best?"*, the top match moved from 0.183 (under v1.0) to 0.588 (under v1.1 + profile expansion + alias dictionary updates). That single change - rewriting the extraction prompt - accounts for roughly half of the total improvement.
 
 The `prompt_version` column on `job_postings` stores which version produced that row. If you ever need to re-extract under a newer version, the `job-rag reset` command wipes all postings (cascade-deleting requirements and chunks) so you can re-ingest from scratch.
 
@@ -274,7 +274,7 @@ After all 23 files (under v1.1): 23 posting rows, 509 requirement rows, ~$0.025 
 
 ---
 
-## Pipeline 2: Embedding — Making Search Possible
+## Pipeline 2: Embedding - Making Search Possible
 
 **Command:** `job-rag embed`
 
@@ -289,15 +289,15 @@ An embedding is a fixed-length list of floating-point numbers that represents th
 - `"remote work"` and `"work from home"` → close together
 - `"RAG experience"` and `"retrieval augmented generation"` → close together
 
-"Close" here means small cosine distance — a mathematical measure of the angle between two vectors. Small angle = similar meaning.
+"Close" here means small cosine distance - a mathematical measure of the angle between two vectors. Small angle = similar meaning.
 
-This is what makes semantic search possible. You don't need the exact keyword — the system understands that *"which jobs want RAG experience?"* is related to *"retrieval-augmented generation"* even if the exact phrase doesn't appear.
+This is what makes semantic search possible. You don't need the exact keyword - the system understands that *"which jobs want RAG experience?"* is related to *"retrieval-augmented generation"* even if the exact phrase doesn't appear.
 
 ### What gets embedded?
 
 For each of the 23 postings, the system creates multiple embeddings:
 
-**1. One posting-level embedding** — a formatted summary of the whole posting:
+**1. One posting-level embedding** - a formatted summary of the whole posting:
 
 ```
 Title: (Senior) AI Engineer
@@ -311,7 +311,7 @@ Responsibilities: Build agentic AI systems for multi-step user journeys...
 
 This becomes 1536 numbers stored in the `embedding` column of `job_postings`. Used for "find the most relevant posting" queries.
 
-**2. Multiple chunk-level embeddings** — one per section of the posting:
+**2. Multiple chunk-level embeddings** - one per section of the posting:
 
 - Responsibilities chunk → 1536 numbers
 - Must-have chunk → 1536 numbers
@@ -324,7 +324,7 @@ Each stored as a row in `job_chunks`. Not every posting has all four sections, w
 
 ---
 
-## Pipeline 3: Retrieval — Answering Questions
+## Pipeline 3: Retrieval - Answering Questions
 
 **Endpoint:** `GET /search?q=which+jobs+want+LangChain`
 
@@ -348,13 +348,13 @@ LIMIT 20;
 
 pgvector's `<=>` operator computes cosine distance directly in the database. Fast and simple.
 
-Think of this as casting a wide net — get 20 reasonable candidates, knowing that some won't be perfect fits.
+Think of this as casting a wide net - get 20 reasonable candidates, knowing that some won't be perfect fits.
 
 ### Stage 3: Rerank with the cross-encoder
 
 The cross-encoder model reads each of the 20 candidates alongside your query and assigns a more accurate relevance score. It picks the best 5.
 
-Why two stages? Vector search compares compressed representations of whole documents — fast but approximate. The cross-encoder reads the full text of both the query and the candidate together — slower but much more accurate. The two-stage approach gets the best of both: fast narrowing, precise picking.
+Why two stages? Vector search compares compressed representations of whole documents - fast but approximate. The cross-encoder reads the full text of both the query and the candidate together - slower but much more accurate. The two-stage approach gets the best of both: fast narrowing, precise picking.
 
 ### Stage 4: Generate an answer with LangChain + GPT-4o-mini
 
@@ -372,7 +372,7 @@ The response includes the answer text and the source postings (with similarity +
 
 ---
 
-## Pipeline 4: Profile Matching — How Well Do You Fit?
+## Pipeline 4: Profile Matching - How Well Do You Fit?
 
 **Endpoint:** `GET /match/{posting_id}`
 
@@ -395,7 +395,7 @@ The response includes the answer text and the source postings (with similarity +
 }
 ```
 
-As of Phase 4, the profile has **61 skills** — expanded from an initial 30 to reflect everything the project itself demonstrates (LangChain, LangGraph, FastAPI, pgvector, MCP, observability, async Python, SQLAlchemy, etc.). If your profile undersells you, match scores will be artificially low.
+As of Phase 4, the profile has **61 skills** - expanded from an initial 30 to reflect everything the project itself demonstrates (LangChain, LangGraph, FastAPI, pgvector, MCP, observability, async Python, SQLAlchemy, etc.). If your profile undersells you, match scores will be artificially low.
 
 ### The matching process
 
@@ -461,18 +461,18 @@ The result is a report that includes:
 
 **Endpoint:** `GET /gaps`
 
-Runs the matching across all postings in the corpus and aggregates the misses: *"LangChain is missing in 13% of postings, ML in 17%, FastAPI in 13%."* This tells you which skills would have the biggest impact if you learned them — ranked by frequency across the whole corpus.
+Runs the matching across all postings in the corpus and aggregates the misses: *"LangChain is missing in 13% of postings, ML in 17%, FastAPI in 13%."* This tells you which skills would have the biggest impact if you learned them - ranked by frequency across the whole corpus.
 
 ---
 
 ## The Intelligence Layer
 
-Phases 1–3 give you a set of pipelines: text goes in, a query comes out with a ranked list of postings. It answers one question at a time.
+Phases 1-3 give you a set of pipelines: text goes in, a query comes out with a ranked list of postings. It answers one question at a time.
 
 Phase 4 adds a layer on top that lets you do multi-step things like *"find the top 3 remote senior roles, match each of them against my profile, rank by score, and tell me which one to apply to first."* That's three tool calls chained together, and deciding how to chain them requires an LLM that understands the task.
 
 The intelligence layer has four parts:
-1. A **shared async tool layer** — four functions that wrap the core services
+1. A **shared async tool layer** - four functions that wrap the core services
 2. A **LangGraph ReAct agent** that orchestrates those tools for multi-step questions
 3. An **MCP server** that exposes the same tools to Claude Code
 4. **Server-Sent Events streaming** for real-time tool call and token output
@@ -483,12 +483,12 @@ The key architectural principle: **one tool implementation, three entry points.*
 
 In `src/job_rag/mcp_server/tools.py` are four async functions:
 
-- `search_postings(query, remote_only, seniority, limit)` — semantic search with rerank, returns structured posting summaries
-- `match_skills(posting_id)` — fetch one posting, run matching, return a match report
-- `skill_gaps(seniority, remote)` — aggregate gaps across filtered postings
-- `ingest_posting(file_path, content)` — ingest + embed a new posting
+- `search_postings(query, remote_only, seniority, limit)` - semantic search with rerank, returns structured posting summaries
+- `match_skills(posting_id)` - fetch one posting, run matching, return a match report
+- `skill_gaps(seniority, remote)` - aggregate gaps across filtered postings
+- `ingest_posting(file_path, content)` - ingest + embed a new posting
 
-These functions take simple arguments, return plain dicts (JSON-serializable), and manage their own database sessions. They're designed to be callable from anywhere — an MCP server, an agent, an HTTP handler, a test.
+These functions take simple arguments, return plain dicts (JSON-serializable), and manage their own database sessions. They're designed to be callable from anywhere - an MCP server, an agent, an HTTP handler, a test.
 
 Why one implementation? Because if you had separate search logic in three places, they would slowly drift. A bug fix in one wouldn't propagate to the others. A new filter added to the agent wouldn't be visible to Claude Code. Concentrating the logic in one place is a force multiplier for every future change.
 
@@ -511,8 +511,8 @@ The specific pattern we use is **ReAct** (Reason + Act):
 The system prompt we use is in `src/job_rag/agent/graph.py` and includes rules like:
 - *"For 'find jobs that...' questions, call `search_jobs` first"*
 - *"To rank results by fit, call `match_profile` on the most promising postings"*
-- *"When presenting multiple postings, ALWAYS sort them by score from `match_profile` in descending order — never list them in the order you happened to call the tool"*
-- *"Don't dump raw JSON back to the user — synthesize"*
+- *"When presenting multiple postings, ALWAYS sort them by score from `match_profile` in descending order - never list them in the order you happened to call the tool"*
+- *"Don't dump raw JSON back to the user - synthesize"*
 
 ### How one agent query actually runs
 
@@ -524,16 +524,16 @@ job-rag agent "Which 3 remote senior AI Engineer roles fit my profile best?"
 
 The agent loop fires roughly like this:
 
-1. **LLM call #1** — reads the question, outputs a tool call: `search_jobs(query="senior AI Engineer", remote_only=true, limit=5)`
-2. **Tool execution** — runs the semantic search, gets 5 postings, returns a JSON list
-3. **LLM call #2** — reads the search results, outputs a second tool call: `search_jobs(...)` (refining with different terms) OR jumps straight to match_profile. In practice it often does two searches to cover different phrasings.
-4. **Tool execution** — second search, more results
-5. **LLM call #3** — picks the most promising 3 postings, outputs `match_profile(posting_id="...")` for the first
-6. **Tool execution** — matching runs, returns score + matched/missed skills
-7. **LLM calls #4 and #5** — same for postings 2 and 3
-8. **LLM call #6 (final)** — reads all three match reports, sorts by score descending (per the system prompt), writes a synthesized answer citing each company with the score and the top matched skills
+1. **LLM call #1** - reads the question, outputs a tool call: `search_jobs(query="senior AI Engineer", remote_only=true, limit=5)`
+2. **Tool execution** - runs the semantic search, gets 5 postings, returns a JSON list
+3. **LLM call #2** - reads the search results, outputs a second tool call: `search_jobs(...)` (refining with different terms) OR jumps straight to match_profile. In practice it often does two searches to cover different phrasings.
+4. **Tool execution** - second search, more results
+5. **LLM call #3** - picks the most promising 3 postings, outputs `match_profile(posting_id="...")` for the first
+6. **Tool execution** - matching runs, returns score + matched/missed skills
+7. **LLM calls #4 and #5** - same for postings 2 and 3
+8. **LLM call #6 (final)** - reads all three match reports, sorts by score descending (per the system prompt), writes a synthesized answer citing each company with the score and the top matched skills
 
-Total: 5 tool calls, 6 LLM calls, ~5–10 seconds, ~$0.001. The important thing is that *we didn't write the pipeline* — the model decided on the order of operations each time.
+Total: 5 tool calls, 6 LLM calls, ~5-10 seconds, ~$0.001. The important thing is that *we didn't write the pipeline* - the model decided on the order of operations each time.
 
 ### Why this matters more than a raw API call
 
@@ -548,7 +548,7 @@ The agent does all of that automatically. It's the difference between giving som
 
 ### The MCP server
 
-MCP stands for **Model Context Protocol** — a standard introduced by Anthropic for exposing tools to LLM clients. Claude Code speaks MCP. When you add an MCP server to Claude Code's configuration, Claude gets that server's tools available in every conversation.
+MCP stands for **Model Context Protocol** - a standard introduced by Anthropic for exposing tools to LLM clients. Claude Code speaks MCP. When you add an MCP server to Claude Code's configuration, Claude gets that server's tools available in every conversation.
 
 The job-rag MCP server (`src/job_rag/mcp_server/server.py`) registers the four shared tool functions with FastMCP:
 
@@ -589,17 +589,17 @@ To wire it into Claude Code, you add an entry to your MCP config:
 
 Now Claude Code can call `search_postings`, `match_skills`, etc. as native tools in any conversation. You can ask something like *"search job-rag for roles using LangGraph and tell me which one I match best"* and Claude orchestrates the tools itself.
 
-How MCP works under the hood: when Claude Code starts, it spawns the `job-rag mcp` subprocess and communicates with it over standard input/output using JSON-RPC messages. FastMCP handles the protocol details — parsing requests, dispatching to the right `@mcp.tool()`-decorated function, serializing the response. You don't write any protocol code.
+How MCP works under the hood: when Claude Code starts, it spawns the `job-rag mcp` subprocess and communicates with it over standard input/output using JSON-RPC messages. FastMCP handles the protocol details - parsing requests, dispatching to the right `@mcp.tool()`-decorated function, serializing the response. You don't write any protocol code.
 
 ### Streaming with Server-Sent Events
 
-The agent takes 5–10 seconds to finish. Without streaming, the user sees nothing until the final answer arrives. With streaming, they see tool calls flashing through and partial LLM output appearing in real time — which makes the system feel orders of magnitude more responsive.
+The agent takes 5-10 seconds to finish. Without streaming, the user sees nothing until the final answer arrives. With streaming, they see tool calls flashing through and partial LLM output appearing in real time - which makes the system feel orders of magnitude more responsive.
 
 The streaming stack has three layers:
 
-**1. LangGraph's `astream_events`** — the LangGraph agent exposes an async iterator that yields low-level events for every step: `on_chat_model_stream` (one LLM token), `on_tool_start` (tool invoked), `on_tool_end` (tool finished), etc.
+**1. LangGraph's `astream_events`** - the LangGraph agent exposes an async iterator that yields low-level events for every step: `on_chat_model_stream` (one LLM token), `on_tool_start` (tool invoked), `on_tool_end` (tool finished), etc.
 
-**2. `src/job_rag/agent/stream.py`** — an adapter that filters and reshapes those raw events into stable dictionaries:
+**2. `src/job_rag/agent/stream.py`** - an adapter that filters and reshapes those raw events into stable dictionaries:
 
 ```python
 {"type": "token", "content": "Here are"}
@@ -610,7 +610,7 @@ The streaming stack has three layers:
 
 The adapter is in its own file because it's shared: the CLI's `--stream` flag and the FastAPI `/agent/stream` endpoint both consume the same async generator. If LangGraph changes its event schema in a future version, this adapter is the only place we have to update.
 
-**3. `sse-starlette`'s `EventSourceResponse`** — the FastAPI endpoint wraps the adapter's output in SSE frames and sends them over HTTP:
+**3. `sse-starlette`'s `EventSourceResponse`** - the FastAPI endpoint wraps the adapter's output in SSE frames and sends them over HTTP:
 
 ```python
 @router.get("/agent/stream")
@@ -638,7 +638,7 @@ Browsers consume this natively with `new EventSource("/agent/stream?q=...")`. Fr
 
 ---
 
-## Observability — Tracing Every LLM Call with Langfuse
+## Observability - Tracing Every LLM Call with Langfuse
 
 When you build a system that makes many LLM calls in sequence, debugging becomes hard. Say the agent gives a weird answer. Was it:
 
@@ -670,9 +670,9 @@ Two helper functions in `src/job_rag/observability.py`:
 **`get_langchain_callbacks()`** returns a list of LangChain callback handlers. If Langfuse is enabled, the list contains one `langfuse.langchain.CallbackHandler` that attaches to every chain invocation. If not, the list is empty.
 
 Every direct OpenAI call in the codebase goes through `get_openai_client()`:
-- `extraction/extractor.py` — the Instructor extraction
-- `services/embedding.py` — batch posting embeddings
-- `services/retrieval.py` — query embedding
+- `extraction/extractor.py` - the Instructor extraction
+- `services/embedding.py` - batch posting embeddings
+- `services/retrieval.py` - query embedding
 
 Every LangChain call passes `get_langchain_callbacks()` as `config={"callbacks": callbacks}`:
 - The RAG generation chain in `services/retrieval.py`
@@ -737,9 +737,9 @@ Run any command that makes LLM calls, then open the Langfuse dashboard and watch
 
 ---
 
-## Evaluation — Proving the System Works
+## Evaluation - Proving the System Works
 
-When you build a system that uses LLMs to answer questions, how do you know the answers are actually good? You can't just eyeball it — you need numbers. That's what evaluation does.
+When you build a system that uses LLMs to answer questions, how do you know the answers are actually good? You can't just eyeball it - you need numbers. That's what evaluation does.
 
 ### The problem
 
@@ -747,11 +747,11 @@ The RAG pipeline has many moving parts: embedding, vector search, reranking, gen
 
 ### Golden dataset
 
-The foundation of evaluation is a **golden dataset** — a set of questions where you already know the right answer. `data/eval/golden_queries.json` contains **18 queries** with:
+The foundation of evaluation is a **golden dataset** - a set of questions where you already know the right answer. `data/eval/golden_queries.json` contains **18 queries** with:
 
-- **question** — what the user asks
-- **ground_truth** — the correct answer, written by hand after reading all 23 postings
-- **expected_sources** — which companies should appear in the results
+- **question** - what the user asks
+- **ground_truth** - the correct answer, written by hand after reading all 23 postings
+- **expected_sources** - which companies should appear in the results
 
 The 18 queries cover five categories:
 
@@ -763,11 +763,11 @@ The 18 queries cover five categories:
 | Comparative | "Compare requirements between Trimble and GitLab" | 3 |
 | Profile-relevant | "Find roles where automotive/HMI background is relevant" | 2 |
 
-Building this dataset is manual work — run each query, read the answer, compare against the actual postings, write down what the correct answer should be. It takes time but it's the only way to have a reliable benchmark.
+Building this dataset is manual work - run each query, read the answer, compare against the actual postings, write down what the correct answer should be. It takes time but it's the only way to have a reliable benchmark.
 
-### RAGAS — the evaluation framework
+### RAGAS - the evaluation framework
 
-[RAGAS](https://docs.ragas.io/) (Retrieval Augmented Generation Assessment) scores RAG systems on four dimensions. Each metric uses GPT-4o-mini as a judge — reading the question, the answer, the retrieved context, and the ground truth, then assigning a score from 0 to 1.
+[RAGAS](https://docs.ragas.io/) (Retrieval Augmented Generation Assessment) scores RAG systems on four dimensions. Each metric uses GPT-4o-mini as a judge - reading the question, the answer, the retrieved context, and the ground truth, then assigning a score from 0 to 1.
 
 The numbers below are the current **v1.1 baseline**, measured under the atomic-skill decomposition extraction prompt, on all 18 golden queries.
 
@@ -778,25 +778,25 @@ The numbers below are the current **v1.1 baseline**, measured under the atomic-s
 | Context Precision | **0.67** | 0.60 | **+0.07** | Top-ranked retrieved postings are the right ones |
 | Context Recall | **0.43** | 0.47 | −0.04 | All relevant postings are present in the retrieval window |
 
-**Faithfulness** — RAGAS breaks each answer into individual statements (*"Thieme requires LangChain"*, *"GovRadar is fully remote"*), then checks each against the retrieved context. Statements that can't be traced back are marked unfaithful. Under v1.1 the score is **0.81**, essentially unchanged from the v1.0 baseline of 0.82. One query (the Trimble-vs-GitLab comparative) produced an answer long enough that the faithfulness scorer hit GPT-4o-mini's `max_tokens` limit while trying to enumerate statement verdicts. The script catches this gracefully and excludes the failed sample, so faithfulness has n=17/18 while the other metrics have n=18/18. If the comparative query's partial scores had landed, faithfulness would likely be a bit higher.
+**Faithfulness** - RAGAS breaks each answer into individual statements (*"Thieme requires LangChain"*, *"GovRadar is fully remote"*), then checks each against the retrieved context. Statements that can't be traced back are marked unfaithful. Under v1.1 the score is **0.81**, essentially unchanged from the v1.0 baseline of 0.82. One query (the Trimble-vs-GitLab comparative) produced an answer long enough that the faithfulness scorer hit GPT-4o-mini's `max_tokens` limit while trying to enumerate statement verdicts. The script catches this gracefully and excludes the failed sample, so faithfulness has n=17/18 while the other metrics have n=18/18. If the comparative query's partial scores had landed, faithfulness would likely be a bit higher.
 
-**Answer Relevancy** — RAGAS generates hypothetical questions that the answer *would* be a good response to, then compares those to the original question using embeddings. Similar → relevant. Under v1.1, **0.68** (down from 0.74). The drop comes from a few metadata queries where the system's answer is honest-but-unhelpful (*"the retrieved context doesn't contain information about vacation days"*), which hurts relevancy even though it's the correct response to give.
+**Answer Relevancy** - RAGAS generates hypothetical questions that the answer *would* be a good response to, then compares those to the original question using embeddings. Similar → relevant. Under v1.1, **0.68** (down from 0.74). The drop comes from a few metadata queries where the system's answer is honest-but-unhelpful (*"the retrieved context doesn't contain information about vacation days"*), which hurts relevancy even though it's the correct response to give.
 
-**Context Precision** — Are the top-ranked retrieved postings the ones that actually contain the answer? Under v1.1, **0.67** — up from 0.60 in v1.0. **This is the biggest improvement**, and it's exactly the metric that atomic-skill decomposition should improve: when postings store their requirements as atomic skills (`langchain`, `fastapi`, `vector databases`) rather than compound sentences, the embedded chunks become more precisely aligned with skill-based queries, so the retriever finds the right posting more often.
+**Context Precision** - Are the top-ranked retrieved postings the ones that actually contain the answer? Under v1.1, **0.67** - up from 0.60 in v1.0. **This is the biggest improvement**, and it's exactly the metric that atomic-skill decomposition should improve: when postings store their requirements as atomic skills (`langchain`, `fastapi`, `vector databases`) rather than compound sentences, the embedded chunks become more precisely aligned with skill-based queries, so the retriever finds the right posting more often.
 
-**Context Recall** — Did we retrieve *all* the relevant documents? Under v1.1, **0.43** (slightly down from 0.47). We retrieve 20 candidates and rerank to 5, but some questions (like *"which jobs require Python?"*) have 10+ relevant postings across the corpus, so 5 can't cover them all. The small drop from v1.0 may be partial noise or a mild side-effect of having more chunks per posting (76 vs 74) — the semantic signal is slightly more spread out across chunks.
+**Context Recall** - Did we retrieve *all* the relevant documents? Under v1.1, **0.43** (slightly down from 0.47). We retrieve 20 candidates and rerank to 5, but some questions (like *"which jobs require Python?"*) have 10+ relevant postings across the corpus, so 5 can't cover them all. The small drop from v1.0 may be partial noise or a mild side-effect of having more chunks per posting (76 vs 74) - the semantic signal is slightly more spread out across chunks.
 
 ### What the scores reveal
 
 | Query type | Faithfulness | Relevancy | Precision | Recall |
 |---|---|---|---|---|
-| Skill queries (LangChain, RAG, PyTorch, Docker, agentic AI) | 0.93–1.00 | 0.86–1.00 | 1.00 | 0.50–0.78 |
-| Domain queries (German language, automotive/HMI) | 0.82–1.00 | 0.66–0.98 | 1.00 | 0.67–0.86 |
+| Skill queries (LangChain, RAG, PyTorch, Docker, agentic AI) | 0.93-1.00 | 0.86-1.00 | 1.00 | 0.50-0.78 |
+| Domain queries (German language, automotive/HMI) | 0.82-1.00 | 0.66-0.98 | 1.00 | 0.67-0.86 |
 | Comparative (Trimble vs GitLab) | (skipped) | 0.73 | 1.00 | 1.00 |
-| Filter queries (remote senior, Berlin, entry-level) | 0.50–0.92 | 0.69–1.00 | 0.00–0.68 | 0.00–0.44 |
-| Metadata (salary, vacation, benefits) | 0.20–1.00 | 0.00 | 0.00–1.00 | 0.00 |
+| Filter queries (remote senior, Berlin, entry-level) | 0.50-0.92 | 0.69-1.00 | 0.00-0.68 | 0.00-0.44 |
+| Metadata (salary, vacation, benefits) | 0.20-1.00 | 0.00 | 0.00-1.00 | 0.00 |
 
-The system excels at skill-based semantic search — exactly what it was designed for. It does well on domain queries now that v1.1 decomposition has atomized phrases like *"Fluent German"* and *"automotive AI solutions"* into matchable units. It struggles with metadata queries (vacation days, salaries, benefits) because the embeddings encode *what a job is about*, not *what perks it offers*. That's a known limitation of pure dense retrieval. Adding hybrid search (dense + BM25 keyword) or routing metadata queries to structured SQL filters would fix it. This is the most obvious next-level improvement for the retrieval layer.
+The system excels at skill-based semantic search - exactly what it was designed for. It does well on domain queries now that v1.1 decomposition has atomized phrases like *"Fluent German"* and *"automotive AI solutions"* into matchable units. It struggles with metadata queries (vacation days, salaries, benefits) because the embeddings encode *what a job is about*, not *what perks it offers*. That's a known limitation of pure dense retrieval. Adding hybrid search (dense + BM25 keyword) or routing metadata queries to structured SQL filters would fix it. This is the most obvious next-level improvement for the retrieval layer.
 
 ### Running the evaluation
 
@@ -811,13 +811,13 @@ The script:
 3. Scores each answer with the 4 RAGAS metrics (4 calls per query × 18 = 72 LLM scoring calls)
 4. Prints a summary and saves per-query results to `data/eval/results.json`
 
-Total cost: ~$0.10–0.15.
+Total cost: ~$0.10-0.15.
 
 ### Extraction accuracy tests
 
 A separate form of evaluation: *did the extraction pipeline produce correct data?*
 
-Five postings were manually verified — reading the markdown and writing down exactly what the extraction should produce (company, seniority, remote policy, must-have skill count, key required skills, etc.). Expectations live in `data/eval/extraction_ground_truth.json`. A captured extraction run is in `data/eval/extraction_results.json`.
+Five postings were manually verified - reading the markdown and writing down exactly what the extraction should produce (company, seniority, remote policy, must-have skill count, key required skills, etc.). Expectations live in `data/eval/extraction_ground_truth.json`. A captured extraction run is in `data/eval/extraction_results.json`.
 
 `tests/test_extraction_accuracy.py` compares the two:
 
@@ -833,11 +833,11 @@ This produces **50 parametrized tests** (10 categories × 5 postings). Run with:
 uv run pytest -m eval
 ```
 
-These tests don't call the OpenAI API — they compare stored outputs against stored expectations. Fast, free, deterministic. Excluded from CI because they depend on specific eval data files.
+These tests don't call the OpenAI API - they compare stored outputs against stored expectations. Fast, free, deterministic. Excluded from CI because they depend on specific eval data files.
 
 ---
 
-## The API — How to Talk to the System
+## The API - How to Talk to the System
 
 **Command:** `job-rag serve` (starts the server at `http://localhost:8000`)
 
@@ -860,7 +860,7 @@ Under the hood, every route uses `Depends(get_session)` to get an async SQLAlche
 
 ---
 
-## The CLI — Terminal Commands
+## The CLI - Terminal Commands
 
 | Command | What it does |
 |---|---|
@@ -879,11 +879,11 @@ Under the hood, every route uses `Depends(get_session)` to get an async SQLAlche
 | `job-rag agent "<query>"` | Run the LangGraph agent on one query, print the final answer |
 | `job-rag agent --stream "<query>"` | Same, with tool calls and token-by-token streaming |
 
-`reset` is useful after bumping `PROMPT_VERSION` — you can wipe the DB and re-ingest under the new prompt in two commands.
+`reset` is useful after bumping `PROMPT_VERSION` - you can wipe the DB and re-ingest under the new prompt in two commands.
 
 ---
 
-## Deployment — Running in Docker
+## Deployment - Running in Docker
 
 ### The problem
 
@@ -898,9 +898,9 @@ That's a lot. Docker packages everything so `docker compose up` does it all.
 
 ### How Docker works (the short version)
 
-A **Dockerfile** is a recipe for building an image — a snapshot of a computer with everything installed. A **container** is a running instance of an image. **Docker Compose** orchestrates multiple containers (database + app) so they can talk to each other.
+A **Dockerfile** is a recipe for building an image - a snapshot of a computer with everything installed. A **container** is a running instance of an image. **Docker Compose** orchestrates multiple containers (database + app) so they can talk to each other.
 
-### The Dockerfile — two-stage build
+### The Dockerfile - two-stage build
 
 Uses a **multi-stage build** to keep the final image small:
 
@@ -948,13 +948,13 @@ job-rag embed         # generate embeddings (skips already-embedded)
 uvicorn ...           # start the API server
 ```
 
-On the first run, it does all the work. On subsequent runs, ingest and embed detect existing data and skip to serving — zero API cost.
+On the first run, it does all the work. On subsequent runs, ingest and embed detect existing data and skip to serving - zero API cost.
 
-### Docker Compose — orchestrating both services
+### Docker Compose - orchestrating both services
 
 `docker-compose.yml` defines two services:
 
-**db** — PostgreSQL with pgvector, plus a healthcheck:
+**db** - PostgreSQL with pgvector, plus a healthcheck:
 
 ```yaml
 healthcheck:
@@ -966,7 +966,7 @@ healthcheck:
 
 This tells Docker to periodically check if PostgreSQL is ready to accept connections.
 
-**app** — the FastAPI application:
+**app** - the FastAPI application:
 
 ```yaml
 app:
@@ -984,11 +984,11 @@ app:
 
 Three important details:
 
-1. **`DATABASE_URL` uses `db` not `localhost`** — inside Docker's network, containers find each other by service name. The `app` container reaches PostgreSQL at `db:5432`. These env vars override the `localhost` defaults in `config.py`.
+1. **`DATABASE_URL` uses `db` not `localhost`** - inside Docker's network, containers find each other by service name. The `app` container reaches PostgreSQL at `db:5432`. These env vars override the `localhost` defaults in `config.py`.
 
-2. **`depends_on: condition: service_healthy`** — the app won't start until PostgreSQL's healthcheck passes. Without this, the app would crash trying to connect to an unready database.
+2. **`depends_on: condition: service_healthy`** - the app won't start until PostgreSQL's healthcheck passes. Without this, the app would crash trying to connect to an unready database.
 
-3. **`OPENAI_API_KEY: ${OPENAI_API_KEY}`** — reads the key from your host machine's environment (or `.env`) and passes it through.
+3. **`OPENAI_API_KEY: ${OPENAI_API_KEY}`** - reads the key from your host machine's environment (or `.env`) and passes it through.
 
 ### Running it
 
@@ -1001,7 +1001,7 @@ open http://localhost:8000/docs
 
 ---
 
-## CI/CD — Automated Quality Checks
+## CI/CD - Automated Quality Checks
 
 ### The problem
 
@@ -1033,11 +1033,11 @@ If a function says it returns `str` but actually returns `int`, pyright catches 
 uv run pytest -m "not eval"
 ```
 
-Runs all **79 unit tests**. The `-m "not eval"` flag skips the 50 extraction accuracy tests (which need eval data files). All 79 unit tests are fully mocked — no database, no OpenAI key, no network required.
+Runs all **79 unit tests**. The `-m "not eval"` flag skips the 50 extraction accuracy tests (which need eval data files). All 79 unit tests are fully mocked - no database, no OpenAI key, no network required.
 
 ### Caching
 
-The workflow uses `astral-sh/setup-uv@v4` with `enable-cache: true`. First run downloads everything (~3–4 minutes, mostly PyTorch). Subsequent runs hit the cache (~30 seconds).
+The workflow uses `astral-sh/setup-uv@v4` with `enable-cache: true`. First run downloads everything (~3-4 minutes, mostly PyTorch). Subsequent runs hit the cache (~30 seconds).
 
 ---
 
@@ -1192,7 +1192,7 @@ Behind the scenes:
 3. The tool executes. It queries PostgreSQL via pgvector cosine distance, gets 20 candidates, reranks with the cross-encoder, and returns the top 5 as a JSON list.
 4. The agent reads the result, decides to refine, calls `search_jobs` again with different terms.
 5. The agent picks 3 promising postings and calls `match_profile(posting_id=...)` on each. Each call loads your `profile.json`, runs fuzzy alias-based matching against the posting's requirements, and returns a score plus matched/missed skills.
-6. The agent reads the three match reports, sorts by score descending (per its system prompt), and writes a synthesized answer: *"Here are your top 3 fits, ranked by match score. 1. IU Group (0.588) — matched on Python, FastAPI, tool use, embeddings, vector search, monitoring, testing. Gaps: ..."*
+6. The agent reads the three match reports, sorts by score descending (per its system prompt), and writes a synthesized answer: *"Here are your top 3 fits, ranked by match score. 1. IU Group (0.588) - matched on Python, FastAPI, tool use, embeddings, vector search, monitoring, testing. Gaps: ..."*
 7. If Langfuse is configured, all 5+ LLM calls and all 5 tool invocations show up as a nested trace tree in the dashboard.
 8. The CLI calls `observability.flush()` on exit so no traces are lost.
 
@@ -1215,8 +1215,8 @@ Total: ~5 seconds, ~$0.001, 5 tool calls, 6 LLM calls.
 
 ## What to read next
 
-- **README.md** — the portfolio-facing overview. Shorter, narrative-first, includes the IU Group "what it actually found" story.
-- **docs/project-job-rag.md** — the phase-by-phase project plan with what was built in each phase, design decisions, and results.
-- **src/job_rag/services/retrieval.py** — the clearest single file if you want to see the RAG core end-to-end in one place.
-- **src/job_rag/agent/graph.py** — the LangGraph agent assembly, system prompt, and `run_agent` helper.
-- **src/job_rag/mcp_server/tools.py** — the shared async tool layer. If you change one function here, all three entry points (MCP, agent, FastAPI) get the update automatically.
+- **README.md** - the portfolio-facing overview. Shorter, narrative-first, includes the IU Group "what it actually found" story.
+- **docs/project-job-rag.md** - the phase-by-phase project plan with what was built in each phase, design decisions, and results.
+- **src/job_rag/services/retrieval.py** - the clearest single file if you want to see the RAG core end-to-end in one place.
+- **src/job_rag/agent/graph.py** - the LangGraph agent assembly, system prompt, and `run_agent` helper.
+- **src/job_rag/mcp_server/tools.py** - the shared async tool layer. If you change one function here, all three entry points (MCP, agent, FastAPI) get the update automatically.

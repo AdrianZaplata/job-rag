@@ -1,4 +1,4 @@
-# Job Posting RAG System — Project Plan
+# Job Posting RAG System - Project Plan
 
 **Purpose:** RAG-powered tool that ingests AI Engineer job postings, extracts structured skill data, matches against my profile, and surfaces insights for job applications.
 
@@ -23,13 +23,13 @@
 | Skill | Gap # | Phase |
 |---|---|---|
 | Pydantic + Structured Outputs (Instructor) | 2 | 1 ✅ |
-| Production Python (type hints, structlog, CLI) | — | 1 ✅ |
+| Production Python (type hints, structlog, CLI) | - | 1 ✅ |
 | pgvector setup + schema design | 1 | 1 ✅ |
 | RAG + Vector DBs + Embeddings | 1 | 2 ✅ |
 | LangChain | 3 | 2 ✅ |
 | FastAPI | 4 | 2 ✅ |
 | Evaluation frameworks (RAGAS) | 6 | 3 ✅ |
-| Docker deployment (FastAPI + DB) | — | 3 ✅ |
+| Docker deployment (FastAPI + DB) | - | 3 ✅ |
 | CI/CD (GitHub Actions) | 13 | 3 ✅ |
 | LangGraph (agent orchestration) | 3 | 4 ✅ |
 | MCP server development | 5 | 4 ✅ |
@@ -108,7 +108,7 @@ graph TD
 
 ---
 
-## Phase 1 — Structured Extraction & Storage ✅
+## Phase 1 - Structured Extraction & Storage ✅
 
 **Goal:** Run `job-rag ingest` and have all postings extracted into structured data in PostgreSQL.
 
@@ -127,29 +127,29 @@ graph TD
 | `src/job_rag/extraction/extractor.py` | Instructor extraction with tenacity retry (3 attempts, exponential backoff), cost tracking per call |
 | `src/job_rag/services/ingestion.py` | Batch ingestion: read markdown → check dedup (linkedin_job_id + content_hash) → extract → store |
 | `src/job_rag/cli.py` | Typer CLI: init-db, ingest (--show-cost), list (--company filter), stats |
-| `tests/test_models.py` | 13 tests — Pydantic validation, enum values, helper functions |
-| `tests/test_extraction.py` | 7 tests — mocked Instructor extraction, post-processing |
+| `tests/test_models.py` | 13 tests - Pydantic validation, enum values, helper functions |
+| `tests/test_extraction.py` | 7 tests - mocked Instructor extraction, post-processing |
 
 ### Key Design Decisions
 
 - **Deduplication:** linkedin_job_id from URL (primary) + SHA-256 content_hash (secondary)
 - **Salary normalization:** LLM classifies period (hour/month/year), Python converts to EUR/year. Raw string preserved in `salary_raw`
-- **Separate requirements table:** Not JSONB — enables SQL queries like "which jobs need LangChain?"
+- **Separate requirements table:** Not JSONB - enables SQL queries like "which jobs need LangChain?"
 - **Embedding column added now (nullable):** Populated in Phase 2, zero cost when NULL
 - **Prompt versioning:** `prompt_version` stored per extraction for future A/B comparison
 - **Cost tracking:** Each extraction logs tokens + USD cost; `--show-cost` flag on CLI
 
 ### Results
 
-- **23/23 postings ingested** — $0.025 total cost
+- **23/23 postings ingested** - $0.025 total cost
 - **359 requirements extracted** across 8 categories
-- **Dedup verified** — re-run: 0 ingested, 23 skipped
+- **Dedup verified** - re-run: 0 ingested, 23 skipped
 - **20/20 tests passing**, ruff clean, pyright clean
 - **Top skills found:** Python (19x), LangChain (6x), ML (5x), PyTorch (5x), RAG (4x), Docker (3x), FastAPI (3x)
 
 ---
 
-## Phase 2 — RAG Core + FastAPI ✅
+## Phase 2 - RAG Core + FastAPI ✅
 
 **Goal:** Semantic search over job postings via API. Skill matching against user profile.
 
@@ -169,13 +169,13 @@ graph TD
 | `src/job_rag/api/routes.py` | 5 endpoints: /health, /search, /match/{id}, /gaps, /ingest |
 | `src/job_rag/cli.py` | Added `embed` (populate embeddings) and `serve` (start uvicorn) commands |
 | `data/profile.json` | User skill profile (30 skills from requirements doc) |
-| `tests/test_matching.py` | 15 tests — skill normalization, matching, scoring formula, gap aggregation |
-| `tests/test_retrieval.py` | 4 tests — reranking with mocked cross-encoder |
-| `tests/test_api.py` | 5 tests — all endpoints with mocked dependencies |
+| `tests/test_matching.py` | 15 tests - skill normalization, matching, scoring formula, gap aggregation |
+| `tests/test_retrieval.py` | 4 tests - reranking with mocked cross-encoder |
+| `tests/test_api.py` | 5 tests - all endpoints with mocked dependencies |
 
 ### Key Design Decisions
 
-- **Dual engine:** Sync SQLAlchemy for CLI, async for FastAPI — no breaking changes to Phase 1
+- **Dual engine:** Sync SQLAlchemy for CLI, async for FastAPI - no breaking changes to Phase 1
 - **SQLAlchemy + pgvector for retrieval, LangChain only for generation:** Avoids duplicate vector store, uses existing schema
 - **Section-based chunking:** Splits postings into responsibilities, must_have, nice_to_have, benefits sections
 - **Cross-encoder reranker:** `cross-encoder/ms-marco-MiniLM-L-6-v2` runs locally (~80MB, no API cost)
@@ -184,15 +184,15 @@ graph TD
 
 ### Results
 
-- **23/23 postings embedded** — 74 chunks total, $0.000168 embedding cost
-- **Full RAG pipeline verified** — search → rerank → LangChain generation working end-to-end
+- **23/23 postings embedded** - 74 chunks total, $0.000168 embedding cost
+- **Full RAG pipeline verified** - search → rerank → LangChain generation working end-to-end
 - **48/48 tests passing**, ruff clean, pyright clean
 - **Top skill gaps identified:** ML (17.4%), LangChain (13%), RAG (13%), FastAPI (13%)
 - **API live at** `localhost:8000` with Swagger docs at `/docs`
 
 ---
 
-## Phase 3 — Evaluation + Docker Deployment ✅
+## Phase 3 - Evaluation + Docker Deployment ✅
 
 **Goal:** Prove it works with metrics. Make it portable. CI/CD.
 
@@ -222,11 +222,11 @@ graph TD
 - **Standalone eval script, not CLI command:** `scripts/evaluate.py` is imported-on-demand to avoid pulling RAGAS into every CLI invocation; it requires a running DB and real API calls which belong outside the test suite
 - **Async OpenAI client for RAGAS:** `llm_factory` with `AsyncOpenAI` so `ascore()` can run inside the existing async pipeline
 - **CPU-only PyTorch in Docker:** `UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` saves ~1.5GB; cross-encoder runs fine on CPU
-- **Multi-stage Dockerfile:** Builder stage installs + pre-downloads models, runtime stage copies only `.venv` and `~/.cache/huggingface` — discards build tools
+- **Multi-stage Dockerfile:** Builder stage installs + pre-downloads models, runtime stage copies only `.venv` and `~/.cache/huggingface` - discards build tools
 - **Healthcheck-gated app service:** `depends_on: db: condition: service_healthy` prevents the app from crashing on an unready database
 - **Env var override for Docker networking:** `DATABASE_URL` in compose uses `db` hostname instead of `localhost`; pydantic-settings picks it up automatically
-- **`eval` pytest marker:** Keeps extraction accuracy tests separate from CI unit tests (`pytest -m "not eval"`) — CI stays fast and hermetic, eval tests run on-demand
-- **Extraction tests compare stored outputs:** No OpenAI calls during tests — fast, deterministic, free; the verified extraction results are committed alongside ground truth
+- **`eval` pytest marker:** Keeps extraction accuracy tests separate from CI unit tests (`pytest -m "not eval"`) - CI stays fast and hermetic, eval tests run on-demand
+- **Extraction tests compare stored outputs:** No OpenAI calls during tests - fast, deterministic, free; the verified extraction results are committed alongside ground truth
 - **Single CI job, not parallel:** Project is small enough that spinning up three runners for lint/typecheck/test would add more overhead than it saves
 
 ### Results
@@ -234,15 +234,15 @@ graph TD
 - **18 golden queries evaluated** across 5 categories with manually verified ground truth
 - **RAGAS scores:** Faithfulness **0.82** · Answer Relevancy **0.74** · Context Precision **0.60** · Context Recall **0.47**
 - **System excels at skill queries:** PyTorch query scored 1.00 across all metrics; comparative queries (Trimble vs GitLab) scored 1.00 on faithfulness and recall
-- **Known limitation surfaced:** metadata queries (salary, vacation days) score 0.00 on context precision — embeddings are skill-focused, not benefit-focused
-- **98/98 tests passing** — 48 unit tests (mocked) + 50 extraction accuracy tests (eval-marked), ruff clean, pyright clean
-- **Docker image builds successfully** — `docker compose up` starts db + app, runs init → ingest → embed → serve end-to-end
-- **CI green on master** — lint + typecheck + tests complete in ~57 seconds with uv cache enabled
+- **Known limitation surfaced:** metadata queries (salary, vacation days) score 0.00 on context precision - embeddings are skill-focused, not benefit-focused
+- **98/98 tests passing** - 48 unit tests (mocked) + 50 extraction accuracy tests (eval-marked), ruff clean, pyright clean
+- **Docker image builds successfully** - `docker compose up` starts db + app, runs init → ingest → embed → serve end-to-end
+- **CI green on master** - lint + typecheck + tests complete in ~57 seconds with uv cache enabled
 - **Total evaluation cost:** ~$0.13 for 72 RAGAS scoring calls + 18 RAG pipeline runs
 
 ---
 
-## Phase 4 — Agent Layer + MCP + Observability ✅
+## Phase 4 - Agent Layer + MCP + Observability ✅
 
 **Goal:** Make it smart, autonomous, and observable.
 
@@ -281,7 +281,7 @@ Stretch goals (deferred): auto-process folder, CV bullet point generation, high-
 - [x] `skill_gaps(seniority, remote)` → aggregated gaps
 - [x] `ingest_posting(file_path | content)` → ingest + auto-embed
 
-Implemented as a FastMCP stdio server reusing the existing retrieval, matching, and ingestion services. The same async tool implementations are also wrapped as LangChain tools for the LangGraph agent — single source of truth for tool behavior. Launch with `job-rag mcp`. Wired into Claude Code via `mcpServers` config — see README.
+Implemented as a FastMCP stdio server reusing the existing retrieval, matching, and ingestion services. The same async tool implementations are also wrapped as LangChain tools for the LangGraph agent - single source of truth for tool behavior. Launch with `job-rag mcp`. Wired into Claude Code via `mcpServers` config - see README.
 
 ### Observability
 
@@ -303,18 +303,18 @@ Implemented as a FastMCP stdio server reusing the existing retrieval, matching, 
 ### Key Design Decisions
 
 - **One tool implementation, three entry points:** `mcp_server/tools.py` holds the async functions; the FastMCP server registers them directly, the LangGraph agent wraps them in `@tool` decorators, the FastAPI routes call them via the agent. No duplicated SQL or matching logic.
-- **`build_agent()` is `lru_cache`'d:** the compiled graph and the `ChatOpenAI` instance are reused across requests — avoids re-instantiating the model on every call.
+- **`build_agent()` is `lru_cache`'d:** the compiled graph and the `ChatOpenAI` instance are reused across requests - avoids re-instantiating the model on every call.
 - **Langfuse helpers fail open, not closed:** if keys aren't configured, `get_openai_client()` returns plain `openai.OpenAI` and `get_langchain_callbacks()` returns `[]`. The codebase doesn't have to know whether observability is on.
 - **Streaming events are structured dicts, not raw LangGraph events:** the `stream.py` adapter normalizes `astream_events` output to a stable schema (`token`/`tool_start`/`tool_end`/`final`) so the CLI and SSE endpoint share the same consumer code. Insulates callers from LangGraph internal changes.
 - **Agent returns tool_calls list:** `run_agent` extracts tool call metadata from intermediate messages so callers can audit which tools fired without parsing the full message history.
 
 ### Results
 
-- **123 tests collected** — 73 unit tests pass (was 48), +25 covering MCP, agent, observability, SSE; 50 eval tests still gated behind `-m eval`
-- **ruff clean, pyright clean** — 0 errors, 0 warnings across `src/`
-- **MCP server smoke-tested** — `mcp.list_tools()` returns all 4 tools with descriptions
-- **SSE endpoint smoke-tested** — `/agent/stream` emits well-formed `event: <type>\ndata: <json>` frames
-- **Skills closed:** LangGraph orchestration, MCP server development, Langfuse observability, SSE streaming, tool use / function calling — all five Phase 4 skill targets met
+- **123 tests collected** - 73 unit tests pass (was 48), +25 covering MCP, agent, observability, SSE; 50 eval tests still gated behind `-m eval`
+- **ruff clean, pyright clean** - 0 errors, 0 warnings across `src/`
+- **MCP server smoke-tested** - `mcp.list_tools()` returns all 4 tools with descriptions
+- **SSE endpoint smoke-tested** - `/agent/stream` emits well-formed `event: <type>\ndata: <json>` frames
+- **Skills closed:** LangGraph orchestration, MCP server development, Langfuse observability, SSE streaming, tool use / function calling - all five Phase 4 skill targets met
 
 **Done when (achieved):** Can drop a new posting file, have it auto-processed, query it from Claude Code via MCP, see full traces in Langfuse (when configured), and get streaming responses via `/agent/stream`.
 

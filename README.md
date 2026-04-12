@@ -1,6 +1,6 @@
 # Job RAG
 
-> A RAG system I built during a pivot into AI engineering — to read 23 AI Engineer job postings for me and tell me which ones I should actually be reading.
+> A RAG system I built during a pivot into AI engineering - to read 23 AI Engineer job postings for me and tell me which ones I should actually be reading.
 
 It ingests raw LinkedIn markdown into structured skill data, scores each posting against my profile, and exposes the whole corpus as a LangGraph agent, a FastAPI service, and an MCP server for Claude Code. Everything is instrumented with Langfuse and evaluated with RAGAS.
 
@@ -10,7 +10,7 @@ It ingests raw LinkedIn markdown into structured skill data, scores each posting
 
 The first time I ran the agent against a real corpus with my profile loaded, it ranked this posting as my top match at **0.588**:
 
-**(Senior) AI Engineer at IU Group** — remote, Germany. Matched on `Python`, `FastAPI`, `tool use`, `embeddings`, `vector search`, `monitoring`, `testing`.
+**(Senior) AI Engineer at IU Group** - remote, Germany. Matched on `Python`, `FastAPI`, `tool use`, `embeddings`, `vector search`, `monitoring`, `testing`.
 
 Here are the five responsibilities from their posting, side-by-side with what I'd just finished building:
 
@@ -22,7 +22,7 @@ Here are the five responsibilities from their posting, side-by-side with what I'
 | Optimize production systems for latency, observability, reliability | Langfuse tracing, structured logging, healthcheck-gated Docker |
 | Drive improvement through evaluation, testing, monitoring | RAGAS golden dataset, 79 unit tests, GitHub Actions CI |
 
-I had never read this posting before running the tool. The system surfaced it not because it was the most obvious skill match (my first run of the same query, before fixing the profile and extraction pipeline, ranked it 0.183) but because the final version of the pipeline — with atomic-skill decomposition, alias-based fuzzy matching, and an agent sorting results by real match score — could see the fit that the earlier versions could not.
+I had never read this posting before running the tool. The system surfaced it not because it was the most obvious skill match (my first run of the same query, before fixing the profile and extraction pipeline, ranked it 0.183) but because the final version of the pipeline - with atomic-skill decomposition, alias-based fuzzy matching, and an agent sorting results by real match score - could see the fit that the earlier versions could not.
 
 That story is the whole reason this project exists, and also its best validation: **the system works well enough to find its own use case.**
 
@@ -63,7 +63,7 @@ graph TD
     end
 ```
 
-One tool implementation (`mcp_server/tools.py`) is reused by all three entry points — the FastMCP server, the LangGraph agent, and the FastAPI routes. No duplicated retrieval or matching logic.
+One tool implementation (`mcp_server/tools.py`) is reused by all three entry points - the FastMCP server, the LangGraph agent, and the FastAPI routes. No duplicated retrieval or matching logic.
 
 ---
 
@@ -94,9 +94,9 @@ One tool implementation (`mcp_server/tools.py`) is reused by all three entry poi
 
 **Cross-encoder reranking.** Two-stage retrieval (fast vector search → precise cross-encoder rerank) gives meaningfully better precision than vector search alone. The reranker runs locally on CPU, ~80MB, no API cost per query.
 
-**Section-based chunking over fixed-size.** Postings are split into semantic sections (responsibilities, must-have, nice-to-have, benefits) rather than arbitrary character windows. Preserves structural context in a known schema. This is a deliberate choice over semantic chunking — worth the small loss in flexibility for the gain in interpretability.
+**Section-based chunking over fixed-size.** Postings are split into semantic sections (responsibilities, must-have, nice-to-have, benefits) rather than arbitrary character windows. Preserves structural context in a known schema. This is a deliberate choice over semantic chunking - worth the small loss in flexibility for the gain in interpretability.
 
-**Atomic-skill extraction (v1.1).** The first extraction prompt produced compound requirements like `"Proven production AI solutions in automotive"` as single atomic skills, which the matching engine could never match. Rewriting the prompt with decomposition rules and few-shot examples turned that into `automotive`, `production deployment`, `AI solutions` — three skills the matcher can actually reason about. The top match for the same query went from 0.183 to 0.588.
+**Atomic-skill extraction (v1.1).** The first extraction prompt produced compound requirements like `"Proven production AI solutions in automotive"` as single atomic skills, which the matching engine could never match. Rewriting the prompt with decomposition rules and few-shot examples turned that into `automotive`, `production deployment`, `AI solutions` - three skills the matcher can actually reason about. The top match for the same query went from 0.183 to 0.588.
 
 **Sync + async dual SQLAlchemy engines.** CLI commands use sync (simple, no event loop). FastAPI + MCP + agent use async (concurrent request handling). Both share the same ORM models.
 
@@ -121,7 +121,7 @@ Quality is measured with [RAGAS](https://docs.ragas.io/) against a golden datase
 | Context Precision | **0.67** | 0.60 | **+0.07** |
 | Context Recall | **0.43** | 0.47 | −0.04 |
 
-The v1.1 extraction prompt rewrite (atomic-skill decomposition) produced a clear improvement in **context precision** — the metric it was expected to affect — from 0.60 to 0.67. Skill queries (LangChain, PyTorch, Docker, agentic AI) score 0.93+ on faithfulness and 1.00 on context precision; domain queries (German, automotive/HMI) score 1.00 on precision and 0.67–0.86 on recall now that compound phrases are decomposed. Metadata queries like "which companies offer 30 vacation days?" still score 0.00 on precision because the embeddings encode *what a job is about*, not *what benefits it offers* — a real known limitation that hybrid retrieval (dense + BM25 keyword) would fix.
+The v1.1 extraction prompt rewrite (atomic-skill decomposition) produced a clear improvement in **context precision** - the metric it was expected to affect - from 0.60 to 0.67. Skill queries (LangChain, PyTorch, Docker, agentic AI) score 0.93+ on faithfulness and 1.00 on context precision; domain queries (German, automotive/HMI) score 1.00 on precision and 0.67-0.86 on recall now that compound phrases are decomposed. Metadata queries like "which companies offer 30 vacation days?" still score 0.00 on precision because the embeddings encode *what a job is about*, not *what benefits it offers* - a real known limitation that hybrid retrieval (dense + BM25 keyword) would fix.
 
 One query (Trimble vs GitLab comparative) hits GPT-4o-mini's `max_tokens` ceiling on the faithfulness scorer due to the length of the comparative answer; the script catches this and excludes the failed sample, giving faithfulness n=17/18.
 
@@ -178,9 +178,9 @@ Full interactive docs at `http://localhost:8000/docs`.
 
 A ReAct agent (`src/job_rag/agent/`) that orchestrates three tools:
 
-- `search_jobs(query, remote_only?, seniority?, limit?)` — semantic search
-- `match_profile(posting_id)` — score one posting against the user profile
-- `analyze_gaps(seniority?, remote?)` — aggregate top missing skills
+- `search_jobs(query, remote_only?, seniority?, limit?)` - semantic search
+- `match_profile(posting_id)` - score one posting against the user profile
+- `analyze_gaps(seniority?, remote?)` - aggregate top missing skills
 
 The agent's system prompt enforces sort-by-score and honest empty-result handling. `build_agent()` is `lru_cache`'d so the compiled graph and `ChatOpenAI` instance are reused across requests.
 
