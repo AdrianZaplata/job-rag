@@ -130,19 +130,16 @@ def stats() -> None:
         for cat, count in category_counts.most_common():
             typer.echo(f"  {cat:<20} {count:>3}")
 
-        # Seniority distribution
+        # Seniority and remote policy distributions (single query)
         seniority_counts: Counter[str] = Counter()
+        remote_counts: Counter[str] = Counter()
         for p in session.query(JobPostingDB).all():
             seniority_counts[p.seniority] += 1
+            remote_counts[p.remote_policy] += 1
 
         typer.echo("\n--- Seniority Distribution ---")
         for level, count in seniority_counts.most_common():
             typer.echo(f"  {level:<20} {count:>3}")
-
-        # Remote policy distribution
-        remote_counts: Counter[str] = Counter()
-        for p in session.query(JobPostingDB).all():
-            remote_counts[p.remote_policy] += 1
 
         typer.echo("\n--- Remote Policy Distribution ---")
         for policy, count in remote_counts.most_common():

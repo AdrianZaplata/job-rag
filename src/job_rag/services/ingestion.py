@@ -98,10 +98,8 @@ def ingest_file(session: Session, file_path: Path) -> tuple[bool, str, str | Non
         return False, "duplicate", None
 
     posting, usage = extract_posting(raw_text)
-    # Ensure raw_text is the original file content
     posting.raw_text = raw_text
 
-    # Override linkedin_id extraction from URL if we found it in source
     if not linkedin_id:
         linkedin_id = extract_linkedin_id(posting.source_url)
 
@@ -137,10 +135,7 @@ def ingest_directory(session: Session, directory: Path | None = None) -> dict:
             was_ingested, reason, _posting_id = ingest_file(session, f)
             if was_ingested:
                 ingested += 1
-                # Parse cost from reason string
-                if "$" in reason:
-                    cost_str = reason.split("$")[1].rstrip(")")
-                    total_cost += float(cost_str)
+                total_cost += cost
             else:
                 skipped += 1
         except Exception as e:
