@@ -135,7 +135,9 @@ def ingest_directory(session: Session, directory: Path | None = None) -> dict:
             was_ingested, reason, _posting_id = ingest_file(session, f)
             if was_ingested:
                 ingested += 1
-                total_cost += cost
+                if "$" in reason:
+                    cost_str = reason.split("$")[1].rstrip(")")
+                    total_cost += float(cost_str)
             else:
                 skipped += 1
         except Exception as e:
