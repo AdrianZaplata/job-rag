@@ -61,6 +61,8 @@
     {"name": "Automotive", "proficiency": "advanced", "years": 4.0},
     {"name": "Agile", "proficiency": "advanced", "years": 5.0},
     {"name": "Scrum", "proficiency": "advanced", "years": 5.0},
+    {"name": "English", "proficiency": "expert", "years": 30.0},
+    {"name": "German", "proficiency": "expert", "years": 34.0},
     {"name": "Communication", "proficiency": "expert", "years": 7.0}
   ],
   "target_roles": ["AI Engineer", "AI Application Engineer", "AI Software Engineer"],
