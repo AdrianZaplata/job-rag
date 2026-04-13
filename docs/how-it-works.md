@@ -213,7 +213,7 @@ The row count depends on the extraction prompt version. With v1.0 (Phase 1) the 
 | content | `Senior AI Eng at GitLab\nMust-have: Python, LangChain...` | The text of that section |
 | embedding | `[0.008, -0.021, ...]` | 1536 numbers for this section |
 
-Each posting is split into sections so retrieval can find the *specific part* of a posting that's relevant, not just "this posting is somewhat related." Not every posting has all four sections - some don't list benefits, some have no nice-to-haves - which is why 23 postings produce 76 chunks, not 92.
+Each posting is split into sections so retrieval can find the *specific part* of a posting that's relevant, not just "this posting is somewhat related." Not every posting has all four sections - some don't list benefits, some have no nice-to-haves - which is why 23 postings produce 74 chunks, not 92.
 
 ---
 
@@ -318,7 +318,7 @@ This becomes 1536 numbers stored in the `embedding` column of `job_postings`. Us
 - Nice-to-have chunk → 1536 numbers
 - Benefits chunk → 1536 numbers
 
-Each stored as a row in `job_chunks`. Not every posting has all four sections, which is why 23 postings produce 76 chunks (not 92). Used when you want to search *within* a posting for a specific topic.
+Each stored as a row in `job_chunks`. Not every posting has all four sections, which is why 23 postings produce 74 chunks (not 92). Used when you want to search *within* a posting for a specific topic.
 
 **Cost:** ~$0.00016 total for all 23 postings. Essentially free.
 
@@ -1232,7 +1232,7 @@ Total: ~5 seconds, ~$0.001, 5 tool calls, 6 LLM calls.
 | Operation | Cost |
 |---|---|
 | Extract 23 postings (GPT-4o-mini, v1.1 prompt) | ~$0.025 |
-| Embed 23 postings + 76 chunks (text-embedding-3-small) | ~$0.00016 |
+| Embed 23 postings + 74 chunks (text-embedding-3-small) | ~$0.00016 |
 | One agent query (~5 tool calls + synthesis) | ~$0.001 |
 | RAGAS evaluation (72 scoring calls + 18 RAG runs) | ~$0.13 |
 
