@@ -94,26 +94,14 @@ def embed_and_store_posting(session: Session, posting: JobPostingDB) -> dict:
 
     Returns usage_info with total cost.
     """
-    texts_to_embed: list[str] = []
-    chunk_data: list[dict[str, str]] = []
-
-    # Posting-level embedding
     posting_text = format_posting_for_embedding(posting)
-    texts_to_embed.append(posting_text)
-
-    # Chunk-level embeddings
     chunks = chunk_posting(posting)
-    for chunk in chunks:
-        texts_to_embed.append(chunk["content"])
-        chunk_data.append(chunk)
+    texts_to_embed = [posting_text] + [chunk["content"] for chunk in chunks]
 
     embeddings, usage_info = embed_texts(texts_to_embed)
 
-    # Store posting-level embedding
     posting.embedding = embeddings[0]
-
-    # Store chunk-level embeddings
-    for i, chunk in enumerate(chunk_data):
+    for i, chunk in enumerate(chunks):
         db_chunk = JobChunkDB(
             posting_id=posting.id,
             section=chunk["section"],
@@ -126,7 +114,7 @@ def embed_and_store_posting(session: Session, posting: JobPostingDB) -> dict:
         "embedding_complete",
         company=posting.company,
         title=posting.title,
-        chunks=len(chunk_data),
+        chunks=len(chunks),
         tokens=usage_info["total_tokens"],
         cost_usd=f"${usage_info['cost_usd']:.6f}",
     )
@@ -151,18 +139,15 @@ def embed_all_postings(session: Session) -> dict:
     log.info("embed_start", count=len(postings))
 
     total_cost = 0.0
-    embedded = 0
-
     for posting in postings:
         usage = embed_and_store_posting(session, posting)
         total_cost += usage["cost_usd"]
-        embedded += 1
 
     session.commit()
 
     summary = {
         "total": len(postings),
-        "embedded": embedded,
+        "embedded": len(postings),
         "total_cost_usd": total_cost,
     }
     log.info("embed_complete", **summary)
