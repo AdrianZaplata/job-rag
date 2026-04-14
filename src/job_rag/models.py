@@ -75,16 +75,12 @@ class UserSkill(BaseModel):
     """A skill in the user's profile."""
 
     name: str = Field(description="Skill name")
-    proficiency: str = Field(
-        description="Proficiency level: beginner, intermediate, advanced, expert"
-    )
-    years: float | None = Field(default=None, description="Years of experience with this skill")
 
 
 class UserSkillProfile(BaseModel):
     """User's skill profile for matching against job postings."""
 
-    skills: list[UserSkill] = Field(description="Skills with proficiency levels")
+    skills: list[UserSkill] = Field(description="User skills")
     target_roles: list[str] = Field(default_factory=list, description="Target job titles")
     preferred_locations: list[str] = Field(default_factory=list, description="Preferred locations")
     min_salary: int | None = Field(

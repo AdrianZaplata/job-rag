@@ -113,8 +113,8 @@ class TestUserSkillProfile:
     def test_valid_profile(self):
         profile = UserSkillProfile(
             skills=[
-                UserSkill(name="Python", proficiency="expert", years=8),
-                UserSkill(name="LangChain", proficiency="intermediate", years=1),
+                UserSkill(name="Python"),
+                UserSkill(name="LangChain"),
             ],
             target_roles=["AI Engineer", "ML Engineer"],
             preferred_locations=["Berlin", "Remote"],

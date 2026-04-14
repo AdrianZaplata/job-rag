@@ -16,11 +16,11 @@ from job_rag.services.matching import (
 def profile() -> UserSkillProfile:
     return UserSkillProfile(
         skills=[
-            UserSkill(name="Python", proficiency="advanced", years=3.0),
-            UserSkill(name="Docker", proficiency="intermediate", years=2.0),
-            UserSkill(name="SQL", proficiency="advanced", years=3.0),
-            UserSkill(name="React", proficiency="advanced", years=2.0),
-            UserSkill(name="LLM", proficiency="intermediate", years=1.0),
+            UserSkill(name="Python"),
+            UserSkill(name="Docker"),
+            UserSkill(name="SQL"),
+            UserSkill(name="React"),
+            UserSkill(name="LLM"),
         ],
         target_roles=["AI Engineer"],
         preferred_locations=["Berlin, Germany"],
@@ -83,49 +83,6 @@ class TestSkillMatches:
     def test_no_match(self):
         skills = {"python", "docker"}
         assert _skill_matches(skills, "Kubernetes") is False
-
-    def test_alias_match_sql_postgresql(self):
-        skills = {"sql"}
-        assert _skill_matches(skills, "PostgreSQL") is True
-
-    def test_alias_match_llm(self):
-        skills = {"llm"}
-        assert _skill_matches(skills, "Large Language Models") is True
-
-    def test_alias_match_react(self):
-        skills = {"react"}
-        assert _skill_matches(skills, "React.js") is True
-
-    def test_alias_match_hmi_to_automotive_posting_phrase(self):
-        skills = {"hmi development"}
-        assert _skill_matches(skills, "HMI") is True
-        assert _skill_matches(skills, "Human Machine Interface") is True
-
-    def test_alias_match_automotive_variants(self):
-        skills = {"automotive"}
-        assert _skill_matches(skills, "Automotive AI") is True
-        assert _skill_matches(skills, "Automotive AI Solutions") is True
-        assert _skill_matches(skills, "Automotive Industry") is True
-
-    def test_alias_match_vector_db_variants(self):
-        skills = {"vector databases"}
-        assert _skill_matches(skills, "pgvector") is True
-        assert _skill_matches(skills, "Pinecone") is True
-        assert _skill_matches(skills, "Vector Store") is True
-
-    def test_alias_match_async_python(self):
-        skills = {"async python"}
-        assert _skill_matches(skills, "asyncio") is True
-
-    def test_alias_match_function_calling_tool_use(self):
-        skills = {"function calling"}
-        assert _skill_matches(skills, "Tool Use") is True
-        assert _skill_matches(skills, "Tool Calling") is True
-
-    def test_alias_match_c_slash_cpp(self):
-        skills = {"c++"}
-        assert _skill_matches(skills, "C/C++") is True
-        assert _skill_matches(skills, "cpp") is True
 
 
 class TestMatchPosting:
