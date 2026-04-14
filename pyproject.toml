@@ -48,7 +48,7 @@ pythonVersion = "3.12"
 typeCheckingMode = "basic"
 
 [dependency-groups]
-dev = ["pytest", "pytest-asyncio", "httpx", "ruff", "pyright", "ragas>=0.2.0", "pip-audit"]
+dev = ["pytest>=9.0.3", "pytest-asyncio", "httpx", "ruff", "pyright", "ragas>=0.2.0", "pip-audit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
