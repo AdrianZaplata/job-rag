@@ -1,8 +1,8 @@
 # Job RAG
 
-> A RAG system I built during a pivot into AI engineering - to read 23 AI Engineer job postings for me and tell me which ones I should actually be reading.
+> A RAG system I built during a pivot into AI engineering — to read AI Engineer job postings and tell me which skills I'm missing so I can go learn them.
 
-It ingests raw LinkedIn markdown into structured skill data, scores each posting against my profile, and exposes the whole corpus as a LangGraph agent, a FastAPI service, and an MCP server for Claude Code. Everything is instrumented with Langfuse and evaluated with RAGAS.
+It ingests raw LinkedIn markdown into structured skill data, identifies gaps between what the market demands and what I already know, and exposes the whole corpus as a LangGraph agent, a FastAPI service, and an MCP server for Claude Code. Everything is instrumented with Langfuse and evaluated with RAGAS.
 
 ---
 
@@ -37,7 +37,7 @@ That story is the whole reason this project exists, and also its best validation
 ```mermaid
 graph TD
     subgraph "Ingestion"
-        MD[23 Markdown postings] --> EXT[Instructor + GPT-4o-mini]
+        MD[Markdown postings] --> EXT[Instructor + GPT-4o-mini]
         EXT --> PYD[Pydantic validation]
         PYD --> DB[(PostgreSQL + pgvector)]
     end
@@ -71,7 +71,7 @@ One tool implementation (`mcp_server/tools.py`) is reused by all three entry poi
 
 | Area | What's here |
 |---|---|
-| **RAG + vector search** | pgvector cosine distance, section-based chunking, cross-encoder reranking, dense retrieval over 23 postings / 74 chunks |
+| **RAG + vector search** | pgvector cosine distance, section-based chunking, cross-encoder reranking, dense retrieval with section-based chunks |
 | **Structured extraction** | Instructor + GPT-4o-mini + Pydantic models; atomic-skill decomposition prompt (v1.1) with few-shot examples |
 | **LangChain** | `ChatPromptTemplate`, `ChatOpenAI`, `StrOutputParser`, callback handlers for tracing |
 | **LangGraph agents** | `create_react_agent` with 3 tools, `astream_events` for streaming, `lru_cache`'d compiled graph |
@@ -156,7 +156,7 @@ job-rag agent --stream "..."                          # with tool call traces
 job-rag mcp                                           # stdio MCP server
 ```
 
-Ingesting and embedding the 23-posting corpus end-to-end costs ~$0.03.
+Ingesting and embedding a corpus end-to-end costs fractions of a cent per posting.
 
 ---
 
@@ -245,9 +245,9 @@ tests/                     89 unit tests (incl. security) + 50 extraction accura
 
 | Operation | Cost |
 |---|---|
-| Extract 23 postings (GPT-4o-mini, v1.1 prompt) | $0.025 |
-| Embed 23 postings + 74 chunks (text-embedding-3-small) | $0.0002 |
+| Extract one posting (GPT-4o-mini, v1.1 prompt) | ~$0.001 |
+| Embed one posting + chunks (text-embedding-3-small) | ~$0.00001 |
 | RAGAS evaluation (72 scoring calls + 18 RAG runs) | ~$0.13 |
 | One agent query (~5 tool calls + synthesis) | ~$0.001 |
 
-Total cost to stand up the entire system and run it end-to-end: **~$0.03**.
+Total cost to stand up the system and run a full ingestion + evaluation cycle is well under a dollar.
