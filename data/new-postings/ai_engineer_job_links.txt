@@ -1,0 +1,122 @@
+# AI Engineer Job Postings — Berlin & Poznań
+# Collected: 2026-04-15
+# Total: 95 unique postings
+# All confirmed as currently live/open at time of collection
+
+# ═══════════════════════════════════════════════════════════════
+# POZNAŃ, POLAND — justjoin.it (AI/ML category, 72 postings)
+# ═══════════════════════════════════════════════════════════════
+
+# --- Senior / Staff / Lead / Principal ---
+https://justjoin.it/job-offer/cerebre-senior-ai-engineer-generative-ai-llm-systems--poznan-ai
+https://justjoin.it/job-offer/svitla-systems-senior-ai-engineer-remote--poznan-ai
+https://justjoin.it/job-offer/cyclad-senior-ai-software-engineer-poznan-ai
+https://justjoin.it/job-offer/link-group-senior-ai-engineer-genai-llm--poznan-ai
+https://justjoin.it/job-offer/sii-ai-architect---genai-cloud-f-m-x--poznan-ai
+https://justjoin.it/job-offer/billennium-senior-ai-ml-engineer-mlops-cloud-production-ml--poznan-ai
+https://justjoin.it/job-offer/sii-senior-ai-ml-developer---conversational-ai-f-m-x--poznan-ai-9f5e5735
+https://justjoin.it/job-offer/link-group-staff-ai-engineer---automation-agentic-workflows-poznan-ai
+https://justjoin.it/job-offer/link-group-ai-agent-engineer-poznan-ai
+https://justjoin.it/job-offer/link-group-ai-engineer-with-sap-poznan-ai
+https://justjoin.it/job-offer/svitla-systems-senior-llm-optimization-engineer-poznan-ai
+https://justjoin.it/job-offer/tqlo-spolka-z-ograniczona-odpowiedzialnoscia-senior-machine-learning-poznan-ai
+https://justjoin.it/job-offer/sii-python-developer-with-ai-ml---internal-it-f-m-x--poznan-ai
+https://justjoin.it/job-offer/relativity-senior-ml-engineer-poznan-ai
+https://justjoin.it/job-offer/silent-eight-forward-deployed-ai-engineer-llm-ml--poznan-ai
+https://justjoin.it/job-offer/dcv-technologies-senior-ai-engineer---remote-poland-xw--poznan-ai
+https://justjoin.it/job-offer/green-hive-technology-lead-genai-engineer-she-he-they--poznan-ai
+https://justjoin.it/job-offer/vm-pl-full-stack-java-engineer-with-german-poznan-ai
+https://justjoin.it/job-offer/link-group-ai-technical-lead-poznan-ai
+https://justjoin.it/job-offer/green-hive-technology-lead-machine-learning-engineer-poznan-ai
+https://justjoin.it/job-offer/techtree-senior-ml-ai-engineer-poznan-ai-400b63d1
+https://justjoin.it/job-offer/techtree-senior-ml-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/techtree-lead-ml-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/remodevs-senior-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/link-group-senior-ai-engineer-voice-conversational-systems--poznan-ai
+https://justjoin.it/job-offer/akamai-technologies-principal-software-engineer---akamai-inference-cloud-poznan-ai
+https://justjoin.it/job-offer/svitla-systems-senior-agentic-developer-poznan-ai
+https://justjoin.it/job-offer/tooploox-lead-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/xtb-senior-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/entrada-ai-senior-machine-learning-databricks--poznan-ai
+https://justjoin.it/job-offer/cksource-principal-applied-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/inpost-senior-ai-engineer-genai--poznan-ai
+https://justjoin.it/job-offer/smartrecruiters-inc--senior-ai-engineer-poznan-ai-5417c139
+https://justjoin.it/job-offer/shelf-senior-data-scientist-machine-learning-engineer-poznan-ai-87d12d61
+https://justjoin.it/job-offer/link-group-senior-python-developer-poznan-python-f17cd0fa
+
+# --- Mid-level ---
+https://justjoin.it/job-offer/addepto-ai-engineer-llms-python--poznan-ai-9d465420
+https://justjoin.it/job-offer/green-hive-technology-machine-learning-engineer-she-he-they--poznan-ai-fdc72484
+https://justjoin.it/job-offer/upvanta-sp-z-o-o--ai-ml-engineer-poznan-ai
+https://justjoin.it/job-offer/future-processing-solutions-architect-with-ai-sdlc-poznan-ai
+https://justjoin.it/job-offer/yosh-ai-ai-agent-developer-aka-the-architect-data-scientist--poznan-ai
+https://justjoin.it/job-offer/yosh-ai-conversation-designer-aka-agent-whisperer--poznan-ai
+https://justjoin.it/job-offer/upvanta-sp-z-o-o--konsultant-microsoft-365-copilot-copilot-studio-mid--poznan-ai
+https://justjoin.it/job-offer/bitropy-spolka-z-ograniczona-odpowiedzialnoscia-ai-platform-engineer-poznan-ai
+https://justjoin.it/job-offer/netguru-ai-engineer-poznan-ai-0211a1a7
+https://justjoin.it/job-offer/edge-one-solutions-sp-z-o-o-ai-augumented-professional-poznan-ai
+https://justjoin.it/job-offer/link-group-ai-engineer-poznan-ai-a85a270a
+https://justjoin.it/job-offer/dcv-technologies-ai-specialist-agentic-workflows-remote-eeu--vl-pl-pw--poznan-ai
+https://justjoin.it/job-offer/link-group-genai-developer-poznan-ai
+https://justjoin.it/job-offer/er-group-ai-llm-engineer-poznan-ai
+https://justjoin.it/job-offer/nexio-management-robotics-software-developer-with-python-poznan-ai
+https://justjoin.it/job-offer/link-group-ml-engineer-poznan-ai
+https://justjoin.it/job-offer/red-sky-software-engineer-ai-mvp-startup--poznan-ai
+https://justjoin.it/job-offer/erli-s-a--generative-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/billennium-ai-engineer-poznan-ai-e1c6343c
+https://justjoin.it/job-offer/green-hive-technology-gen-ai-engineer-she-he-they--poznan-ai-6e895f16
+https://justjoin.it/job-offer/vm-pl-full-stack-developer-ai-nest-typescript--poznan-ai
+https://justjoin.it/job-offer/erli-s-a--ml-engineer-poznan-ai
+https://justjoin.it/job-offer/toro-performance-sp-z-o-o--ai-engineer-poznan-ai
+https://justjoin.it/job-offer/stx-next-ai-engineer-poznan-ai
+https://justjoin.it/job-offer/payu-s-a--machine-learning-engineer-poznan-ai
+https://justjoin.it/job-offer/sii-ai-engineer---genai-cloud-f-m-x--poznan-ai
+https://justjoin.it/job-offer/zabka-future-generative-ai-engineer-poznan-ai
+
+# --- Junior / Specialist / Other AI roles ---
+https://justjoin.it/job-offer/przelewy24-ai-automation-junior-specialist-poznan-ai
+https://justjoin.it/job-offer/netguru-junior-ai-engineer-poznan-ai-bcd41af4
+https://justjoin.it/job-offer/josera-ai-specialist-poznan-ai
+https://justjoin.it/job-offer/sii-lead-ai-analyst-f-m-x--poznan-ai
+https://justjoin.it/job-offer/sii-ai-consultant-f-m-x--poznan-ai
+
+# --- Manager / Head / Lead (non-eng) ---
+https://justjoin.it/job-offer/zabka-future-genai-product-owner-she-he-they--poznan-ai
+https://justjoin.it/job-offer/zabka-future-data-science-product-analytics-manager-she-he-they--poznan-ai
+https://justjoin.it/job-offer/future-processing-digital-transformation-consultant-ai--poznan-ai
+https://justjoin.it/job-offer/flying-bisons-head-of-ai-enablement-poznan-ai
+https://justjoin.it/job-offer/entrada-ai-mlops-engineer---player-performance-analytics-poznan-ai
+https://justjoin.it/job-offer/capgemini-polska-ai-lead-poznan-ai
+https://justjoin.it/job-offer/capgemini-polska-digital-portfolio-asset-lead-poznan-ai
+
+
+# ═══════════════════════════════════════════════════════════════
+# BERLIN, GERMANY — berlinstartupjobs.com (14 postings)
+# ═══════════════════════════════════════════════════════════════
+https://berlinstartupjobs.com/engineering/senior-product-engineer-techminers-gmbh/
+https://berlinstartupjobs.com/engineering/senior-ml-scientist-genai-picsart/
+https://berlinstartupjobs.com/engineering/it-developer-greenautarky-gmbh/
+https://berlinstartupjobs.com/engineering/senior-software-engineer-secure-ai-infrastructure-edgeless-systems/
+https://berlinstartupjobs.com/engineering/senior-product-engineer-gaia-law/
+https://berlinstartupjobs.com/engineering/lead-engineer-ai-logistics-nexdash/
+https://berlinstartupjobs.com/engineering/ai-robotics-research-engineer-promethion-industries-gmbh/
+https://berlinstartupjobs.com/engineering/cloud-and-devops-engineer-kubernetes-datatroniq/
+https://berlinstartupjobs.com/engineering/senior-data-scientist-datatroniq/
+https://berlinstartupjobs.com/internships/working-student-iota-datapartners-ug/
+https://berlinstartupjobs.com/marketing/creative-ai-transformation-lead-blinkist/
+https://berlinstartupjobs.com/product-management/value-engineer-ama/
+https://berlinstartupjobs.com/engineering/software-engineer-ml-systems-mid-level-senior-seqana-gmbh/
+https://berlinstartupjobs.com/engineering/senior-full-stack-developer-data-scientist-remote-friendly-aidar/
+
+# ═══════════════════════════════════════════════════════════════
+# BERLIN, GERMANY — aijobs.ai (9 postings, recent & confirmed Berlin)
+# ═══════════════════════════════════════════════════════════════
+https://aijobs.ai/job/senior-ux-designer-wmd-ai-agent-conversational-experience
+https://aijobs.ai/job/principal-engineer-fin-ai-agent
+https://aijobs.ai/job/senior-fullstack-engineer-support-and-ai-fmd
+https://aijobs.ai/job/senior-data-scientist-4285
+https://aijobs.ai/job/senior-machine-learning-engineer-1820
+https://aijobs.ai/job/full-stack-developer-fmd-ai-agent-ecosystem
+https://aijobs.ai/job/full-stack-developer-wmd-ai-agent-ecosystem
+https://aijobs.ai/job/sr-applied-machine-learning-engineer
+https://aijobs.ai/job/applied-machine-learning-engineer-2
