@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-04-15",
+  "total_postings_analyzed": 108,
+  "source": "GET /gaps (no filters)",
+  "must_have_gaps": [
+    {"name": "AWS", "count": 17, "percentage": 15.7},
+    {"name": "SQL", "count": 17, "percentage": 15.7},
+    {"name": "communication", "count": 17, "percentage": 15.7},
+    {"name": "Azure", "count": 14, "percentage": 13.0},
+    {"name": "MLOps", "count": 12, "percentage": 11.1},
+    {"name": "Computer Science", "count": 12, "percentage": 11.1},
+    {"name": "TensorFlow", "count": 11, "percentage": 10.2},
+    {"name": "GCP", "count": 10, "percentage": 9.3},
+    {"name": "Kubernetes", "count": 10, "percentage": 9.3},
+    {"name": "LLMs", "count": 9, "percentage": 8.3},
+    {"name": "ML", "count": 9, "percentage": 8.3},
+    {"name": "NLP", "count": 8, "percentage": 7.4},
+    {"name": "OpenAI", "count": 7, "percentage": 6.5},
+    {"name": "problem-solving", "count": 7, "percentage": 6.5},
+    {"name": "APIs", "count": 7, "percentage": 6.5},
+    {"name": "MLflow", "count": 7, "percentage": 6.5},
+    {"name": "Node.js", "count": 6, "percentage": 5.6},
+    {"name": "GenAI", "count": 6, "percentage": 5.6},
+    {"name": "analytical thinking", "count": 6, "percentage": 5.6},
+    {"name": "data pipelines", "count": 6, "percentage": 5.6}
+  ],
+  "nice_to_have_gaps": [
+    {"name": "GCP", "count": 8, "percentage": 7.4},
+    {"name": "Azure", "count": 7, "percentage": 6.5},
+    {"name": "AWS", "count": 6, "percentage": 5.6},
+    {"name": "Databricks", "count": 5, "percentage": 4.6},
+    {"name": "TensorFlow", "count": 4, "percentage": 3.7},
+    {"name": "Spark", "count": 4, "percentage": 3.7},
+    {"name": "Kubernetes", "count": 4, "percentage": 3.7},
+    {"name": "Java", "count": 4, "percentage": 3.7},
+    {"name": "LLMs", "count": 3, "percentage": 2.8},
+    {"name": "orchestration frameworks", "count": 3, "percentage": 2.8},
+    {"name": "graph databases", "count": 3, "percentage": 2.8},
+    {"name": "SQL", "count": 3, "percentage": 2.8},
+    {"name": "Node.js", "count": 3, "percentage": 2.8},
+    {"name": "PySpark", "count": 3, "percentage": 2.8},
+    {"name": "Airflow", "count": 3, "percentage": 2.8},
+    {"name": "classical ML", "count": 3, "percentage": 2.8},
+    {"name": "open-source contributions", "count": 3, "percentage": 2.8},
+    {"name": "startup background", "count": 2, "percentage": 1.9},
+    {"name": "cloud platforms", "count": 2, "percentage": 1.9},
+    {"name": "containerization", "count": 2, "percentage": 1.9}
+  ],
+  "recommended_priorities": [
+    {"rank": 1, "name": "AWS", "reason": "Leading cloud platform, broad industry adoption"},
+    {"rank": 2, "name": "SQL", "reason": "Fundamental for data manipulation; fast to close"},
+    {"rank": 3, "name": "Azure", "reason": "Second major cloud; opens Microsoft-ecosystem roles"},
+    {"rank": 4, "name": "MLOps", "reason": "Critical for production ML deployment"},
+    {"rank": 5, "name": "TensorFlow", "reason": "Classical deep-learning framework, still common requirement"}
+  ],
+  "notes": {
+    "likely_false_gaps": [
+      "LLMs — you have 'LLM' in profile; matcher may be case/plural-sensitive",
+      "APIs — you have 'API integration' in profile",
+      "containerization — you have 'Docker' in profile",
+      "cloud platforms — generic; covered if you add AWS/Azure/GCP",
+      "communication / problem-solving / analytical thinking — soft-skill noise from LLM extraction"
+    ],
+    "priority_clusters": {
+      "cloud": ["AWS", "Azure", "GCP"],
+      "mlops_stack": ["MLOps", "Kubernetes", "MLflow", "Airflow"],
+      "classical_ml": ["SQL", "TensorFlow", "ML", "NLP", "classical ML"],
+      "data_eng": ["data pipelines", "Spark", "PySpark", "Databricks"]
+    }
+  }
+}
