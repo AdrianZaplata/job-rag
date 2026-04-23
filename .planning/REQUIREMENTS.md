@@ -156,79 +156,79 @@ Which phases cover which requirements. Filled in by the roadmapper.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-01 | — | Pending |
-| BACK-02 | — | Pending |
-| BACK-03 | — | Pending |
-| BACK-04 | — | Pending |
-| BACK-05 | — | Pending |
-| BACK-06 | — | Pending |
-| BACK-07 | — | Pending |
-| BACK-08 | — | Pending |
-| BACK-09 | — | Pending |
-| BACK-10 | — | Pending |
-| CORP-01 | — | Pending |
-| CORP-02 | — | Pending |
-| CORP-03 | — | Pending |
-| CORP-04 | — | Pending |
-| PROF-01 | — | Pending |
-| PROF-02 | — | Pending |
-| PROF-03 | — | Pending |
-| PROF-04 | — | Pending |
-| PROF-05 | — | Pending |
-| PROF-06 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| DASH-03 | — | Pending |
-| DASH-04 | — | Pending |
-| DASH-05 | — | Pending |
-| DASH-06 | — | Pending |
-| CHAT-01 | — | Pending |
-| CHAT-02 | — | Pending |
-| CHAT-03 | — | Pending |
-| CHAT-04 | — | Pending |
-| CHAT-05 | — | Pending |
-| CHAT-06 | — | Pending |
-| SHEL-01 | — | Pending |
-| SHEL-02 | — | Pending |
-| SHEL-03 | — | Pending |
-| SHEL-04 | — | Pending |
-| SHEL-05 | — | Pending |
-| SHEL-06 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| AUTH-06 | — | Pending |
-| AUTH-07 | — | Pending |
-| DEPL-01 | — | Pending |
-| DEPL-02 | — | Pending |
-| DEPL-03 | — | Pending |
-| DEPL-04 | — | Pending |
-| DEPL-05 | — | Pending |
-| DEPL-06 | — | Pending |
-| DEPL-07 | — | Pending |
-| DEPL-08 | — | Pending |
-| DEPL-09 | — | Pending |
-| DEPL-10 | — | Pending |
-| DEPL-11 | — | Pending |
-| DEPL-12 | — | Pending |
-| EVAL-01 | — | Pending |
-| EVAL-02 | — | Pending |
-| EVAL-03 | — | Pending |
-| EVAL-04 | — | Pending |
-| EVAL-05 | — | Pending |
-| EVAL-06 | — | Pending |
-| EVAL-07 | — | Pending |
-| DOCS-01 | — | Pending |
-| DOCS-02 | — | Pending |
-| DOCS-03 | — | Pending |
+| BACK-01 | Phase 1 | Pending |
+| BACK-02 | Phase 1 | Pending |
+| BACK-03 | Phase 1 | Pending |
+| BACK-04 | Phase 1 | Pending |
+| BACK-05 | Phase 1 | Pending |
+| BACK-06 | Phase 1 | Pending |
+| BACK-07 | Phase 1 | Pending |
+| BACK-08 | Phase 1 | Pending |
+| BACK-09 | Phase 1 | Pending |
+| BACK-10 | Phase 1 | Pending |
+| CORP-01 | Phase 2 | Pending |
+| CORP-02 | Phase 2 | Pending |
+| CORP-03 | Phase 2 | Pending |
+| CORP-04 | Phase 2 | Pending |
+| PROF-01 | Phase 7 | Pending |
+| PROF-02 | Phase 7 | Pending |
+| PROF-03 | Phase 7 | Pending |
+| PROF-04 | Phase 7 | Pending |
+| PROF-05 | Phase 7 | Pending |
+| PROF-06 | Phase 7 | Pending |
+| DASH-01 | Phase 5 | Pending |
+| DASH-02 | Phase 5 | Pending |
+| DASH-03 | Phase 5 | Pending |
+| DASH-04 | Phase 5 | Pending |
+| DASH-05 | Phase 5 | Pending |
+| DASH-06 | Phase 5 | Pending |
+| CHAT-01 | Phase 6 | Pending |
+| CHAT-02 | Phase 6 | Pending |
+| CHAT-03 | Phase 6 | Pending |
+| CHAT-04 | Phase 6 | Pending |
+| CHAT-05 | Phase 6 | Pending |
+| CHAT-06 | Phase 6 | Pending |
+| SHEL-01 | Phase 4 | Pending |
+| SHEL-02 | Phase 4 | Pending |
+| SHEL-03 | Phase 4 | Pending |
+| SHEL-04 | Phase 4 | Pending |
+| SHEL-05 | Phase 4 | Pending |
+| SHEL-06 | Phase 4 | Pending |
+| AUTH-01 | Phase 4 | Pending |
+| AUTH-02 | Phase 4 | Pending |
+| AUTH-03 | Phase 4 | Pending |
+| AUTH-04 | Phase 4 | Pending |
+| AUTH-05 | Phase 4 | Pending |
+| AUTH-06 | Phase 4 | Pending |
+| AUTH-07 | Phase 4 | Pending |
+| DEPL-01 | Phase 3 | Pending |
+| DEPL-02 | Phase 3 | Pending |
+| DEPL-03 | Phase 3 | Pending |
+| DEPL-04 | Phase 3 | Pending |
+| DEPL-05 | Phase 3 | Pending |
+| DEPL-06 | Phase 3 | Pending |
+| DEPL-07 | Phase 3 | Pending |
+| DEPL-08 | Phase 3 | Pending |
+| DEPL-09 | Phase 3 | Pending |
+| DEPL-10 | Phase 3 | Pending |
+| DEPL-11 | Phase 3 | Pending |
+| DEPL-12 | Phase 3 | Pending |
+| EVAL-01 | Phase 8 | Pending |
+| EVAL-02 | Phase 8 | Pending |
+| EVAL-03 | Phase 8 | Pending |
+| EVAL-04 | Phase 8 | Pending |
+| EVAL-05 | Phase 8 | Pending |
+| EVAL-06 | Phase 8 | Pending |
+| EVAL-07 | Phase 8 | Pending |
+| DOCS-01 | Phase 8 | Pending |
+| DOCS-02 | Phase 8 | Pending |
+| DOCS-03 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 67 total
-- Mapped to phases: 0 (pending roadmapper)
-- Unmapped: 67 ⚠️ (roadmapper will resolve)
+- Mapped to phases: 67
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-23*
-*Last updated: 2026-04-23 after initial definition*
+*Last updated: 2026-04-23 after roadmap creation (Traceability filled)*
