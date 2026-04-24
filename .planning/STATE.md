@@ -14,7 +14,7 @@ progress:
 # State: job-rag web-app milestone
 
 **Initialized:** 2026-04-23
-**Last updated:** 2026-04-23
+**Last updated:** 2026-04-24
 
 ## Project Reference
 
@@ -27,13 +27,13 @@ progress:
 
 ## Current Focus
 
-Roadmap created. Ready to plan Phase 1 (Backend Prep).
+Phase 1 context gathered. Ready to plan Phase 1 (Backend Prep).
 
 ## Current Position
 
 - **Phase**: 1 - Backend Prep
 - **Plan**: None yet
-- **Status**: Not started
+- **Status**: Context captured — ready for planning
 - **Progress**: 0/8 phases complete
 
 ```
@@ -92,7 +92,7 @@ Roadmap created. Ready to plan Phase 1 (Backend Prep).
 
 ### Open Questions (from research, to resolve during planning)
 
-- Phase 1: Should `terminationGracePeriodSeconds=120` live in the Terraform Container App resource or in ACA YAML config?
+- ~~Phase 1: Should `terminationGracePeriodSeconds=120` live in the Terraform Container App resource or in ACA YAML config?~~ → Resolved 2026-04-24 in Phase 1 CONTEXT.md (D-17): app-level SSE drain in Phase 1; Terraform `terminationGracePeriodSeconds=120` assigned to Phase 3 planner as belt-and-suspenders.
 - Phase 2: Does the `PROMPT_VERSION` bump require invalidating existing embeddings, or only re-extracting text fields?
 - Phase 3: Which Terraform resource type creates an Entra External ID tenant? Document manual bootstrap if none exists in `azuread ~> 3.x`.
 - Phase 3: Is the SWA deployment token the only non-OIDC secret? Confirm at planning time.
@@ -105,12 +105,14 @@ Roadmap created. Ready to plan Phase 1 (Backend Prep).
 
 ### Last session summary
 
-- 2026-04-23: Roadmap initialized. 8 phases mapped across 67 v1 requirements. Full coverage. Ready for `/gsd-plan-phase 1`.
+- 2026-04-23: Roadmap initialized. 8 phases mapped across 67 v1 requirements. Full coverage.
+- 2026-04-24: Phase 1 context gathered (`.planning/phases/01-backend-prep/01-CONTEXT.md`). 4 gray areas discussed → 17 decisions captured (all Recommended). Locks: Alembic autogen+stamp baseline; dedicated `users` table + hardcoded `SEEDED_USER_ID`; typed `heartbeat` + `error` SSE events; app-level shutdown draining in Phase 1; async `IngestionSource` Protocol with thin sync bridge.
 
 ### Next session
 
-- `/gsd-plan-phase 1` — decompose Phase 1 (Backend Prep) into executable plans.
+- `/gsd-plan-phase 1` — decompose Phase 1 (Backend Prep) into executable plans using `01-CONTEXT.md`.
 - Target plans per phase (standard granularity): 3-5.
 
 ---
 *State initialized: 2026-04-23 after roadmap creation*
+*Phase 1 context captured: 2026-04-24*
