@@ -1283,7 +1283,7 @@ The sync `rerank()` body (`reranker.predict(pairs)` etc.) is **unchanged**. Only
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the heartbeat interval be configurable independently from the sse-starlette `ping=` parameter?**
    - What we know: D-15 locks 15s; settings has `heartbeat_interval_seconds: int = 15`.

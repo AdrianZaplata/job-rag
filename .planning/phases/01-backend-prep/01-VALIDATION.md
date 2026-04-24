@@ -57,7 +57,7 @@ New test files Phase 1 must create before any other wave starts (inferred from 0
 - [ ] `tests/test_ingestion.py` — `MarkdownFileSource` yields one `RawPosting` per .md + `isinstance` Protocol satisfaction + `ingest_from_source` end-to-end + sync `ingest_file` compat
 - [ ] `tests/test_auth.py` — `get_current_user_id()` returns `SEEDED_USER_ID` in v1
 - [ ] `tests/test_cli.py` — `init-db` delegates to `alembic.command.upgrade` (mock-based)
-- [ ] `tests/test_api.py` — extend with `TestCORS` class (preflight accept/reject, no wildcard) + `TestAgentStream` extensions (heartbeat emission, timeout emits sanitized error, `Content-Encoding: identity`, `X-Accel-Buffering: no`, no GZipMiddleware, internal-exception sanitization)
+- [ ] `tests/test_api.py` — Wave 0 does NOT extend this file. The `TestCORS` class and `TestAgentStream` extensions (heartbeat emission, timeout/sanitization, `Content-Encoding: identity`, `X-Accel-Buffering: no`, no-GZipMiddleware guard, internal-exception sanitization) depend on production symbols (`_sanitize`, `_heartbeat_factory`, `app.state.shutdown_event`, `app.state.active_streams`) that only exist after Plan 06. These tests land atomically alongside Plan 06's route rewrite (Plan 06 Task 3 — test wiring). Plan 01 deliberately does not scaffold skeletons here because every CORS/Stream test is integration-level and needs the final route handlers to assert against.
 - [ ] `tests/test_retrieval.py` — extend with `rerank` via `asyncio.to_thread` + event-loop responsiveness during reranking
 - [ ] `tests/conftest.py` — fixtures `fake_slow_agent` (yields tokens with sleep) and `fake_hanging_agent` (never yields)
 - [ ] Dev dep: `uv add --dev asgi-lifespan` for lifespan-aware ASGITransport tests
