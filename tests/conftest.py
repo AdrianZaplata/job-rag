@@ -67,13 +67,19 @@ def fake_slow_agent():
     Used by BACK-05 test to observe heartbeat emission during active reasoning.
     Yields one token then a final event with a 100ms delay each — short enough
     to keep CI tests fast, long enough to interleave with a heartbeat task.
+
+    Plan 04 typed the stream contract: stream_agent now yields Pydantic
+    AgentEvent instances (TokenEvent / FinalEvent / etc.). The fixture yields
+    typed events so the Plan 06 route handler's `to_sse(event)` call works.
     """
 
-    async def _impl(query: str) -> AsyncIterator[dict]:
+    async def _impl(query: str) -> AsyncIterator[object]:
+        from job_rag.api.sse import FinalEvent, TokenEvent
+
         await asyncio.sleep(0.1)
-        yield {"type": "token", "content": "slow"}
+        yield TokenEvent(type="token", content="slow")
         await asyncio.sleep(0.1)
-        yield {"type": "final", "content": "slow"}
+        yield FinalEvent(type="final", content="slow")
 
     return _impl
 
@@ -86,11 +92,16 @@ def fake_hanging_agent():
     yield, so any consumer MUST wrap iteration in a timeout (combine with
     monkeypatched settings.agent_timeout_seconds = 0.5 in CI to keep
     wall-time bounded). Otherwise the test runner will hang.
+
+    Plan 04 typed the stream contract; the unreachable yield is a typed
+    TokenEvent for shape-correctness even though it never executes.
     """
 
-    async def _impl(query: str) -> AsyncIterator[dict]:
+    async def _impl(query: str) -> AsyncIterator[object]:
+        from job_rag.api.sse import TokenEvent
+
         while True:
             await asyncio.sleep(3600)
-            yield {"type": "token", "content": "never"}  # unreachable
+            yield TokenEvent(type="token", content="never")  # unreachable
 
     return _impl
