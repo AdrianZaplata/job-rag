@@ -1,3 +1,5 @@
+import asyncio
+from collections.abc import AsyncIterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -56,3 +58,39 @@ def sample_posting() -> JobPosting:
 @pytest.fixture
 def mock_openai_client():
     return MagicMock()
+
+
+@pytest.fixture
+def fake_slow_agent():
+    """Simulates stream_agent that pauses between yields.
+
+    Used by BACK-05 test to observe heartbeat emission during active reasoning.
+    Yields one token then a final event with a 100ms delay each — short enough
+    to keep CI tests fast, long enough to interleave with a heartbeat task.
+    """
+
+    async def _impl(query: str) -> AsyncIterator[dict]:
+        await asyncio.sleep(0.1)
+        yield {"type": "token", "content": "slow"}
+        await asyncio.sleep(0.1)
+        yield {"type": "final", "content": "slow"}
+
+    return _impl
+
+
+@pytest.fixture
+def fake_hanging_agent():
+    """Simulates stream_agent that never yields — triggers agent_timeout.
+
+    Used by BACK-06 test. The body sleeps 3600s before each (unreachable)
+    yield, so any consumer MUST wrap iteration in a timeout (combine with
+    monkeypatched settings.agent_timeout_seconds = 0.5 in CI to keep
+    wall-time bounded). Otherwise the test runner will hang.
+    """
+
+    async def _impl(query: str) -> AsyncIterator[dict]:
+        while True:
+            await asyncio.sleep(3600)
+            yield {"type": "token", "content": "never"}  # unreachable
+
+    return _impl
