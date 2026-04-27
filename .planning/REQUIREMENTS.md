@@ -12,7 +12,7 @@ Requirements for the initial release. Each maps to a single roadmap phase; the t
 Close the seven blockers surfaced in the codebase audit and add the platform-ready hedges.
 
 - [x] **BACK-01**: CORS middleware configured via env-var origin allowlist (dev: localhost:5173; prod: Azure Static Web Apps origin)
-- [ ] **BACK-02**: Pydantic models document the `/agent/stream` SSE event contract (`token` / `tool_start` / `tool_end` / `final`) and appear in OpenAPI
+- [x] **BACK-02**: Pydantic models document the `/agent/stream` SSE event contract (`token` / `tool_start` / `tool_end` / `final`) and appear in OpenAPI
 - [ ] **BACK-03**: Cross-encoder reranker is preloaded in the FastAPI lifespan (no 2–5 s cold-start on first chat)
 - [ ] **BACK-04**: Reranker invocation wraps CPU-bound work in `asyncio.to_thread()` so the event loop is never blocked
 - [x] **BACK-05**: `/agent/stream` emits a heartbeat event every 15 seconds to keep the Azure Container Apps Envoy idle timer from closing the stream
@@ -157,7 +157,7 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BACK-01 | Phase 1 | Complete |
-| BACK-02 | Phase 1 | Pending |
+| BACK-02 | Phase 1 | Complete |
 | BACK-03 | Phase 1 | Pending |
 | BACK-04 | Phase 1 | Pending |
 | BACK-05 | Phase 1 | Complete |
