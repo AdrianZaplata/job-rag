@@ -46,7 +46,7 @@ Plans:
 - [x] 01-02-PLAN.md — Alembic adoption: baseline autogenerate + user/profile/career_id migrations, init_db wraps `alembic upgrade head`, UserDB/UserProfileDB ORM classes (BACK-07/08/09)
 - [x] 01-03-PLAN.md — IngestionSource Protocol + RawPosting + MarkdownFileSource + ingest_from_source async consumer; sync ingest_file rewrap preserves CLI contract (BACK-10)
 - [x] 01-04-PLAN.md — SSE event contract: six-model Pydantic discriminated union in api/sse.py + agent/stream.py rewired to yield Pydantic events (BACK-02)
-- [ ] 01-05-PLAN.md — FastAPI lifespan (reranker preload + shutdown event + 30s drain) + CORS middleware + get_current_user_id dep + asyncio.to_thread rerank wrap + load_profile user_id kwarg (BACK-01/03/04/08)
+- [x] 01-05-PLAN.md — FastAPI lifespan (reranker preload + shutdown event + 30s drain) + CORS middleware + get_current_user_id dep + asyncio.to_thread rerank wrap + load_profile user_id kwarg (BACK-01/03/04/08)
 - [ ] 01-06-PLAN.md — Route handler rewrite: agent_stream with heartbeat + 60s timeout + sanitized errors + shutdown drain; /match /gaps /ingest user_id injection; CI postgres service + alembic smoke + grep guard (BACK-05/06)
 
 ### Phase 2: Corpus Cleanup

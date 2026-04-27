@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-27T10:54:50.604Z"
+last_updated: "2026-04-27T11:13:16.403Z"
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # State: job-rag web-app milestone
@@ -28,17 +28,17 @@ progress:
 
 ## Current Focus
 
-Phase 1 (Backend Prep) executing. Plans 01 + 02 + 03 + 04 complete. SSE wire contract is now typed (Pydantic v2 discriminated AgentEvent union); stream_agent yields TokenEvent / ToolStartEvent / ToolEndEvent / FinalEvent; route handler still indexes dict-shaped events (deferred to Plan 06 per plan note + deferred-items.md). Plans 05 + 06 unblocked.
+Phase 1 (Backend Prep) executing. Plans 01 + 02 + 03 + 04 + 05 complete. FastAPI lifespan now preloads the cross-encoder (BACK-03), drains active SSE streams on SIGTERM via anyio.Event + 30s gather budget (D-17), CORS allow-list is env-var driven and never `*` (BACK-01); `get_current_user_id` returns `settings.seeded_user_id` as the Phase-4-pivotable auth dep (BACK-08); both `rerank()` callsites wrapped in `asyncio.to_thread` (BACK-04); `load_profile` evolved to keyword-only `user_id` signature (Phase 7 PROF-01 forward-compat shell). Only Plan 06 (route handler — timeout + heartbeat + drain + error sanitization) remains.
 
 ## Current Position
 
 Phase: 01 (backend-prep) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 
 - **Phase**: 1 - Backend Prep
-- **Plan**: 04 complete; ready to execute Plan 05 (FastAPI lifespan reranker preload + get_current_user_id + CORSMiddleware) or Plan 06 (route handler with timeout + heartbeat + drain — primary consumer of Plan 04's to_sse helper)
-- **Status**: SSE typed contract live (api/sse.py + AgentEvent + to_sse); stream_agent rewired; cli.py agent --stream consumer also fixed (Rule 1 deviation); routes.py:143 indexing deferred to Plan 06 (deferred-items.md tracks)
-- **Progress**: 0/8 phases complete; 4/6 Phase 1 plans complete
+- **Plan**: 05 complete; ready to execute Plan 06 (route handler with timeout + heartbeat + drain — primary consumer of Plan 04's to_sse helper + Plan 05's lifespan state). Plan 06 also resolves the deferred routes.py:143 pyright errors documented in deferred-items.md.
+- **Status**: Lifespan + CORS + get_current_user_id + asyncio.to_thread(rerank) + load_profile keyword-only signature all live. Full non-eval suite 100 passed / 2 skipped / 0 failed. routes.py:143 still deferred to Plan 06 (6 pyright errors, pre-existing from Plan 04 — NOT introduced by Plan 05).
+- **Progress**: 0/8 phases complete; 5/6 Phase 1 plans complete
 
 ```
 [ ] Phase 1: Backend Prep                    <- current
@@ -60,16 +60,17 @@ Plan: 5 of 6
 | Requirements unmapped | 0 |
 | Phases planned | 8 |
 | Phases complete | 0 |
-| Plans complete | 4 |
+| Plans complete | 5 |
 
 ### Per-Plan Execution
 
 | Plan | Duration | Tasks | Files | Commits |
 |------|----------|-------|-------|---------|
-| 01-01 (Wave 0 foundation)         | 13m 42s | 2 | 12 | 246caad, 64345d0 |
-| 01-02 (Alembic adoption)          | ~28m    | 2 | 9  | 55212c5, 56307f4 |
-| 01-03 (IngestionSource Protocol)  | n/a     | 2 | n/a| 9408e14, 24afe5e |
-| 01-04 (SSE Pydantic event contract)| 11m 24s| 2 | 6  | 6ba420d, 35f2bbe |
+| 01-01 (Wave 0 foundation)              | 13m 42s | 2 | 12 | 246caad, 64345d0 |
+| 01-02 (Alembic adoption)               | ~28m    | 2 | 9  | 55212c5, 56307f4 |
+| 01-03 (IngestionSource Protocol)       | n/a     | 2 | n/a| 9408e14, 24afe5e |
+| 01-04 (SSE Pydantic event contract)    | 11m 24s | 2 | 6  | 6ba420d, 35f2bbe |
+| 01-05 (lifespan + CORS + auth dep)     | 8m 6s   | 2 | 5  | e968969, ab0657e |
 
 ## Accumulated Context
 
@@ -87,6 +88,11 @@ Plan: 5 of 6
 - **Plan 01-04:** Wave 0 scaffold guard widening pattern — when a Wave 0 test scaffold's skip-guard only checks for module presence (Plan 04 lands `sse.py`) but the assertion needs a downstream wiring (Plan 06 wires `components.schemas`), widen the guard with a content-presence check + descriptive skip message. Preserves test intent ("activate the moment either lands") without needing test edits when the next plan ships.
 - **Plan 01-04:** Pattern: `.planning/phases/XX-name/deferred-items.md` log per phase — when a refactor breaks code outside the plan's stated files but ANOTHER plan in the same phase will rewrite that code anyway (e.g., `routes.py:143` deferred to Plan 06), document the breakage + resolving plan in the phase-local deferred-items.md rather than expanding scope. Honors SCOPE BOUNDARY rule while preserving traceability.
 - **Plan 01-04:** Defensive coercion at the LangGraph boundary — `args = raw_args if isinstance(raw_args, dict) else None` and `event.get("name") or ""` in `stream_agent`. LangGraph occasionally surfaces non-dict tool inputs (positional invocations) and unnamed events; without these coercions the new ToolStartEvent / ToolEndEvent Pydantic validation would raise mid-stream with no graceful error event (Plan 06's error handling isn't live yet).
+- **Plan 01-05:** Used `except TimeoutError:` instead of plan-spec'd `except asyncio.TimeoutError:` — Python 3.11+ aliased `asyncio.TimeoutError` to the builtin `TimeoutError`, and ruff UP041 enforces the canonical builtin form. Pattern reusable for any future async exception handling under ruff UP rules.
+- **Plan 01-05:** Sequencing Caveat Option A — `def load_profile(*, user_id=None, path=None)` keyword-only signature. Adding new params with leading `*` keeps existing positional/no-arg callers working without modification; new callers pass the new arg explicitly. Forward-compat shell pattern reusable for Phase 7 PROF-01 schema/source flips (load_profile body switches from `data/profile.json` to DB lookup keyed on user_id without touching call sites).
+- **Plan 01-05:** `anyio.Event()` (NOT `asyncio.Event()`) for `app.state.shutdown_event` — sse-starlette's `shutdown_event` kwarg expects `anyio.Event` for asyncio/trio portability. Load-bearing choice for Plan 06's `EventSourceResponse(shutdown_event=app.state.shutdown_event, ping=...)` wiring.
+- **Plan 01-05:** Documented anti-pattern in source comments (`# CRITICAL: do NOT add GZipMiddleware [D-18, Pitfall 6]`) — intentional anti-regression nudge for any future contributor adding middleware. Trade-off: literal-string `grep -rq GZipMiddleware src/` now matches the comment; runtime introspection `'GZipMiddleware' not in app.user_middleware` is the authoritative check (passes). Plan 06's CI grep should pivot to `grep -E "add_middleware\(\s*GZipMiddleware"` to ignore comments.
+- **Plan 01-05:** Forward-compat function-body pattern for auth dependencies — `get_current_user_id()` returns a Python constant in v1; Phase 4 will rewrite the function body in-place to parse the Entra JWT `sub`/`oid` claim. No feature flag needed; every call site is already wired via `Depends(get_current_user_id)` so the rewrite is a one-function-body change. Decouples auth-wiring rollout (BACK-08, Phase 1) from auth-mechanism rollout (AUTH-06, Phase 4).
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -139,10 +145,11 @@ Plan: 5 of 6
 - 2026-04-27: Plan 01-02 executed (Alembic adoption). 2 atomic commits (55212c5 feat models/engine + 56307f4 feat alembic dir). Created alembic.ini + alembic/env.py + 3 migration files (0001 baseline, 0002 users + user_profile + seed, 0003 career_id); added UserDB + UserProfileDB ORM with NO default on user_id (D-12 invariant); added career_id column on JobPostingDB; rewrote init_db() to wrap alembic.command.upgrade(cfg, "head"); updated async_engine pool params (D-29). Stamped Adrian's dev DB at 0001 via direct INSERT (alembic ConfigParser doesn't handle % in URL-encoded password) then upgraded to 0003 — 108 postings preserved, career_id backfilled, seed user inserted. tests/test_alembic.py + tests/test_cli.py both ACTIVE and PASSING. Full suite: 83 passed, 17 skipped, 0 failed. Stopped at: Completed 01-02-PLAN.md.
 - 2026-04-27: Plan 01-03 executed (IngestionSource Protocol). 2 atomic commits (9408e14 feat Protocol/RawPosting/MarkdownFileSource/IngestResult + 24afe5e feat ingest_from_source async consumer rewrap sync ingest_file). tests/test_ingestion.py ACTIVE.
 - 2026-04-27: Plan 01-04 executed (SSE Pydantic event contract). 2 atomic commits (6ba420d feat api/sse.py + AgentEvent + to_sse + test scaffold guard widen + 35f2bbe feat stream.py rewire + test_agent + cli.py consumer fix). Created src/job_rag/api/sse.py with 6 Pydantic v2 BaseModel event classes + AgentEvent discriminated union via `Annotated[X | Y | ..., Field(discriminator="type")]` + `to_sse(event)` helper. Rewired src/job_rag/agent/stream.py to yield typed AgentEvent instances (return type `AsyncIterator[AgentEvent]`); 4 dict yields → Pydantic instances; defensive `isinstance(args, dict) else None` + `event.get("name") or ""` coercions for LangGraph edge cases. Updated tests/test_agent.py::TestStreamAgent (attribute access on Pydantic) and tests/test_sse_contract.py::TestOpenAPISchema (widened skip-guard for Plan 06 intermediate state). Auto-fixed src/job_rag/cli.py `agent --stream` consumer (Rule 1 — broke at runtime; not in plan but discovered via pyright full-tree scan). Wire-shape byte-identity confirmed via before/after smoke (5/5 events). routes.py:143 indexing deferred to Plan 06 (deferred-items.md tracks). Full suite: 97 passed, 5 skipped, 0 failed. Stopped at: Completed 01-04-PLAN.md.
+- 2026-04-27: Plan 01-05 executed (FastAPI lifespan + CORS + get_current_user_id + asyncio.to_thread + load_profile user_id kwarg). 2 atomic commits (e968969 feat lifespan/CORS/auth + ab0657e feat asyncio.to_thread + load_profile). Rewrote src/job_rag/api/app.py: lifespan preloads `_get_reranker()` once on startup (BACK-03 closes 2-3s cold-load), creates `app.state.shutdown_event = anyio.Event()` and `app.state.active_streams = set()` (D-17), shutdown sets event then drains via `asyncio.wait_for(asyncio.gather(*active_streams), 30.0)` then disposes async DB engine; bumped version 0.2.0 → 0.3.0. CORSMiddleware wired with `allow_origins=settings.allowed_origins` (env-var driven, NEVER `*`), `allow_credentials=True`, GET/POST/OPTIONS, Authorization+Content-Type headers (BACK-01, T-05-01); explicit anti-regression comment forbids GZipMiddleware (D-18 / Pitfall 6). Appended `get_current_user_id() -> uuid.UUID` async dep to src/job_rag/api/auth.py returning `settings.seeded_user_id` directly (BACK-08, T-05-02 — body parses no input; Phase 4 rewrites body for Entra JWT per D-10). Wrapped `rerank()` callsite in src/job_rag/services/retrieval.py::rag_query as `await asyncio.to_thread(rerank, ...)` (BACK-04, T-05-03 — heartbeats keep firing); same wrap in src/job_rag/mcp_server/tools.py::search_postings. Evolved src/job_rag/services/matching.py::load_profile signature to `def load_profile(*, user_id: UUID | None = None, path: str | None = None)` keyword-only per Sequencing Caveat Option A — existing no-arg callers (api/routes.py /match + /gaps) keep working unchanged; mcp_server/tools.py callers now explicitly pass `user_id=settings.seeded_user_id` per D-08. Auto-fixed `except asyncio.TimeoutError` → `except TimeoutError` (Rule 1 — ruff UP041 enforces builtin alias for Python 3.11+). tests/test_lifespan.py reranker_preloaded + shutdown_event_initialized + tests/test_auth.py get_current_user_id all ACTIVE and PASSING. Full suite: 100 passed, 2 skipped, 0 failed (up from 97/5). routes.py:143 still deferred to Plan 06 (6 pyright errors, pre-existing from Plan 04 — NOT introduced by Plan 05). Stopped at: Completed 01-05-PLAN.md (lifespan + CORS + get_current_user_id + asyncio.to_thread + load_profile user_id kwarg). Plan 06 unblocked — only remaining Phase 1 plan.
 
 ### Next session
 
-- `/gsd-execute-phase 1 5` — execute Plan 05 (FastAPI lifespan reranker preload + get_current_user_id dependency + CORSMiddleware). Independent of Plan 06; can also run `/gsd-execute-phase 1 6` next instead — Plan 06 is the primary consumer of Plan 04's `to_sse` helper and will close the routes.py:143 indexing issue currently in deferred-items.md.
+- `/gsd-execute-phase 1 6` — execute Plan 06 (route handler with timeout + heartbeat + drain + error sanitization). Primary consumer of Plan 04's `to_sse` helper + Plan 05's `app.state.shutdown_event` / `app.state.active_streams` / `get_current_user_id` / `load_profile(user_id=...)` keyword wiring. Closes the deferred routes.py:143 pyright errors (rewrites the route handler to use `to_sse(event)`). After Plan 06 lands, Phase 1 is complete and Phase 2 (Corpus Cleanup) opens.
 - Target plans per phase (standard granularity): 3-5.
 
 ---

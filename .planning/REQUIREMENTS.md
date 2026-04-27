@@ -13,8 +13,8 @@ Close the seven blockers surfaced in the codebase audit and add the platform-rea
 
 - [x] **BACK-01**: CORS middleware configured via env-var origin allowlist (dev: localhost:5173; prod: Azure Static Web Apps origin)
 - [x] **BACK-02**: Pydantic models document the `/agent/stream` SSE event contract (`token` / `tool_start` / `tool_end` / `final`) and appear in OpenAPI
-- [ ] **BACK-03**: Cross-encoder reranker is preloaded in the FastAPI lifespan (no 2–5 s cold-start on first chat)
-- [ ] **BACK-04**: Reranker invocation wraps CPU-bound work in `asyncio.to_thread()` so the event loop is never blocked
+- [x] **BACK-03**: Cross-encoder reranker is preloaded in the FastAPI lifespan (no 2–5 s cold-start on first chat)
+- [x] **BACK-04**: Reranker invocation wraps CPU-bound work in `asyncio.to_thread()` so the event loop is never blocked
 - [x] **BACK-05**: `/agent/stream` emits a heartbeat event every 15 seconds to keep the Azure Container Apps Envoy idle timer from closing the stream
 - [x] **BACK-06**: Agent endpoints enforce a 60 s timeout via `asyncio.wait_for`; timeout emits a graceful SSE error event instead of hanging
 - [x] **BACK-07**: Alembic adopted for schema migrations; initial revision baselines the current schema
@@ -158,8 +158,8 @@ Which phases cover which requirements. Filled in by the roadmapper.
 |-------------|-------|--------|
 | BACK-01 | Phase 1 | Complete |
 | BACK-02 | Phase 1 | Complete |
-| BACK-03 | Phase 1 | Pending |
-| BACK-04 | Phase 1 | Pending |
+| BACK-03 | Phase 1 | Complete |
+| BACK-04 | Phase 1 | Complete |
 | BACK-05 | Phase 1 | Complete |
 | BACK-06 | Phase 1 | Complete |
 | BACK-07 | Phase 1 | Complete |
