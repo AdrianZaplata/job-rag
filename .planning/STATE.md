@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-04-27T11:13:16.403Z"
+status: Phase 01 complete — ready for Phase 02
+last_updated: "2026-04-27T11:51:27.963Z"
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # State: job-rag web-app milestone
@@ -28,22 +28,22 @@ progress:
 
 ## Current Focus
 
-Phase 1 (Backend Prep) executing. Plans 01 + 02 + 03 + 04 + 05 complete. FastAPI lifespan now preloads the cross-encoder (BACK-03), drains active SSE streams on SIGTERM via anyio.Event + 30s gather budget (D-17), CORS allow-list is env-var driven and never `*` (BACK-01); `get_current_user_id` returns `settings.seeded_user_id` as the Phase-4-pivotable auth dep (BACK-08); both `rerank()` callsites wrapped in `asyncio.to_thread` (BACK-04); `load_profile` evolved to keyword-only `user_id` signature (Phase 7 PROF-01 forward-compat shell). Only Plan 06 (route handler — timeout + heartbeat + drain + error sanitization) remains.
+Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `status: passed (5/5 must-haves)`. The backend now ships CORSMiddleware (env allowlist, never `*`), Pydantic-typed SSE event contract exposed in OpenAPI, FastAPI lifespan with reranker preload + SIGTERM drain (30s budget) + asyncio.to_thread reranker wraps, `/agent/stream` with sse-starlette ping heartbeats + asyncio.timeout(60s) + sanitized error frames + cooperative shutdown drain, `get_current_user_id` Depends() injected on `/match` `/gaps` `/ingest` (returns `settings.seeded_user_id` — Phase 4 rewrites body for Entra JWT), Alembic as the canonical schema path (3 migrations, init_db wraps `alembic upgrade head`, dev DB transitioned losslessly with 108 postings preserved + career_id backfilled + seed user inserted), and IngestionSource Protocol with MarkdownFileSource v1 + ingest_from_source async consumer. CI gained postgres service container + alembic upgrade smoke step + user_id DEFAULT grep guard. All 10 BACK-* requirements closed.
 
 ## Current Position
 
-Phase: 01 (backend-prep) — EXECUTING
-Plan: 6 of 6
+Phase: 01 (backend-prep) — COMPLETE
+Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both unblocked per ROADMAP parallelization notes
 
-- **Phase**: 1 - Backend Prep
-- **Plan**: 05 complete; ready to execute Plan 06 (route handler with timeout + heartbeat + drain — primary consumer of Plan 04's to_sse helper + Plan 05's lifespan state). Plan 06 also resolves the deferred routes.py:143 pyright errors documented in deferred-items.md.
-- **Status**: Lifespan + CORS + get_current_user_id + asyncio.to_thread(rerank) + load_profile keyword-only signature all live. Full non-eval suite 100 passed / 2 skipped / 0 failed. routes.py:143 still deferred to Plan 06 (6 pyright errors, pre-existing from Plan 04 — NOT introduced by Plan 05).
-- **Progress**: 0/8 phases complete; 5/6 Phase 1 plans complete
+- **Phase**: 1 - Backend Prep — verified passed (5/5 must-haves)
+- **Plan**: All 6 plans complete with SUMMARY.md files; VERIFICATION.md created
+- **Status**: 111 passed / 1 skipped / 0 failed; ruff clean; pyright 0 errors; CI workflow YAML structurally valid; all 10 BACK-* requirements closed
+- **Progress**: 1/8 phases complete; 6/6 Phase 1 plans complete (100%)
 
 ```
-[ ] Phase 1: Backend Prep                    <- current
-[ ] Phase 2: Corpus Cleanup
-[ ] Phase 3: Infrastructure & CI/CD
+[x] Phase 1: Backend Prep                    ✓ COMPLETE
+[ ] Phase 2: Corpus Cleanup                  <- next (parallel-eligible with 3)
+[ ] Phase 3: Infrastructure & CI/CD          <- next (parallel-eligible with 2)
 [ ] Phase 4: Frontend Shell + Auth
 [ ] Phase 5: Dashboard
 [ ] Phase 6: Chat
@@ -59,8 +59,8 @@ Plan: 6 of 6
 | Requirements mapped | 67 (100%) |
 | Requirements unmapped | 0 |
 | Phases planned | 8 |
-| Phases complete | 0 |
-| Plans complete | 5 |
+| Phases complete | 1 |
+| Plans complete | 6 |
 
 ### Per-Plan Execution
 
@@ -149,7 +149,7 @@ Plan: 6 of 6
 
 ### Next session
 
-- `/gsd-execute-phase 1 6` — execute Plan 06 (route handler with timeout + heartbeat + drain + error sanitization). Primary consumer of Plan 04's `to_sse` helper + Plan 05's `app.state.shutdown_event` / `app.state.active_streams` / `get_current_user_id` / `load_profile(user_id=...)` keyword wiring. Closes the deferred routes.py:143 pyright errors (rewrites the route handler to use `to_sse(event)`). After Plan 06 lands, Phase 1 is complete and Phase 2 (Corpus Cleanup) opens.
+- `/gsd-discuss-phase 2` — gather Phase 2 (Corpus Cleanup) context: CORP-01..CORP-04 cover PROMPT_VERSION bump + SkillCategory enum + structured Location + full re-extraction. Or `/gsd-discuss-phase 3` for Infrastructure & CI/CD (DEPL-01..DEPL-12). Phases 2 and 3 are parallel-eligible per ROADMAP — pick whichever blocks downstream work first.
 - Target plans per phase (standard granularity): 3-5.
 
 ---

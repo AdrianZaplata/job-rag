@@ -20,7 +20,7 @@ Close the seven blockers surfaced in the codebase audit and add the platform-rea
 - [x] **BACK-07**: Alembic adopted for schema migrations; initial revision baselines the current schema
 - [x] **BACK-08**: `user_id` UUID NOT NULL column added to all user-scoped tables via Alembic; seed row uses Adrian's UUID in v1 (no `DEFAULT` in DDL — value is app-layer injected from the JWT `sub`)
 - [x] **BACK-09**: `career_id` TEXT NOT NULL column added to `job_posting_db`, default `"ai_engineer"`
-- [ ] **BACK-10**: `IngestionSource` Protocol defined with a `RawPosting` dataclass contract; the existing markdown-file reader is refactored as one `MarkdownFileSource` implementation
+- [x] **BACK-10**: `IngestionSource` Protocol defined with a `RawPosting` dataclass contract; the existing markdown-file reader is refactored as one `MarkdownFileSource` implementation
 
 ### Corpus cleanup — one-time re-extraction (CORP)
 
@@ -165,7 +165,7 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | BACK-07 | Phase 1 | Complete |
 | BACK-08 | Phase 1 | Complete |
 | BACK-09 | Phase 1 | Complete |
-| BACK-10 | Phase 1 | Pending |
+| BACK-10 | Phase 1 | Complete |
 | CORP-01 | Phase 2 | Pending |
 | CORP-02 | Phase 2 | Pending |
 | CORP-03 | Phase 2 | Pending |

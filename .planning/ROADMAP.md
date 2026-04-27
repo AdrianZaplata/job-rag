@@ -17,7 +17,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 
 ## Phases
 
-- [ ] **Phase 1: Backend Prep** - Close the seven web-UI blockers and land the multi-tenant data-model hedges
+- [x] **Phase 1: Backend Prep** - Close the seven web-UI blockers and land the multi-tenant data-model hedges (verified 2026-04-27, 5/5 must-haves)
 - [ ] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location
 - [ ] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows
 - [ ] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context
@@ -162,7 +162,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Prep | 4/6 | In Progress|  |
+| 1. Backend Prep | 6/6 | ✓ Complete | 2026-04-27 |
 | 2. Corpus Cleanup | 0/? | Not started | - |
 | 3. Infrastructure & CI/CD | 0/? | Not started | - |
 | 4. Frontend Shell + Auth | 0/? | Not started | - |
