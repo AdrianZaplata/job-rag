@@ -31,6 +31,13 @@ class JobPostingDB(Base):
     prompt_version: Mapped[str] = mapped_column(String(10), nullable=False)
     embedding = mapped_column(Vector(1536), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # career_id (D-13): every v1 posting is an AI Engineer role; future career
+    # expansion will be explicit. Unlike user_id, a DDL DEFAULT IS intentional
+    # here — every row is the same value in v1. No index (Claude's Discretion —
+    # all values identical in v1; index would add nothing).
+    career_id: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="ai_engineer"
+    )
 
     requirements: Mapped[list["JobRequirementDB"]] = relationship(
         back_populates="posting", cascade="all, delete-orphan"
@@ -77,4 +84,47 @@ class JobChunkDB(Base):
     __table_args__ = (
         Index("ix_job_chunks_posting_id", "posting_id"),
         Index("ix_job_chunks_section", "section"),
+    )
+
+
+class UserDB(Base):
+    """Registered user. v1 has exactly one row (Adrian's SEEDED_USER_ID).
+
+    Phase 4 swaps `id` to the Entra `oid` via 00NN_adopt_entra_oid.py.
+    NOTE: `id` has NO default and NO server_default — value is app-injected
+    from the JWT `sub`/`oid` claim (Pitfall 18, D-08, D-12).
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # NO default
+    entra_oid: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class UserProfileDB(Base):
+    """User skill profile. v1 read path is data/profile.json (D-07);
+    Phase 7 (PROF-01) flips the source to this table.
+
+    NOTE: `user_id` has NO default and NO server_default — app/migration
+    INSERT must supply the value (D-07, D-08, D-12).
+    """
+
+    __tablename__ = "user_profile"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    skills_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    target_roles_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    preferred_locations_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    min_salary_eur: Mapped[int | None] = mapped_column(nullable=True)
+    remote_preference: Mapped[str] = mapped_column(Text, nullable=False, default="unknown")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
