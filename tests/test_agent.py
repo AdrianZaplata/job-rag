@@ -120,9 +120,11 @@ class TestStreamAgent:
         with patch("job_rag.agent.stream.build_agent", return_value=mock_agent):
             events = [event async for event in stream.stream_agent("hi")]
 
-        types = [e["type"] for e in events]
+        # Plan 04: stream_agent yields Pydantic AgentEvent instances (not dicts).
+        # Use attribute access on the discriminator + payload fields.
+        types = [e.type for e in events]
         assert "token" in types
         assert "tool_start" in types
         assert "tool_end" in types
         assert types[-1] == "final"
-        assert events[-1]["content"] == "Hello world."
+        assert events[-1].content == "Hello world."

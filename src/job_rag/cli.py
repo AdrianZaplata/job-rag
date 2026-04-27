@@ -217,11 +217,15 @@ def agent(
             from job_rag.agent.stream import stream_agent
 
             async for event in stream_agent(query):
-                etype = event["type"]
+                # Plan 04: stream_agent now yields Pydantic AgentEvent
+                # instances; use attribute access on the discriminator + payload
+                # fields. Wire shape (model_dump_json) remains identical to the
+                # legacy dict form so any downstream output stays equivalent.
+                etype = event.type
                 if etype == "token":
-                    typer.echo(event["content"], nl=False)
+                    typer.echo(event.content, nl=False)  # type: ignore[union-attr]
                 elif etype == "tool_start":
-                    typer.echo(f"\n[tool→ {event['name']}({event.get('args')})]")
+                    typer.echo(f"\n[tool→ {event.name}({event.args})]")  # type: ignore[union-attr]
                 elif etype == "tool_end":
                     pass  # tool result already shown via token stream from next LLM call
                 elif etype == "final":
