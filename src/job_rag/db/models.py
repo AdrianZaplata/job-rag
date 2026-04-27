@@ -120,11 +120,18 @@ class UserProfileDB(Base):
         primary_key=True,
         nullable=False,
     )
-    skills_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    target_roles_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    preferred_locations_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # server_default values mirror alembic/versions/0002_add_user_profile.py
+    # exactly so `alembic check` (must-have truth #7) reports no drift between
+    # ORM models and migrations.
+    skills_json: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
+    target_roles_json: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
+    preferred_locations_json: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="[]"
+    )
     min_salary_eur: Mapped[int | None] = mapped_column(nullable=True)
-    remote_preference: Mapped[str] = mapped_column(Text, nullable=False, default="unknown")
+    remote_preference: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="unknown"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

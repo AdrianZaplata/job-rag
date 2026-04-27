@@ -1,12 +1,12 @@
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from alembic import command
 from job_rag.config import settings
 
 # Sync engine (CLI commands) — keeps default pool (CLI is single-process).
