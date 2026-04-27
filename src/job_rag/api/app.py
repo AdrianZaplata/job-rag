@@ -13,15 +13,24 @@ Adds CORS middleware with an env-var-driven origin allow-list — NEVER ``*``
 (D-26 / T-05-01). No GZipMiddleware is registered anywhere — sse-starlette
 raises NotImplementedError on compression and EventSource clients receive
 buffered garbage instead of a stream (Pitfall 6 / D-18).
+
+Customizes ``app.openapi()`` so the inline ``AgentEvent`` ``$defs`` from the
+``/agent/stream`` route's ``responses=`` schema are promoted into the global
+``components.schemas`` (BACK-02). FastAPI does not walk inline content
+schemas by default, so without this hop ``openapi-typescript`` would have to
+chase ``$defs`` per-route. Promotion gives Phase 6 a single canonical
+location for the discriminated union types.
 """
 
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import anyio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from job_rag.api.routes import router
 from job_rag.config import settings
@@ -110,3 +119,67 @@ app.add_middleware(
 # events. The CI grep guard in tests/ (Plan 01-01) ensures this never regresses.
 
 app.include_router(router)
+
+
+def _promote_inline_defs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Promote inline ``$defs`` from route-level content schemas into ``components.schemas``.
+
+    FastAPI inlines Pydantic JSON schemas for ``responses[X].content[Y].schema``
+    rather than referencing ``components.schemas``. The discriminated
+    ``AgentEvent`` union on ``/agent/stream`` carries a ``$defs`` dict
+    containing the six event models; without this hop, ``openapi-typescript``
+    cannot find ``TokenEvent`` / ``ToolStartEvent`` / etc. at the canonical
+    ``#/components/schemas/<name>`` location.
+
+    BACK-02 expects at least one of the six event models to appear in
+    ``components.schemas``. Promotion is non-destructive (skips names that
+    already exist) and idempotent (calling twice produces the same result).
+    """
+    components = schema.setdefault("components", {})
+    components_schemas = components.setdefault("schemas", {})
+
+    paths = schema.get("paths", {})
+    for path_item in paths.values():
+        if not isinstance(path_item, dict):
+            continue
+        for op in path_item.values():
+            if not isinstance(op, dict):
+                continue
+            responses = op.get("responses", {})
+            if not isinstance(responses, dict):
+                continue
+            for resp in responses.values():
+                if not isinstance(resp, dict):
+                    continue
+                content = resp.get("content", {})
+                if not isinstance(content, dict):
+                    continue
+                for media in content.values():
+                    if not isinstance(media, dict):
+                        continue
+                    media_schema = media.get("schema", {})
+                    if not isinstance(media_schema, dict):
+                        continue
+                    defs = media_schema.pop("$defs", None)
+                    if isinstance(defs, dict):
+                        for name, definition in defs.items():
+                            components_schemas.setdefault(name, definition)
+    return schema
+
+
+def custom_openapi() -> dict[str, Any]:
+    """Cached OpenAPI generator that promotes inline ``$defs`` (BACK-02)."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    schema = _promote_inline_defs(schema)
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = custom_openapi  # type: ignore[method-assign]

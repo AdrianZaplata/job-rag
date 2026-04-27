@@ -157,16 +157,28 @@ class TestAgentEndpoint:
         assert len(data["tool_calls"]) == 1
 
     async def test_agent_stream_emits_sse_events(self):
+        # Plan 06: stream_agent now yields Pydantic AgentEvent instances
+        # (Plan 04). The route handler converts via to_sse(event). Use the
+        # typed events so the route's `event.type` access works correctly.
+        from asgi_lifespan import LifespanManager
+
+        from job_rag.api.sse import FinalEvent, TokenEvent, ToolStartEvent
+
         async def fake_stream(_query):
-            yield {"type": "tool_start", "name": "search_jobs", "args": {"query": "rag"}}
-            yield {"type": "token", "content": "Hello"}
-            yield {"type": "final", "content": "Hello"}
+            yield ToolStartEvent(
+                type="tool_start", name="search_jobs", args={"query": "rag"}
+            )
+            yield TokenEvent(type="token", content="Hello")
+            yield FinalEvent(type="final", content="Hello")
 
         with patch("job_rag.api.routes.stream_agent", side_effect=fake_stream):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get("/agent/stream", params={"q": "test"})
-                body = response.text
+            async with LifespanManager(app):
+                transport = ASGITransport(app=app)
+                async with AsyncClient(
+                    transport=transport, base_url="http://test"
+                ) as client:
+                    response = await client.get("/agent/stream", params={"q": "test"})
+                    body = response.text
 
         assert response.status_code == 200
         assert "event: tool_start" in body
