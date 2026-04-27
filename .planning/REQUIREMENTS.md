@@ -11,14 +11,14 @@ Requirements for the initial release. Each maps to a single roadmap phase; the t
 
 Close the seven blockers surfaced in the codebase audit and add the platform-ready hedges.
 
-- [ ] **BACK-01**: CORS middleware configured via env-var origin allowlist (dev: localhost:5173; prod: Azure Static Web Apps origin)
+- [x] **BACK-01**: CORS middleware configured via env-var origin allowlist (dev: localhost:5173; prod: Azure Static Web Apps origin)
 - [ ] **BACK-02**: Pydantic models document the `/agent/stream` SSE event contract (`token` / `tool_start` / `tool_end` / `final`) and appear in OpenAPI
 - [ ] **BACK-03**: Cross-encoder reranker is preloaded in the FastAPI lifespan (no 2–5 s cold-start on first chat)
 - [ ] **BACK-04**: Reranker invocation wraps CPU-bound work in `asyncio.to_thread()` so the event loop is never blocked
-- [ ] **BACK-05**: `/agent/stream` emits a heartbeat event every 15 seconds to keep the Azure Container Apps Envoy idle timer from closing the stream
-- [ ] **BACK-06**: Agent endpoints enforce a 60 s timeout via `asyncio.wait_for`; timeout emits a graceful SSE error event instead of hanging
+- [x] **BACK-05**: `/agent/stream` emits a heartbeat event every 15 seconds to keep the Azure Container Apps Envoy idle timer from closing the stream
+- [x] **BACK-06**: Agent endpoints enforce a 60 s timeout via `asyncio.wait_for`; timeout emits a graceful SSE error event instead of hanging
 - [ ] **BACK-07**: Alembic adopted for schema migrations; initial revision baselines the current schema
-- [ ] **BACK-08**: `user_id` UUID NOT NULL column added to all user-scoped tables via Alembic; seed row uses Adrian's UUID in v1 (no `DEFAULT` in DDL — value is app-layer injected from the JWT `sub`)
+- [x] **BACK-08**: `user_id` UUID NOT NULL column added to all user-scoped tables via Alembic; seed row uses Adrian's UUID in v1 (no `DEFAULT` in DDL — value is app-layer injected from the JWT `sub`)
 - [ ] **BACK-09**: `career_id` TEXT NOT NULL column added to `job_posting_db`, default `"ai_engineer"`
 - [ ] **BACK-10**: `IngestionSource` Protocol defined with a `RawPosting` dataclass contract; the existing markdown-file reader is refactored as one `MarkdownFileSource` implementation
 
@@ -156,14 +156,14 @@ Which phases cover which requirements. Filled in by the roadmapper.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-01 | Phase 1 | Pending |
+| BACK-01 | Phase 1 | Complete |
 | BACK-02 | Phase 1 | Pending |
 | BACK-03 | Phase 1 | Pending |
 | BACK-04 | Phase 1 | Pending |
-| BACK-05 | Phase 1 | Pending |
-| BACK-06 | Phase 1 | Pending |
+| BACK-05 | Phase 1 | Complete |
+| BACK-06 | Phase 1 | Complete |
 | BACK-07 | Phase 1 | Pending |
-| BACK-08 | Phase 1 | Pending |
+| BACK-08 | Phase 1 | Complete |
 | BACK-09 | Phase 1 | Pending |
 | BACK-10 | Phase 1 | Pending |
 | CORP-01 | Phase 2 | Pending |

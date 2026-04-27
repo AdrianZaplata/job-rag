@@ -3,19 +3,19 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-24T13:03:12.760Z"
+last_updated: "2026-04-27T08:03:20.406Z"
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 17
 ---
 
 # State: job-rag web-app milestone
 
 **Initialized:** 2026-04-23
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-27
 
 ## Project Reference
 
@@ -28,14 +28,17 @@ progress:
 
 ## Current Focus
 
-Phase 1 context gathered. Ready to plan Phase 1 (Backend Prep).
+Phase 1 (Backend Prep) executing. Plan 01 complete (Wave 0 foundation: alembic + asgi-lifespan deps, 4 new Settings fields, 6 Wave 0 test files). Plans 02-06 unblocked.
 
 ## Current Position
 
+Phase: 01 (backend-prep) — EXECUTING
+Plan: 2 of 6
+
 - **Phase**: 1 - Backend Prep
-- **Plan**: None yet
-- **Status**: Context captured — ready for planning
-- **Progress**: 0/8 phases complete
+- **Plan**: 01 complete; ready to execute Plan 02 (Alembic baseline + user_profile migrations)
+- **Status**: Wave 0 foundation shipped (deps + Settings + 6 scaffolding test files)
+- **Progress**: 0/8 phases complete; 1/6 Phase 1 plans complete
 
 ```
 [ ] Phase 1: Backend Prep                    <- current
@@ -57,9 +60,21 @@ Phase 1 context gathered. Ready to plan Phase 1 (Backend Prep).
 | Requirements unmapped | 0 |
 | Phases planned | 8 |
 | Phases complete | 0 |
-| Plans complete | 0 |
+| Plans complete | 1 |
+
+### Per-Plan Execution
+
+| Plan | Duration | Tasks | Files | Commits |
+|------|----------|-------|-------|---------|
+| 01-01 (Wave 0 foundation) | 13m 42s | 2 | 12 | 246caad, 64345d0 |
 
 ## Accumulated Context
+
+### Decisions (from execution — Phase 1)
+
+- **Plan 01-01:** Use `Annotated[list[str], NoDecode]` from `pydantic_settings` for env-CSV list fields — bypasses Pydantic Settings 2.x default JSON-decode-first behavior on complex types so the `field_validator(mode="before")` sees the raw CSV string. Pattern reusable for any future env-list field.
+- **Plan 01-01:** Wave 0 test scaffolding pattern — each test guards three failure modes (`ImportError` on module, `AttributeError` on `mock.patch` target, `hasattr` check on referenced symbol) so all scaffolding tests skip cleanly and activate the moment downstream plans land their target symbols. No test edits needed when downstream plans complete.
+- **Plan 01-01:** Use `importlib.import_module()` + `hasattr()` for forward-reference imports in tests (cleaner than scattered `# pyright: ignore` comments; satisfies pyright basic-mode and ruff I001 simultaneously).
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -108,10 +123,11 @@ Phase 1 context gathered. Ready to plan Phase 1 (Backend Prep).
 
 - 2026-04-23: Roadmap initialized. 8 phases mapped across 67 v1 requirements. Full coverage.
 - 2026-04-24: Phase 1 context gathered (`.planning/phases/01-backend-prep/01-CONTEXT.md`). 4 gray areas discussed → 17 decisions captured (all Recommended). Locks: Alembic autogen+stamp baseline; dedicated `users` table + hardcoded `SEEDED_USER_ID`; typed `heartbeat` + `error` SSE events; app-level shutdown draining in Phase 1; async `IngestionSource` Protocol with thin sync bridge.
+- 2026-04-27: Plan 01-01 executed (Wave 0 foundation). 2 atomic commits (246caad feat + 64345d0 test). Added alembic 1.18.4 + asgi-lifespan 2.1.0 deps; added 4 Settings fields (allowed_origins, seeded_user_id, agent_timeout_seconds, heartbeat_interval_seconds) with NoDecode CSV validator; added 6 Wave 0 scaffolding test files + 2 conftest fixtures. 82 tests pass / 18 skip / 0 fail. Plans 02-06 unblocked. Stopped at: Completed 01-01-PLAN.md (alembic + asgi-lifespan deps + 4 Settings fields + 6 Wave 0 test files); Plans 02-06 unblocked.
 
 ### Next session
 
-- `/gsd-plan-phase 1` — decompose Phase 1 (Backend Prep) into executable plans using `01-CONTEXT.md`.
+- `/gsd-execute-phase 1 2` — execute Plan 02 (Alembic baseline + 0001_baseline + 0002_add_user_profile migrations + init_db swap to alembic.command.upgrade). Test_alembic.py and test_cli.py go live the moment Plan 02 lands.
 - Target plans per phase (standard granularity): 3-5.
 
 ---
