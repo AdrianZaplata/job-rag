@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
@@ -187,8 +188,11 @@ async def rag_query(
     if not results:
         return {"answer": "No matching job postings found.", "sources": []}
 
-    # 2. Rerank
-    reranked = rerank(query, results, top_k=top_k_rerank)
+    # 2. Rerank — push CPU-bound forward pass off the event loop [D-28,
+    #    BACK-04, T-05-03]. Heartbeats continue firing; other requests
+    #    proceed. PyTorch's GIL still serializes the actual computation
+    #    (Pitfall C) — that's the intended single-replica v1 behavior.
+    reranked = await asyncio.to_thread(rerank, query, results, top_k=top_k_rerank)
 
     # 3. Build context
     context_parts: list[str] = []

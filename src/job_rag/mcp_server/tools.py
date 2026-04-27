@@ -67,7 +67,10 @@ async def search_postings(
         if not results:
             return {"query": query, "count": 0, "results": []}
 
-        reranked = rerank(query, results, top_k=limit)
+        # Rerank — push CPU-bound forward pass off the event loop [D-28,
+        # BACK-04, T-05-03] so other MCP tool calls in flight (and
+        # asyncio.to_thread-based ingestion below) keep ticking.
+        reranked = await asyncio.to_thread(rerank, query, results, top_k=limit)
 
         return {
             "query": query,
@@ -97,7 +100,11 @@ async def match_skills(posting_id: str) -> dict[str, Any]:
         if not posting:
             return {"error": "posting_not_found", "posting_id": posting_id}
 
-        profile = load_profile()
+        # MCP tools run outside the HTTP request cycle so there is no Entra
+        # JWT to read — pass settings.seeded_user_id explicitly per D-08
+        # so the v1 single-user assumption is surfaced at the call site
+        # rather than relying on the load_profile fallback.
+        profile = load_profile(user_id=settings.seeded_user_id)
         return match_posting(profile, posting)
 
 
@@ -122,7 +129,8 @@ async def skill_gaps(
                 "filters": {"seniority": seniority, "remote": remote},
             }
 
-        profile = load_profile()
+        # See match_skills above — MCP tools pass user_id explicitly per D-08.
+        profile = load_profile(user_id=settings.seeded_user_id)
         return aggregate_gaps(profile, postings)
 
 

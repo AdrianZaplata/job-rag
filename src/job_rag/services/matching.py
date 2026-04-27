@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from job_rag.config import settings
 from job_rag.db.models import JobPostingDB
@@ -10,8 +11,25 @@ from job_rag.models import UserSkillProfile
 log = get_logger(__name__)
 
 
-def load_profile(path: str | None = None) -> UserSkillProfile:
-    """Load user skill profile from JSON file."""
+def load_profile(
+    *, user_id: UUID | None = None, path: str | None = None,
+) -> UserSkillProfile:
+    """Load user skill profile.
+
+    Phase 1 (v1): reads ``data/profile.json`` regardless of ``user_id`` —
+    the parameter is accepted for forward compatibility with Phase 7
+    (PROF-01), which will flip the source to the ``user_profile`` DB table
+    keyed by ``user_id``. [D-07]
+
+    The kwargs are keyword-only (the leading ``*``) so existing call sites
+    that pass no args — ``load_profile()`` — keep working without
+    modification (Sequencing Caveat Option A from 01-05-PLAN.md). When
+    ``user_id`` is None, it defaults to ``settings.seeded_user_id`` so the
+    v1 single-user fallback is explicit when the value is later inspected
+    or logged (Phase 7 hook point).
+    """
+    if user_id is None:
+        user_id = settings.seeded_user_id
     profile_path = Path(path or settings.profile_path)
     data = json.loads(profile_path.read_text(encoding="utf-8"))
     return UserSkillProfile(**data)
