@@ -2,6 +2,7 @@
 
 import hmac
 import time
+import uuid
 from collections import defaultdict
 
 from fastapi import HTTPException, Request, Security
@@ -62,3 +63,18 @@ class RateLimiter:
 standard_limit = RateLimiter(calls=30, period=60)   # 30 req/min
 agent_limit = RateLimiter(calls=10, period=60)       # 10 req/min
 ingest_limit = RateLimiter(calls=5, period=60)       #  5 req/min
+
+
+async def get_current_user_id() -> uuid.UUID:
+    """Resolve the current user's UUID.
+
+    v1 (Phase 1): returns ``settings.seeded_user_id`` directly — single-user
+    deployment, no JWT validation. T-05-02 mitigation: the body parses no
+    input, so there is no injection surface.
+
+    Phase 4 (AUTH-06) rewrites this body to parse the Entra JWT ``sub`` /
+    ``oid`` claim. No feature flag is needed — Phase 4 is a one-function-body
+    change since every consumer of this dependency has already been wired
+    via ``Depends(get_current_user_id)``. [D-10]
+    """
+    return settings.seeded_user_id
