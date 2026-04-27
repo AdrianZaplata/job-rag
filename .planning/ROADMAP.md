@@ -43,7 +43,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 **Plans**: 6 plans
 Plans:
 - [x] 01-01-PLAN.md — Wave 0 foundation: alembic/asgi-lifespan deps, 4 new Settings fields, conftest fixtures, 6 new test files, docker-compose ALLOWED_ORIGINS wire (BACK-01/05/06/08 setup)
-- [ ] 01-02-PLAN.md — Alembic adoption: baseline autogenerate + user/profile/career_id migrations, init_db wraps `alembic upgrade head`, UserDB/UserProfileDB ORM classes (BACK-07/08/09)
+- [x] 01-02-PLAN.md — Alembic adoption: baseline autogenerate + user/profile/career_id migrations, init_db wraps `alembic upgrade head`, UserDB/UserProfileDB ORM classes (BACK-07/08/09)
 - [ ] 01-03-PLAN.md — IngestionSource Protocol + RawPosting + MarkdownFileSource + ingest_from_source async consumer; sync ingest_file rewrap preserves CLI contract (BACK-10)
 - [ ] 01-04-PLAN.md — SSE event contract: six-model Pydantic discriminated union in api/sse.py + agent/stream.py rewired to yield Pydantic events (BACK-02)
 - [ ] 01-05-PLAN.md — FastAPI lifespan (reranker preload + shutdown event + 30s drain) + CORS middleware + get_current_user_id dep + asyncio.to_thread rerank wrap + load_profile user_id kwarg (BACK-01/03/04/08)
