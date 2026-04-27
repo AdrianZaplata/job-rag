@@ -9,6 +9,19 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +44,22 @@ jobs:
 
       - name: Test (pytest)
         run: uv run pytest -m "not eval"
+
+      - name: Guard against DEFAULT on user_id columns
+        run: |
+          # Match Python kwarg `server_default=` (NOT bare prose mentions in docstrings)
+          # OR raw SQL `user_id ... DEFAULT ... uuid` clauses inside op.execute() strings.
+          if grep -rn --include='*.py' -E "user_id[^#\n]*server_default\s*=|user_id[^#\n]*DEFAULT[^#\n]*uuid" alembic/versions/ ; then
+            echo "::error::Migration adds DEFAULT to user_id column — see decision D-08 / Pitfall 18"
+            exit 1
+          fi
+
+      - name: Smoke-test alembic upgrade head
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+        run: |
+          uv run alembic upgrade head
+          uv run alembic upgrade head   # idempotent second run
 
       - name: Audit dependencies
         run: uv run pip-audit --ignore-vuln CVE-2025-69872  # diskcache 5.6.3, no fix available (transitive via ragas)

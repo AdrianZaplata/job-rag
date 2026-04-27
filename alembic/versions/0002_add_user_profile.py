@@ -5,8 +5,8 @@ Revises: 0001
 Create Date: 2026-04-27
 
 D-06/D-07: introduce a users table + user_profile table for the multi-user-
-ready schema. user_id has NO server_default and NO default — Pitfall 18 +
-D-08 + D-12 guarantee. Seed row INSERT uses ON CONFLICT (id) DO NOTHING
+ready schema. The user_id column carries no server-side or Python default
+(per Pitfall 18 + D-08 + D-12). Seed row INSERT uses ON CONFLICT (id) DO NOTHING
 so rerunning the migration cannot overwrite an existing row (T-02-02).
 SEEDED_USER_ID is sourced from settings.seeded_user_id — single source of
 truth across config.py, this migration, and tests/test_alembic.py.
