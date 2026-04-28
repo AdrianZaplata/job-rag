@@ -29,7 +29,7 @@ All four ship as a single pair to amortize the re-extraction cost.
 - [x] **CORP-01**: Extraction prompt tightened to reject soft-skill noise (communication, problem-solving, analytical thinking, time management, teamwork, and similar)
 - [x] **CORP-02**: `SkillCategory` enum added to `JobRequirement` (hard / soft / domain); extraction tags every requirement
 - [x] **CORP-03**: Structured `Location` Pydantic schema added (country ISO-3166 code, city, region, remote_allowed boolean) replacing free-text `location` on `job_posting_db`
-- [ ] **CORP-04**: `PROMPT_VERSION` bumped; full corpus (~108 postings) re-extracted against the new prompt and stored with the new `Location` schema
+- [x] **CORP-04**: `PROMPT_VERSION` bumped; full corpus (~108 postings) re-extracted against the new prompt and stored with the new `Location` schema
 
 ### Profile and resume upload (PROF)
 
@@ -169,7 +169,7 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | CORP-01 | Phase 2 | Complete |
 | CORP-02 | Phase 2 | Complete |
 | CORP-03 | Phase 2 | Complete |
-| CORP-04 | Phase 2 | Pending |
+| CORP-04 | Phase 2 | Complete |
 | PROF-01 | Phase 7 | Pending |
 | PROF-02 | Phase 7 | Pending |
 | PROF-03 | Phase 7 | Pending |

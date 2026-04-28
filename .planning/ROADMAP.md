@@ -64,7 +64,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Pydantic + ORM schema evolution: rename SkillCategory→SkillType, add new SkillCategory(hard/soft/domain), Location submodel, derive_skill_category, db/models.py columns + indexes, conftest sample_posting fixture refresh (CORP-02/CORP-03)
 - [x] 02-02-PLAN.md — extraction prompt rewrite: PROMPT_VERSION 1.1→2.0, REJECTED_SOFT_SKILLS tuple, str.format()-built SYSTEM_PROMPT with Location examples + borderline + spoken-language carve-outs, TestPromptStructure / TestRejectionRules tests (CORP-01)
-- [ ] 02-03-PLAN.md — Alembic 0004 migration (BLOCKING upgrade head) + reextract_stale service + call-site sweeps (ingestion/embedding/retrieval/mcp_server) + reextract CLI + list --stats + lifespan drift warning + tests (CORP-01..04)
+- [x] 02-03-PLAN.md — Alembic 0004 migration (BLOCKING upgrade head) + reextract_stale service + call-site sweeps (ingestion/embedding/retrieval/mcp_server) + reextract CLI + list --stats + lifespan drift warning + tests (CORP-01..04)
 - [ ] 02-04-PLAN.md — corpus refresh execution: pg_dump backup, dry-run baseline, run reextract against 108 postings, validate 4 SQL sanity checks, capture results in 02-04-SUMMARY.md (CORP-01..04 closure)
 
 ### Phase 3: Infrastructure & CI/CD
