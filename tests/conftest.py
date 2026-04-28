@@ -7,10 +7,12 @@ import pytest
 from job_rag.models import (
     JobPosting,
     JobRequirement,
+    Location,
     RemotePolicy,
     SalaryPeriod,
     Seniority,
-    SkillCategory,
+    SkillType,
+    derive_skill_category,
 )
 
 
@@ -26,7 +28,7 @@ def sample_posting() -> JobPosting:
     return JobPosting(
         title="Senior AI Engineer",
         company="TestCorp",
-        location="Berlin, Germany",
+        location=Location(country="DE", city="Berlin", region=None),
         remote_policy=RemotePolicy.HYBRID,
         salary_min=70000,
         salary_max=90000,
@@ -35,14 +37,54 @@ def sample_posting() -> JobPosting:
         seniority=Seniority.SENIOR,
         employment_type="Full-time",
         requirements=[
-            JobRequirement(skill="Python", category=SkillCategory.LANGUAGE, required=True),
-            JobRequirement(skill="LLM", category=SkillCategory.CONCEPT, required=True),
-            JobRequirement(skill="RAG", category=SkillCategory.CONCEPT, required=True),
-            JobRequirement(skill="Docker", category=SkillCategory.TOOL, required=True),
-            JobRequirement(skill="SQL", category=SkillCategory.LANGUAGE, required=True),
-            JobRequirement(skill="Kubernetes", category=SkillCategory.TOOL, required=False),
-            JobRequirement(skill="TypeScript", category=SkillCategory.LANGUAGE, required=False),
-            JobRequirement(skill="LangChain", category=SkillCategory.FRAMEWORK, required=False),
+            JobRequirement(
+                skill="Python",
+                skill_type=SkillType.LANGUAGE,
+                skill_category=derive_skill_category(SkillType.LANGUAGE),
+                required=True,
+            ),
+            JobRequirement(
+                skill="LLM",
+                skill_type=SkillType.CONCEPT,
+                skill_category=derive_skill_category(SkillType.CONCEPT),
+                required=True,
+            ),
+            JobRequirement(
+                skill="RAG",
+                skill_type=SkillType.CONCEPT,
+                skill_category=derive_skill_category(SkillType.CONCEPT),
+                required=True,
+            ),
+            JobRequirement(
+                skill="Docker",
+                skill_type=SkillType.TOOL,
+                skill_category=derive_skill_category(SkillType.TOOL),
+                required=True,
+            ),
+            JobRequirement(
+                skill="SQL",
+                skill_type=SkillType.LANGUAGE,
+                skill_category=derive_skill_category(SkillType.LANGUAGE),
+                required=True,
+            ),
+            JobRequirement(
+                skill="Kubernetes",
+                skill_type=SkillType.TOOL,
+                skill_category=derive_skill_category(SkillType.TOOL),
+                required=False,
+            ),
+            JobRequirement(
+                skill="TypeScript",
+                skill_type=SkillType.LANGUAGE,
+                skill_category=derive_skill_category(SkillType.LANGUAGE),
+                required=False,
+            ),
+            JobRequirement(
+                skill="LangChain",
+                skill_type=SkillType.FRAMEWORK,
+                skill_category=derive_skill_category(SkillType.FRAMEWORK),
+                required=False,
+            ),
         ],
         responsibilities=[
             "Design and implement RAG pipelines",
