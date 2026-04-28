@@ -16,7 +16,12 @@ class JobPostingDB(Base):
     content_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     company: Mapped[str] = mapped_column(String(255), nullable=False)
-    location: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Location columns (D-11 / 0004): flat 3-column representation. Pydantic
+    # Location submodel mirrors these. NULL allowed during the post-migration
+    # window before reextract populates them.
+    location_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    location_city: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    location_region: Mapped[str | None] = mapped_column(String(100), nullable=True)
     remote_policy: Mapped[str] = mapped_column(String(20), nullable=False)
     salary_min: Mapped[int | None] = mapped_column(nullable=True)
     salary_max: Mapped[int | None] = mapped_column(nullable=True)
@@ -50,6 +55,7 @@ class JobPostingDB(Base):
         Index("ix_job_postings_company", "company"),
         Index("ix_job_postings_seniority", "seniority"),
         Index("ix_job_postings_remote_policy", "remote_policy"),
+        Index("ix_job_postings_location_country", "location_country"),
     )
 
 
@@ -59,14 +65,18 @@ class JobRequirementDB(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     posting_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("job_postings.id", ondelete="CASCADE"))
     skill: Mapped[str] = mapped_column(String(100), nullable=False)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    # skill_type renamed from `category` in 0004 (D-04). LLM-extracted (8 values).
+    skill_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    # skill_category derived from skill_type at write time via models.derive_skill_category() (D-03).
+    skill_category: Mapped[str] = mapped_column(String(20), nullable=False)
     required: Mapped[bool] = mapped_column(nullable=False)
 
     posting: Mapped["JobPostingDB"] = relationship(back_populates="requirements")
 
     __table_args__ = (
         Index("ix_job_requirements_skill", "skill"),
-        Index("ix_job_requirements_category", "category"),
+        Index("ix_job_requirements_skill_type", "skill_type"),
+        Index("ix_job_requirements_skill_category", "skill_category"),
     )
 
 
