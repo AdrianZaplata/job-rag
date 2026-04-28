@@ -7,6 +7,17 @@ from job_rag.observability import get_openai_client
 
 log = get_logger(__name__)
 
+
+def _format_location_for_embedding(p: JobPostingDB) -> str:
+    """Compose a human-readable location string from the 3 flat columns.
+
+    Used by format_posting_for_embedding + chunk_posting in place of the
+    old free-text `posting.location` (dropped in 0004).
+    """
+    parts = [p.location_city, p.location_region, p.location_country]
+    return ", ".join(part for part in parts if part) or "Location not specified"
+
+
 # Pricing per 1M tokens (USD)
 _EMBEDDING_PRICING = {
     "text-embedding-3-small": 0.02,
@@ -43,7 +54,7 @@ def format_posting_for_embedding(posting: JobPostingDB) -> str:
     parts = [
         f"Title: {posting.title}",
         f"Company: {posting.company}",
-        f"Location: {posting.location}",
+        f"Location: {_format_location_for_embedding(posting)}",
         f"Remote: {posting.remote_policy}",
         f"Seniority: {posting.seniority}",
     ]
@@ -63,7 +74,10 @@ def chunk_posting(posting: JobPostingDB) -> list[dict[str, str]]:
     must_have = [r.skill for r in posting.requirements if r.required]
     nice_to_have = [r.skill for r in posting.requirements if not r.required]
 
-    header = f"{posting.title} at {posting.company} ({posting.location}, {posting.remote_policy})"
+    header = (
+        f"{posting.title} at {posting.company} "
+        f"({_format_location_for_embedding(posting)}, {posting.remote_policy})"
+    )
 
     if posting.responsibilities:
         chunks.append({

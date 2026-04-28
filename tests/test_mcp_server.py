@@ -19,15 +19,22 @@ def _make_posting(**overrides):
     posting.id = uuid.uuid4()
     posting.title = "Senior AI Engineer"
     posting.company = "TestCorp"
-    posting.location = "Berlin"
+    # Phase 2: location free-text column dropped; flat columns now (D-11).
+    posting.location_country = "DE"
+    posting.location_city = "Berlin"
+    posting.location_region = None
     posting.remote_policy = "remote"
     posting.seniority = "senior"
     posting.salary_min = 70000
     posting.salary_max = 90000
     posting.salary_raw = "€70k-€90k"
     posting.source_url = "https://linkedin.com/jobs/view/1/"
-    must_have = MagicMock(skill="Python", required=True)
-    nice = MagicMock(skill="Rust", required=False)
+    must_have = MagicMock(
+        skill="Python", skill_type="language", skill_category="hard", required=True
+    )
+    nice = MagicMock(
+        skill="Rust", skill_type="language", skill_category="hard", required=False
+    )
     posting.requirements = [must_have, nice]
     for k, v in overrides.items():
         setattr(posting, k, v)
@@ -59,8 +66,17 @@ class TestSearchPostings:
         assert result["count"] == 1
         assert result["query"] == "rag experience"
         assert result["results"][0]["company"] == "TestCorp"
-        assert result["results"][0]["must_have"] == ["Python"]
-        assert result["results"][0]["nice_to_have"] == ["Rust"]
+        # Phase 2: per-requirement nested dict shape (D-02, D-03).
+        assert result["results"][0]["must_have"] == [
+            {"skill": "Python", "skill_type": "language", "skill_category": "hard"}
+        ]
+        assert result["results"][0]["nice_to_have"] == [
+            {"skill": "Rust", "skill_type": "language", "skill_category": "hard"}
+        ]
+        # Phase 2: location is a nested object now.
+        assert result["results"][0]["location"] == {
+            "country": "DE", "city": "Berlin", "region": None,
+        }
         assert "rerank_score" in result["results"][0]
 
     async def test_remote_only_filter(self):

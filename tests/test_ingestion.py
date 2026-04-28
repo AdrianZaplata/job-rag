@@ -86,16 +86,18 @@ class TestIngestFromSource:
         from job_rag.models import (
             JobPosting,
             JobRequirement,
+            Location,
             RemotePolicy,
             SalaryPeriod,
             Seniority,
             SkillCategory,
+            SkillType,
         )
 
         return JobPosting(
             title="AI Engineer",
             company="ACME",
-            location="Berlin",
+            location=Location(country="DE", city="Berlin", region=None),
             remote_policy=RemotePolicy.REMOTE,
             salary_min=70000,
             salary_max=90000,
@@ -105,7 +107,10 @@ class TestIngestFromSource:
             employment_type="full-time",
             requirements=[
                 JobRequirement(
-                    skill="Python", category=SkillCategory.LANGUAGE, required=True
+                    skill="Python",
+                    skill_type=SkillType.LANGUAGE,
+                    skill_category=SkillCategory.HARD,
+                    required=True,
                 )
             ],
             responsibilities=["Build RAG pipelines"],

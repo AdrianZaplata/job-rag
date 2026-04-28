@@ -25,14 +25,28 @@ log = get_logger(__name__)
 
 
 def _serialize_posting(posting: JobPostingDB) -> dict[str, Any]:
-    """Convert a JobPostingDB row into a JSON-serializable summary."""
-    must_have = [r.skill for r in posting.requirements if r.required]
-    nice_to_have = [r.skill for r in posting.requirements if not r.required]
+    """Convert a JobPostingDB row into a JSON-serializable summary.
+
+    Phase 2: location is now a nested object {country/city/region}; each
+    requirement carries skill_type AND skill_category (D-02, D-03).
+    """
+    must_have = [
+        {"skill": r.skill, "skill_type": r.skill_type, "skill_category": r.skill_category}
+        for r in posting.requirements if r.required
+    ]
+    nice_to_have = [
+        {"skill": r.skill, "skill_type": r.skill_type, "skill_category": r.skill_category}
+        for r in posting.requirements if not r.required
+    ]
     return {
         "id": str(posting.id),
         "title": posting.title,
         "company": posting.company,
-        "location": posting.location,
+        "location": {
+            "country": posting.location_country,
+            "city": posting.location_city,
+            "region": posting.location_region,
+        },
         "remote_policy": posting.remote_policy,
         "seniority": posting.seniority,
         "salary_min": posting.salary_min,

@@ -17,7 +17,7 @@ from job_rag.db.models import JobPostingDB, JobRequirementDB
 from job_rag.extraction.extractor import extract_linkedin_id, extract_posting
 from job_rag.extraction.prompt import PROMPT_VERSION
 from job_rag.logging import get_logger
-from job_rag.models import JobPosting
+from job_rag.models import JobPosting, derive_skill_category
 
 log = get_logger(__name__)
 
@@ -166,7 +166,9 @@ def _store_posting(
         content_hash=content_hash,
         title=posting_data.title,
         company=posting_data.company,
-        location=posting_data.location,
+        location_country=posting_data.location.country,
+        location_city=posting_data.location.city,
+        location_region=posting_data.location.region,
         remote_policy=posting_data.remote_policy.value,
         salary_min=posting_data.salary_min,
         salary_max=posting_data.salary_max,
@@ -187,7 +189,8 @@ def _store_posting(
         db_req = JobRequirementDB(
             posting_id=db_posting.id,
             skill=req.skill,
-            category=req.category.value,
+            skill_type=req.skill_type.value,
+            skill_category=derive_skill_category(req.skill_type).value,
             required=req.required,
         )
         session.add(db_req)
@@ -237,7 +240,9 @@ async def _store_posting_async(
         content_hash=content_hash,
         title=posting_data.title,
         company=posting_data.company,
-        location=posting_data.location,
+        location_country=posting_data.location.country,
+        location_city=posting_data.location.city,
+        location_region=posting_data.location.region,
         remote_policy=posting_data.remote_policy.value,
         salary_min=posting_data.salary_min,
         salary_max=posting_data.salary_max,
@@ -258,7 +263,8 @@ async def _store_posting_async(
         db_req = JobRequirementDB(
             posting_id=db_posting.id,
             skill=req.skill,
-            category=req.category.value,
+            skill_type=req.skill_type.value,
+            skill_category=derive_skill_category(req.skill_type).value,
             required=req.required,
         )
         session.add(db_req)

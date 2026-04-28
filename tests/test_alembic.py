@@ -69,12 +69,15 @@ def test_0004_upgrade_smoke():
     and produces the new schema. Skips if no Postgres reachable.
     """
     if not _postgres_reachable():
-        pytest.skip("Postgres not reachable - alembic smoke skipped (run docker-compose up postgres)")
+        pytest.skip(
+            "Postgres not reachable - alembic smoke skipped "
+            "(run docker-compose up postgres)"
+        )
 
-    from alembic import command
     from alembic.config import Config
     from sqlalchemy import create_engine, text
 
+    from alembic import command
     from job_rag.config import settings
 
     cfg = Config("alembic.ini")
@@ -149,10 +152,10 @@ def test_0004_downgrade_smoke():
     if not _postgres_reachable():
         pytest.skip("Postgres not reachable - alembic downgrade smoke skipped")
 
-    from alembic import command
     from alembic.config import Config
     from sqlalchemy import create_engine, text
 
+    from alembic import command
     from job_rag.config import settings
 
     cfg = Config("alembic.ini")

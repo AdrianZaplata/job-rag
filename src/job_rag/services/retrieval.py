@@ -18,6 +18,15 @@ log = get_logger(__name__)
 
 _reranker: CrossEncoder | None = None
 
+
+def _format_location_for_context(p: JobPostingDB) -> str:
+    """Compose a human-readable location for the RAG context f-string.
+
+    Used by rag_query in place of the old `posting.location` (dropped in 0004).
+    """
+    parts = [p.location_city, p.location_region, p.location_country]
+    return ", ".join(part for part in parts if part) or "Location not specified"
+
 RAG_SYSTEM_PROMPT = """\
 You are a job search assistant for AI Engineer roles. Given relevant job posting \
 excerpts and a user question, provide a helpful, concise answer. Reference specific \
@@ -204,7 +213,7 @@ async def rag_query(
 
         context_parts.append(
             f"**{posting.title}** at **{posting.company}** "
-            f"({posting.location}, {posting.remote_policy})\n"
+            f"({_format_location_for_context(posting)}, {posting.remote_policy})\n"
             f"Seniority: {posting.seniority}\n"
             f"Must-have: {', '.join(must_have)}\n"
             f"Nice-to-have: {', '.join(nice_to_have)}\n"
