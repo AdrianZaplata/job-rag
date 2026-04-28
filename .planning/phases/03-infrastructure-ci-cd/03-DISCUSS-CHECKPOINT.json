@@ -1,0 +1,24 @@
+{
+  "phase": "3",
+  "phase_name": "Infrastructure & CI/CD",
+  "timestamp": "2026-04-28T13:30:00Z",
+  "areas_completed": ["TF layout & bootstrap"],
+  "areas_remaining": ["Entra External ID + OIDC", "Postgres net + secrets", "Integration & guardrails"],
+  "decisions": {
+    "TF layout & bootstrap": [
+      {"question": "Reconcile PROJECT.md workspaces vs DEPL-02 envs/{dev,prod}+modules/* — which structure?", "answer": "envs/ dirs + modules/", "options_presented": ["envs/ dirs + modules/ (Recommended)", "Workspaces (PROJECT.md literal)", "Hybrid: workspaces inside envs/"]},
+      {"question": "How to handle the TF chicken-and-egg (PITFALLS §13)?", "answer": "Dedicated bootstrap/ state", "options_presented": ["Dedicated bootstrap/ state (Recommended)", "az CLI script + import", "State in envs/ + terraform import"]},
+      {"question": "DEPL-02 'AVM where available' — how aggressively?", "answer": "Selective AVM", "options_presented": ["Selective AVM (Recommended)", "AVM for everything available", "Raw azurerm only"]},
+      {"question": "Dev env scaffolded vs deployed?", "answer": "Scaffold-only, never apply in v1", "options_presented": ["Scaffold-only, never apply in v1 (Recommended)", "Apply dev alongside prod", "Dev is just prod-but-named-differently"]}
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [
+    ".planning/REQUIREMENTS.md §DEPL-01..DEPL-12",
+    ".planning/ROADMAP.md §Phase 3",
+    ".planning/PROJECT.md §Key Decisions",
+    ".planning/research/STACK.md §2 Azure services, §4 Terraform, §5 GHA OIDC",
+    ".planning/research/PITFALLS.md §13 (bootstrap), §14 (workspace confusion), §17 (free-tier costs)",
+    ".planning/phases/01-backend-prep/01-CONTEXT.md §D-17 (terminationGracePeriodSeconds carry-forward), §D-29 (pool sizing)"
+  ]
+}
