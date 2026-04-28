@@ -18,7 +18,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 ## Phases
 
 - [x] **Phase 1: Backend Prep** - Close the seven web-UI blockers and land the multi-tenant data-model hedges (verified 2026-04-27, 5/5 must-haves)
-- [ ] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location
+- [x] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location (completed 2026-04-28)
 - [ ] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows
 - [ ] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context
 - [ ] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface
@@ -65,7 +65,7 @@ Plans:
 - [x] 02-01-PLAN.md — Pydantic + ORM schema evolution: rename SkillCategory→SkillType, add new SkillCategory(hard/soft/domain), Location submodel, derive_skill_category, db/models.py columns + indexes, conftest sample_posting fixture refresh (CORP-02/CORP-03)
 - [x] 02-02-PLAN.md — extraction prompt rewrite: PROMPT_VERSION 1.1→2.0, REJECTED_SOFT_SKILLS tuple, str.format()-built SYSTEM_PROMPT with Location examples + borderline + spoken-language carve-outs, TestPromptStructure / TestRejectionRules tests (CORP-01)
 - [x] 02-03-PLAN.md — Alembic 0004 migration (BLOCKING upgrade head) + reextract_stale service + call-site sweeps (ingestion/embedding/retrieval/mcp_server) + reextract CLI + list --stats + lifespan drift warning + tests (CORP-01..04)
-- [ ] 02-04-PLAN.md — corpus refresh execution: pg_dump backup, dry-run baseline, run reextract against 108 postings, validate 4 SQL sanity checks, capture results in 02-04-SUMMARY.md (CORP-01..04 closure)
+- [x] 02-04-PLAN.md — corpus refresh execution: pg_dump backup, dry-run baseline, run reextract against 108 postings, validate 4 SQL sanity checks, capture results in 02-04-SUMMARY.md (CORP-01..04 closure)
 
 ### Phase 3: Infrastructure & CI/CD
 **Goal**: Phase 3 ships a fully provisioned Azure stack when `terraform apply` (run twice to resolve the CORS cycle) produces a working Entra External tenant, an ACA container, a B1ms Postgres with pgvector, an SWA origin, Key Vault-backed secrets, and three OIDC-federated GitHub Actions workflows can deploy infra / API / SPA independently.
@@ -168,7 +168,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Backend Prep | 6/6 | ✓ Complete | 2026-04-27 |
-| 2. Corpus Cleanup | 0/? | Not started | - |
+| 2. Corpus Cleanup | 4/4 | Complete   | 2026-04-28 |
 | 3. Infrastructure & CI/CD | 0/? | Not started | - |
 | 4. Frontend Shell + Auth | 0/? | Not started | - |
 | 5. Dashboard | 0/? | Not started | - |

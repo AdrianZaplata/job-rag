@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-04-28T07:57:31.294Z"
+status: Phase 02 plans complete — ready for /gsd-verify-work 2
+last_updated: "2026-04-28T12:55:11.783Z"
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # State: job-rag web-app milestone
@@ -32,19 +32,18 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 02 (corpus-cleanup) — EXECUTING
-Plan: 4 of 4
-Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both unblocked per ROADMAP parallelization notes
+Phase: 02 (corpus-cleanup) — ALL 4 PLANS COMPLETE; ready for `/gsd-verify-work 2`
+Plan: 4 of 4 complete
+Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 
-- **Phase**: 1 - Backend Prep — verified passed (5/5 must-haves)
-- **Plan**: All 6 plans complete with SUMMARY.md files; VERIFICATION.md created
-- **Status**: 111 passed / 1 skipped / 0 failed; ruff clean; pyright 0 errors; CI workflow YAML structurally valid; all 10 BACK-* requirements closed
-- **Progress**: 1/8 phases complete; 6/6 Phase 1 plans complete (100%)
+- **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
+- **Phase 2**: Corpus Cleanup — 4/4 plans complete with SUMMARY.md files; **documented data-quality residual** (10 of 108 postings persistently fail Instructor extraction; 98/108 = 90.7% reextracted to PROMPT_VERSION='2.0'). All 4 CORP-* requirements marked complete in REQUIREMENTS.md but only CORP-02 is a clean PASS in 02-04 sanity checks; CORP-01 has a small (11-row, 0.56%) leak; CORP-03/04 are PARTIAL PASS due to the failure coverage gap. Phase 2 closes with explicit deferred follow-up plan recommendation in 02-04-SUMMARY.md.
+- **Progress**: 2/8 phases complete (Phase 1 verified, Phase 2 plans done — pending verifier)
 
 ```
-[x] Phase 1: Backend Prep                    ✓ COMPLETE
-[ ] Phase 2: Corpus Cleanup                  <- next (parallel-eligible with 3)
-[ ] Phase 3: Infrastructure & CI/CD          <- next (parallel-eligible with 2)
+[x] Phase 1: Backend Prep                    ✓ COMPLETE (verified)
+[x] Phase 2: Corpus Cleanup                  ✓ Plans complete (pending /gsd-verify-work)
+[ ] Phase 3: Infrastructure & CI/CD          <- next
 [ ] Phase 4: Frontend Shell + Auth
 [ ] Phase 5: Dashboard
 [ ] Phase 6: Chat
@@ -65,6 +64,7 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 | Phase 02 P01 | 4m | 3 tasks | 4 files |
 | Phase 02 P02 | 6m | 2 tasks | 3 files |
 | Phase 02 P03 | 14m | 3 tasks | 14 files |
+| Phase 02 P04 | 150m | 4 tasks | 5 files |
 
 ### Per-Plan Execution
 
@@ -104,6 +104,10 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 - **Plan 02-02:** Used `str.format()` with single `{rejected_terms}` placeholder over f-string for `SYSTEM_PROMPT` (Pattern 2 / Pitfall 4). 8 existing decomposition examples contain literal JSON-array brackets that would need `{` `}` doubling everywhere under f-string. `str.format()` ignores all braces except declared placeholders, so existing examples ride through unmodified — brace-doubling limited to the 4 LOCATION EXTRACTION example lines (small reviewable surface).
 - **Plan 02-02:** Module-load-time template build (`SYSTEM_PROMPT = _SYSTEM_PROMPT_TEMPLATE.format(...)`) acts as an import-time syntax gate. Any future brace mishap surfaces as ImportError on first test execution rather than a silently malformed prompt; `test_module_imports_cleanly` is the canonical Pitfall 4 anti-regression. Reusable pattern for any prompt-as-template work where Pydantic/JSON example literals must coexist with named placeholders.
 - **Plan 02-02:** Trust surface for soft-skill rejection is the prompt itself — `extract_posting()` does NOT post-filter rejected terms (`TestRejectionRulesUnit` confirms). If the LLM ignores REJECTION RULES, the rejected term surfaces in the corpus and `TestRejectionRulesLive` (manual `pytest -m integration`) is the validator. Documented in `T-02-02-02` as `accept` — keeps the code surface small and avoids a two-list drift risk between prompt and Python filter.
+- **Plan 02-04:** Authorized skip of pg_dump pre-flight backup (Task 1) — risk accepted given Plan 02-03's lossless dev-DB transition + per-posting commit safety net (D-15 / D-16). Verified safe under fire: original reextract run hung mid-corpus and was killed; per-posting commit kept all 55 already-committed postings intact; resume run picked up only the 53 still-stale rows automatically (D-14 idempotency). No data loss across either run. Pattern: pg_dump can be skipped when (a) the migration step before it was already verified lossless on the same dataset, AND (b) the mutation pattern uses per-posting commit so a kill mid-run leaves committed-so-far rows in a consistent state.
+- **Plan 02-04:** Resume-instead-of-restart pattern for long LLM-driven corpus operations — when `job-rag reextract` hangs or is killed, simply re-run the same default command. The WHERE clause in `reextract_stale` automatically selects only stale rows; no `--all` flag needed and no risk of double-extraction. Documented two-log audit trail convention: keep the original log untouched as forensic record, tee resume to a sibling `*-resume.log`. Both gitignored via `.planning/phases/**/*.log`.
+- **Plan 02-04:** GPT-4o-mini + the new structured-output schema (Location submodel + skill_category + REJECTION RULES) has a ~10% persistent-failure rate on the existing 108-posting corpus. 98/108 succeeded across 2 runs ($0.22 total LLM cost); 10 hit `RetryError[InstructorRetryException]` and exhausted tenacity's 3-attempt window. Recommended follow-up: inspect raw_text of the 10 failures, decide between prompt tweak / model upgrade (gpt-4o for those 10) / manual fixture; add `httpx.Timeout` or `asyncio.wait_for` at the extraction-call boundary to prevent the silent-stall failure mode that caused the original-run 47-min hang.
+- **Plan 02-04:** Lifespan drift surface (`prompt_version_drift` structlog warning with `current` / `stale_by_version` / `stale_count` / `remediation` fields) verified working under partial-failure conditions. With 10 stale rows present, lifespan emits the drift warning correctly; will auto-flip to `prompt_version_check_clean` once the residual is reextracted — no code change needed. Confirms D-17's two-surface drift detection design.
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -133,7 +137,7 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 
 ### Blockers
 
-- (none)
+- **Phase 2 follow-up (small, non-blocking):** 10 of 108 postings persistently fail Instructor extraction across 2 runs (`RetryError[InstructorRetryException]`). See `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md` for the full posting_id + company/title inventory and the recommended remediation path (raw_text inspection → prompt tweak / model upgrade / manual fixture + add `httpx.Timeout` belt-and-suspenders). Does NOT block Phase 3 (Infrastructure & CI/CD) or Phase 5 (Dashboard, which can filter `WHERE prompt_version='2.0'` to exclude residuals).
 
 ### Open Questions (from research, to resolve during planning)
 
@@ -163,10 +167,13 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 
 - 2026-04-28: Plan 02-03 executed (Migration 0004 + reextract service + CLI subcommands + lifespan drift query). 3 atomic commits (1b22306 feat 0004 migration + b9a482e feat extraction service + sweeps + 5b2405b feat CLI/lifespan/tests). Hand-wrote alembic/versions/0004_corpus_cleanup.py with 9-step upgrade (rename category→skill_type, drop ix_job_requirements_category by old name per Pitfall 6, add nullable skill_category, SQL CASE backfill soft_skill→soft/domain→domain/else→hard, SET NOT NULL, swap to ix_job_requirements_skill_type+skill_category, add 3 nullable location_country/city/region columns, drop free-text location, add ix_job_postings_location_country) + inverse downgrade. **BLOCKING `alembic upgrade head` against dev DB succeeded**: 108 postings + 2121 requirements preserved; skill_category backfill = 1844 hard / 156 soft / 121 domain; new schema verified via psql introspection. Live upgrade required Python wrapper (load .env via dotenv, URL-encode POSTGRES_PASSWORD, %% ConfigParser escape, set os.environ['DATABASE_URL']) + socat sidecar bridging host:5432→db:5432 (docker-compose only `expose`s DB internally) — both reused from Plan 01-02 STATE.md lessons. Created src/job_rag/services/extraction.py with ReextractReport dataclass + reextract_stale(*, all, posting_id, dry_run, yes) + _reextract_one — fresh AsyncSession per posting iteration (Pattern 3 / Pitfall 5 — B1ms 5-conn pool would saturate during 1-3s LLM round-trips), empty-string→None defensive coercion on Location fields (Open Q5 / Pitfall 3 mitigation for GPT-4o-mini's "" tendency), DELETE all + INSERT new requirements with derive_skill_category derivation, raw_text + embeddings PRESERVED (D-15). `--all` without `yes=True` raises RuntimeError (T-CLI-01). Swept services/ingestion.py (_store_posting + _store_posting_async write location_country/city/region + skill_type/skill_category derived); services/embedding.py (added _format_location_for_embedding helper, applied to format_posting_for_embedding + chunk_posting); services/retrieval.py (added _format_location_for_context, applied to rag_query); mcp_server/tools.py (_serialize_posting emits nested {country/city/region} + per-requirement {skill, skill_type, skill_category}). Added cli.py reextract Typer subcommand (asyncio.run wrap, --all/--posting-id/--dry-run/--yes, typer.confirm guard rail). Added cli.py list_postings --stats flag (prompt_version distribution with STALE marker per CORP-04 / D-17); rewrote default branch to display Country column from location_country (free-text location dropped); swept stats command for req.skill_type rename. Extended api/app.py lifespan with one-shot SELECT prompt_version drift query (Pattern 4) AFTER reranker preload + BEFORE shutdown_event; structured `prompt_version_drift` warning on stale rows / `prompt_version_check_clean` info on none / `prompt_version_check_failed` warning on exception (best-effort observability — never blocks ASGI). Tests: test_alembic.py +_postgres_reachable+test_0004_upgrade_smoke+test_0004_downgrade_smoke (skip cleanly on no PG); test_reextract.py NEW with 7 tests across 6 classes; test_cli.py::TestListStatsPromptVersion; test_lifespan.py::TestPromptVersionDriftWarning (uses patch.object(app_mod.log, 'warning'/'info', side_effect=capture) pattern instead of caplog because structlog's PrintLoggerFactory bypasses stdlib logging tree — executor-discretion note in plan anticipated this). Auto-fixed [Rule 1] tests/test_ingestion.py + tests/test_mcp_server.py fixtures (pre-existing tests broken by Plan 02-01 schema rename — used old SkillCategory.LANGUAGE + free-text location). Auto-fixed [Rule 1] 3 ruff violations in newly-written test_alembic.py. Verified: `reextract --dry-run` reports Selected=108 (all postings at prompt_version 1.1, current is 2.0). Final: 190 passed / 10 skipped / 0 failed (up from 187); ruff clean; pyright 0 errors. CORP-04 marked complete in REQUIREMENTS.md. Stopped at: Completed 02-03-PLAN.md (migration 0004 + reextract service + CLI subcommands + lifespan drift query). Plan 02-04 (live corpus reextract) DEFERRED per orchestrator note.
 
+- 2026-04-28: Plan 02-04 executed (corpus refresh — live reextract). Pre-flight `dc293da` `.gitignore` commit (Task 0). pg_dump pre-flight (Task 1) SKIPPED with explicit user authorization — risk accepted given Plan 02-03's lossless dev-DB transition + per-posting commit safety net (D-15/D-16); verified safe under fire (no data loss across two runs). `reextract --dry-run` confirmed Selected=108 (Task 2). Real `job-rag reextract` (Task 3) executed in two phases: original run made productive progress for ~18 min (55 successes + 16 failures committed/logged), then hung for ~47 min on what was almost certainly a stalled instructor/OpenAI HTTP call (no log emission, near-zero CPU, no exception). User killed PID 13484; per-posting commit kept all 55 already-committed postings intact. Resume run was a plain `job-rag reextract` (default — stale-only): WHERE clause in `reextract_stale` automatically selected the 53 still-stale rows (D-14 idempotency held under failure conditions). Resume completed cleanly: Selected=53, Succeeded=43, Failed=10 (`RetryError[InstructorRetryException]`), $0.0939 cost, ~73 min wall time. **Combined corpus state: 98/108 postings now at prompt_version='2.0' (90.7%); 10 persistent failures listed in 02-04-SUMMARY.md inventory; total cost across both runs $0.2216**. SQL sanity checks (Task 4): CORP-01 FAIL (small leak — 11 rejected-skill rows / 0.56% of requirements); CORP-02 PASS (3 buckets, no NULL: 1843 hard / 77 domain / 67 soft); CORP-03 PARTIAL PASS (98 country_present, 0 country_null_region_present, 10 both_null = the failure rows; 100% alpha-2 compliance on the 98); CORP-04 PARTIAL PASS (98 at 2.0, 10 at 1.1 STALE — `job-rag list --stats` correctly shows STALE marker). Lifespan drift surface verified working under partial-failure conditions: emits `prompt_version_drift current=2.0 stale_count=10 stale_by_version={'1.1': 10}` (D-17 working as designed; will auto-flip to `prompt_version_check_clean` once residuals are reextracted). Two-log audit trail preserved: original `reextract-run.log` untouched as forensic record + sibling `reextract-run-resume.log` for the resume run (both gitignored via `*.log` rule). Task 5 (human-verify checkpoint) converted to autonomous SUMMARY synthesis per orchestrator override ("Do not checkpoint again unless something fails"). 02-04-SUMMARY.md documents all four CORP statuses, full per-posting failure inventory (with company/title), and a recommended follow-up triage plan (raw_text inspection + prompt-or-model adjustment + httpx.Timeout belt-and-suspenders for the 47-min hang failure mode). Stopped at: Completed 02-04-PLAN.md (corpus refresh — 98/108 reextracted; 10 persistent failures documented for follow-up). **Phase 2 plans complete (4/4); ready for `/gsd-verify-work 2` with documented data-quality residual.**
+
 ### Next session
 
-- **Plan 02-04 DEFERRED** — Wave 2 stops at Plan 02-03 per orchestrator. Plan 04 will execute the 108-posting live re-extraction (~3-5 min, ~€0.20) when Adrian decides to run it.
-- Suggested next: `/gsd-discuss-phase 3` for Infrastructure & CI/CD (DEPL-01..DEPL-12) — Phases 2 and 3 are parallel-eligible per ROADMAP.
+- **Phase 2 plans complete** (4/4) — ready for `/gsd-verify-work 2`. Verifier should expect to find documented data-quality residual (10/108 persistent failures) and a recommended follow-up plan in `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md`. CORP-* requirements are marked complete; only CORP-02 is a clean PASS in 02-04 sanity checks; CORP-01/03/04 have explicit PARTIAL/FAIL statuses with documented impact.
+- **Optional follow-up Phase 2 plan** (small, ~30 min) to triage the 10 persistent failures: inspect raw_text → decide remediation (prompt tweak / gpt-4o for those 10 / manual fixture) → add `httpx.Timeout` to the OpenAI client to prevent the silent-stall failure mode that caused the original-run 47-min hang.
+- **Suggested next:** `/gsd-discuss-phase 3` for Infrastructure & CI/CD (DEPL-01..DEPL-12) — Phases 2 and 3 are parallel-eligible per ROADMAP. Phase 5 (Dashboard) can also start; it depends on Phase 2's structural deliverables (which all landed in Plans 02-01..02-03) but tolerates the 10-row residual via `WHERE prompt_version='2.0'`.
 - Target plans per phase (standard granularity): 3-5.
 
 ---
