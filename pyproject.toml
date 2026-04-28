@@ -53,4 +53,7 @@ dev = ["pytest>=9.0.3", "pytest-asyncio", "httpx", "ruff", "pyright", "ragas>=0.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["eval: extraction accuracy tests (require eval data, excluded from CI)"]
+markers = [
+    "eval: extraction accuracy tests (require eval data, excluded from CI)",
+    "integration: live LLM round-trips, excluded from default CI",
+]
