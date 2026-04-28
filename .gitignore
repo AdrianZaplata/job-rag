@@ -11,3 +11,8 @@ wheels/
 
 # Environment variables
 .env
+
+# Local-only planning artifacts (DB dumps, run logs — never committed)
+.planning/phases/**/*.sql
+.planning/phases/**/*.log
+
