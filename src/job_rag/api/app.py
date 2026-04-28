@@ -31,10 +31,12 @@ import anyio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from sqlalchemy import text
 
 from job_rag.api.routes import router
 from job_rag.config import settings
-from job_rag.db.engine import async_engine
+from job_rag.db.engine import AsyncSessionLocal, async_engine
+from job_rag.extraction.prompt import PROMPT_VERSION
 from job_rag.logging import get_logger
 from job_rag.services.retrieval import _get_reranker
 
@@ -50,7 +52,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _get_reranker()
     log.info("reranker_preloaded")
 
-    # 2. Create app-wide shutdown event for SSE handlers to observe [D-17]
+    # 2. Drift check (Phase 2 D-17 / Pattern 4). One-shot SELECT; if any rows
+    #    returned, emit a structured warning. Does NOT block startup on
+    #    error (best-effort observability).
+    try:
+        async with AsyncSessionLocal() as session:
+            stmt = text(
+                "SELECT prompt_version, COUNT(*) AS n "
+                "FROM job_postings "
+                "WHERE prompt_version != :current "
+                "GROUP BY prompt_version"
+            )
+            result = await session.execute(stmt, {"current": PROMPT_VERSION})
+            stale_rows = result.all()
+            if stale_rows:
+                stale_summary = {
+                    row.prompt_version: row.n for row in stale_rows
+                }
+                stale_count = sum(stale_summary.values())
+                log.warning(
+                    "prompt_version_drift",
+                    stale_count=stale_count,
+                    stale_by_version=stale_summary,
+                    current=PROMPT_VERSION,
+                    remediation="run `job-rag reextract` to re-extract stale rows",
+                )
+            else:
+                log.info("prompt_version_check_clean", current=PROMPT_VERSION)
+    except Exception as e:
+        # Best-effort: DB might be slow on cold start; do NOT block ASGI from
+        # accepting connections.
+        log.warning("prompt_version_check_failed", error=str(e))
+
+    # 3. Create app-wide shutdown event for SSE handlers to observe [D-17]
     #    sse-starlette's shutdown_event kwarg expects an anyio.Event (NOT
     #    asyncio.Event) — the library wraps both backends through anyio for
     #    asyncio/trio portability. Plan 06 wires this into EventSourceResponse.

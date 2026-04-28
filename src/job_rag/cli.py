@@ -64,13 +64,45 @@ def embed(
 @app.command(name="list")
 def list_postings(
     company: str = typer.Option(None, "--company", "-c", help="Filter by company name"),
+    stats: bool = typer.Option(
+        False,
+        "--stats",
+        help="Print prompt_version distribution instead of the posting table.",
+    ),
 ) -> None:
-    """List all ingested job postings."""
+    """List all ingested job postings, or print prompt_version distribution
+    when --stats is passed (CORP-04 / D-17 drift surface)."""
+    from collections import Counter
+
     from job_rag.db.engine import SessionLocal
     from job_rag.db.models import JobPostingDB
+    from job_rag.extraction.prompt import PROMPT_VERSION
 
     session = SessionLocal()
     try:
+        if stats:
+            # CORP-04 surface: prompt_version distribution.
+            counts: Counter[str] = Counter()
+            for p in session.query(JobPostingDB).all():
+                counts[p.prompt_version] += 1
+            if not counts:
+                typer.echo("No postings ingested yet.")
+                return
+            typer.echo(
+                f"\n=== Prompt version distribution (current: {PROMPT_VERSION}) ==="
+            )
+            total = sum(counts.values())
+            for ver, count in sorted(counts.items(), reverse=True):
+                marker = "" if ver == PROMPT_VERSION else " STALE"
+                typer.echo(f"  prompt_version={ver}: {count}{marker}")
+            typer.echo(f"\nTotal: {total} postings")
+            stale = total - counts.get(PROMPT_VERSION, 0)
+            if stale:
+                typer.echo(
+                    f"Stale: {stale} - run `job-rag reextract` to refresh."
+                )
+            return
+
         query = session.query(JobPostingDB).order_by(JobPostingDB.company)
         if company:
             query = query.filter(JobPostingDB.company.ilike(f"%{company}%"))
@@ -80,10 +112,18 @@ def list_postings(
             typer.echo("No postings found.")
             return
 
-        typer.echo(f"\n{'Company':<25} {'Title':<40} {'Location':<20} {'Remote':<10}")
-        typer.echo("-" * 95)
+        # NOTE: free-text `location` column was DROPPED in 0004 (D-11).
+        # Display location_country (or "-" if NULL) -- Phase 5 dashboard
+        # consumes the structured location_country/city/region columns.
+        typer.echo(
+            f"\n{'Company':<25} {'Title':<40} {'Country':<8} {'Remote':<10}"
+        )
+        typer.echo("-" * 83)
         for p in postings:
-            typer.echo(f"{p.company:<25} {p.title:<40} {p.location:<20} {p.remote_policy:<10}")
+            country = p.location_country or "-"
+            typer.echo(
+                f"{p.company:<25} {p.title:<40} {country:<8} {p.remote_policy:<10}"
+            )
         typer.echo(f"\nTotal: {len(postings)} postings")
     finally:
         session.close()
@@ -113,7 +153,7 @@ def stats() -> None:
 
         for req in requirements:
             skill_counts[req.skill] += 1
-            category_counts[req.category] += 1
+            category_counts[req.skill_type] += 1
             if req.required:
                 must_have_counts[req.skill] += 1
 
@@ -245,3 +285,66 @@ def agent(
         asyncio.run(_run())
     finally:
         flush()
+
+
+@app.command()
+def reextract(
+    all: bool = typer.Option(
+        False, "--all",
+        help="Re-extract every row regardless of prompt_version (escape hatch).",
+    ),
+    posting_id: str = typer.Option(
+        None, "--posting-id",
+        help="Re-extract a single posting by UUID.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Count what would be re-extracted; do not UPDATE.",
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y",
+        help="Skip the --all confirmation prompt (T-CLI-01 mitigation).",
+    ),
+) -> None:
+    """Re-extract postings whose prompt_version is stale (D-12, D-14, D-16).
+
+    Default selection (no flags): rows WHERE prompt_version != PROMPT_VERSION.
+    Per-posting commit; failures are logged + reported, never abort the loop.
+    Embeddings + raw_text are PRESERVED (D-15).
+    """
+    import asyncio
+    from uuid import UUID
+
+    from job_rag.extraction.prompt import PROMPT_VERSION
+    from job_rag.services.extraction import reextract_stale
+
+    # T-CLI-01: --all guard rail. typer.confirm returns False on stdin EOF.
+    if all and not yes:
+        confirm = typer.confirm(
+            "Re-extract EVERY posting regardless of prompt_version? "
+            "(~3-5 minutes, ~€0.20)",
+            default=False,
+        )
+        if not confirm:
+            typer.echo("Aborted.")
+            raise typer.Exit(code=1)
+        yes = True
+
+    async def _run():
+        pid = UUID(posting_id) if posting_id else None
+        return await reextract_stale(
+            all=all, posting_id=pid, dry_run=dry_run, yes=yes,
+        )
+
+    report = asyncio.run(_run())
+
+    typer.echo(f"\nRe-extraction complete (PROMPT_VERSION={PROMPT_VERSION}):")
+    typer.echo(f"  Selected:    {report.selected}")
+    typer.echo(f"  Succeeded:   {report.succeeded}")
+    typer.echo(f"  Failed:      {report.failed}")
+    typer.echo(f"  Skipped:     {report.skipped}")
+    typer.echo(f"  Total cost:  ${report.total_cost_usd:.4f}")
+    if report.failures:
+        typer.echo("\nFailures:")
+        for pid, err in report.failures:
+            typer.echo(f"  {pid}: {err}")

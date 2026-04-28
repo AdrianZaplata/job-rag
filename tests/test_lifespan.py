@@ -91,3 +91,136 @@ class TestShutdownDrain:
         skeleton that fails loudly if the contract is dropped.
         """
         pytest.skip("Full drain test deferred - Plan 06 wires the route handler")
+
+
+@pytest.mark.asyncio
+class TestPromptVersionDriftWarning:
+    """D-17 / Pattern 4: lifespan startup logs drift warnings."""
+
+    async def test_warning_when_stale_rows_present(self, lifespan_manager):
+        # structlog's PrintLoggerFactory bypasses the stdlib logging tree, so
+        # caplog can't see its records. Instead, intercept the module-level
+        # `log` object directly and capture warning() calls (executor note in
+        # Plan 02-03 anticipated this).
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        try:
+            from job_rag.api import app as app_mod
+            from job_rag.api.app import app
+        except ImportError as e:
+            pytest.skip(f"api/app.py not yet wired: {e}")
+
+        try:
+            rer_patcher = patch("job_rag.api.app._get_reranker")
+            rer_patcher.start()
+        except AttributeError:
+            pytest.skip("_get_reranker not in api/app.py")
+
+        class _Row:
+            def __init__(self, version, n):
+                self.prompt_version = version
+                self.n = n
+
+        class _Result:
+            def all(self):
+                return [_Row("1.1", 5)]
+
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=_Result())
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=None)
+
+        sess_patcher = patch(
+            "job_rag.api.app.AsyncSessionLocal", lambda: session,
+        )
+        try:
+            sess_patcher.start()
+        except AttributeError:
+            pytest.skip("AsyncSessionLocal not imported in api/app.py")
+
+        warnings_seen: list[tuple[str, dict]] = []
+        infos_seen: list[tuple[str, dict]] = []
+
+        original_warn = app_mod.log.warning
+        original_info = app_mod.log.info
+
+        def _capture_warn(event, *args, **kwargs):
+            warnings_seen.append((event, kwargs))
+            return original_warn(event, *args, **kwargs)
+
+        def _capture_info(event, *args, **kwargs):
+            infos_seen.append((event, kwargs))
+            return original_info(event, *args, **kwargs)
+
+        warn_patcher = patch.object(app_mod.log, "warning", side_effect=_capture_warn)
+        info_patcher = patch.object(app_mod.log, "info", side_effect=_capture_info)
+
+        try:
+            warn_patcher.start()
+            info_patcher.start()
+            async with lifespan_manager(app):
+                pass
+
+            events = [e for e, _ in warnings_seen]
+            assert "prompt_version_drift" in events, (
+                f"expected prompt_version_drift warning; got warnings: {events}"
+            )
+        finally:
+            warn_patcher.stop()
+            info_patcher.stop()
+            sess_patcher.stop()
+            rer_patcher.stop()
+
+    async def test_clean_when_no_stale_rows(self, lifespan_manager):
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        try:
+            from job_rag.api import app as app_mod
+            from job_rag.api.app import app
+        except ImportError as e:
+            pytest.skip(f"api/app.py not yet wired: {e}")
+
+        try:
+            rer_patcher = patch("job_rag.api.app._get_reranker")
+            rer_patcher.start()
+        except AttributeError:
+            pytest.skip("_get_reranker not in api/app.py")
+
+        class _Result:
+            def all(self):
+                return []
+
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=_Result())
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=None)
+
+        sess_patcher = patch(
+            "job_rag.api.app.AsyncSessionLocal", lambda: session,
+        )
+        try:
+            sess_patcher.start()
+        except AttributeError:
+            pytest.skip("AsyncSessionLocal not imported in api/app.py")
+
+        infos_seen: list[str] = []
+        original_info = app_mod.log.info
+
+        def _capture_info(event, *args, **kwargs):
+            infos_seen.append(event)
+            return original_info(event, *args, **kwargs)
+
+        info_patcher = patch.object(app_mod.log, "info", side_effect=_capture_info)
+
+        try:
+            info_patcher.start()
+            async with lifespan_manager(app):
+                pass
+
+            assert "prompt_version_check_clean" in infos_seen, (
+                f"expected prompt_version_check_clean info; got: {infos_seen}"
+            )
+        finally:
+            info_patcher.stop()
+            sess_patcher.stop()
+            rer_patcher.stop()

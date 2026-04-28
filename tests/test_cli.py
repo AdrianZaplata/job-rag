@@ -10,6 +10,7 @@ in Wave 0.
 
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -41,3 +42,51 @@ class TestInitDbCommand:
         args, kwargs = mock_upgrade.call_args
         # second positional arg should be "head" OR kwarg revision="head"
         assert "head" in (list(args) + list(kwargs.values()))
+
+
+class TestListStatsPromptVersion:
+    """CORP-04 / D-17: list --stats prints prompt_version distribution."""
+
+    def test_list_stats_prints_distribution(self, monkeypatch):
+        try:
+            from job_rag.cli import app as cli_app
+        except ImportError:
+            pytest.skip("CLI import failed")
+
+        # Build 2 fake postings: one at "2.0" (current) and one at "1.1" (stale).
+        class _FakePosting:
+            def __init__(self, version):
+                self.prompt_version = version
+
+        fake_postings = [_FakePosting("2.0"), _FakePosting("1.1")]
+
+        class _FakeQuery:
+            def all(self):
+                return fake_postings
+
+            def order_by(self, *a, **kw):
+                return self
+
+            def filter(self, *a, **kw):
+                return self
+
+        class _FakeSession:
+            def query(self, *a, **kw):
+                return _FakeQuery()
+
+            def close(self):
+                pass
+
+        # Patch SessionLocal where cli imports it from.
+        monkeypatch.setattr(
+            "job_rag.db.engine.SessionLocal", lambda: _FakeSession()
+        )
+
+        try:
+            result = runner.invoke(cli_app, ["list", "--stats"])
+        except (AttributeError, ModuleNotFoundError):
+            pytest.skip("--stats flag not yet wired (Plan 03)")
+
+        assert result.exit_code == 0
+        assert "prompt_version=" in result.stdout
+        assert "STALE" in result.stdout
