@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-28T06:25:54.411Z"
+last_updated: "2026-04-28T07:29:39.774Z"
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 10
-  completed_plans: 6
-  percent: 60
+  completed_plans: 7
+  percent: 70
 ---
 
 # State: job-rag web-app milestone
@@ -32,7 +32,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 01 (backend-prep) — COMPLETE
+Phase: 02 (corpus-cleanup) — EXECUTING
+Plan: 2 of 4
 Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both unblocked per ROADMAP parallelization notes
 
 - **Phase**: 1 - Backend Prep — verified passed (5/5 must-haves)
@@ -61,6 +62,7 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 | Phases planned | 8 |
 | Phases complete | 1 |
 | Plans complete | 6 |
+| Phase 02 P01 | 4m | 3 tasks | 4 files |
 
 ### Per-Plan Execution
 
@@ -71,6 +73,7 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 | 01-03 (IngestionSource Protocol)       | n/a     | 2 | n/a| 9408e14, 24afe5e |
 | 01-04 (SSE Pydantic event contract)    | 11m 24s | 2 | 6  | 6ba420d, 35f2bbe |
 | 01-05 (lifespan + CORS + auth dep)     | 8m 6s   | 2 | 5  | e968969, ab0657e |
+| 02-01 (schema evolution: SkillType + Location) | 4m | 3 | 4 | a0876fc, dc773af, 959cbf1 |
 
 ## Accumulated Context
 
@@ -93,6 +96,9 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 - **Plan 01-05:** `anyio.Event()` (NOT `asyncio.Event()`) for `app.state.shutdown_event` — sse-starlette's `shutdown_event` kwarg expects `anyio.Event` for asyncio/trio portability. Load-bearing choice for Plan 06's `EventSourceResponse(shutdown_event=app.state.shutdown_event, ping=...)` wiring.
 - **Plan 01-05:** Documented anti-pattern in source comments (`# CRITICAL: do NOT add GZipMiddleware [D-18, Pitfall 6]`) — intentional anti-regression nudge for any future contributor adding middleware. Trade-off: literal-string `grep -rq GZipMiddleware src/` now matches the comment; runtime introspection `'GZipMiddleware' not in app.user_middleware` is the authoritative check (passes). Plan 06's CI grep should pivot to `grep -E "add_middleware\(\s*GZipMiddleware"` to ignore comments.
 - **Plan 01-05:** Forward-compat function-body pattern for auth dependencies — `get_current_user_id()` returns a Python constant in v1; Phase 4 will rewrite the function body in-place to parse the Entra JWT `sub`/`oid` claim. No feature flag needed; every call site is already wired via `Depends(get_current_user_id)` so the rewrite is a one-function-body change. Decouples auth-wiring rollout (BACK-08, Phase 1) from auth-mechanism rollout (AUTH-06, Phase 4).
+- **Plan 02-01:** Two-axis skill taxonomy in `models.py` — `SkillType` (8 values, LLM-extracted) is orthogonal to `SkillCategory` (3 values, code-derived via `derive_skill_category()`). The pure-function helper lives next to the enums per CONTEXT.md D-03 convention; uses `is` (identity) not `==` for StrEnum comparisons since members are singletons (faster + intent-clear). Saves output tokens (LLM doesn't tag the 3-value axis) and removes LLM tagging ambiguity.
+- **Plan 02-01:** Pydantic submodel ↔ flat DB columns for `Location` — Pydantic `Location(country/city/region)` maps to 3 flat `location_country/city/region` columns on `JobPostingDB` per D-11. Avoids PostgreSQL composite-type complexity. ORM column types/lengths (`String(2)`/`String(255)`/`String(100)`) are the contract migration 0004 (Plan 02-03) must mirror exactly to keep `alembic check` no-drift.
+- **Plan 02-01:** Rename-gate test pattern — added `test_old_category_field_rejected` (passing `category=` to `JobRequirement` raises `ValidationError`) and `test_string_location_rejected` (bare-string `location="..."` to `JobPosting` raises `ValidationError`). These act as tripwires for any accidental schema drift back to the pre-Phase-2 shape; cheaper than waiting for downstream service breaks.
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -146,6 +152,7 @@ Next: Phase 02 (Corpus Cleanup) or Phase 03 (Infrastructure & CI/CD) — both un
 - 2026-04-27: Plan 01-03 executed (IngestionSource Protocol). 2 atomic commits (9408e14 feat Protocol/RawPosting/MarkdownFileSource/IngestResult + 24afe5e feat ingest_from_source async consumer rewrap sync ingest_file). tests/test_ingestion.py ACTIVE.
 - 2026-04-27: Plan 01-04 executed (SSE Pydantic event contract). 2 atomic commits (6ba420d feat api/sse.py + AgentEvent + to_sse + test scaffold guard widen + 35f2bbe feat stream.py rewire + test_agent + cli.py consumer fix). Created src/job_rag/api/sse.py with 6 Pydantic v2 BaseModel event classes + AgentEvent discriminated union via `Annotated[X | Y | ..., Field(discriminator="type")]` + `to_sse(event)` helper. Rewired src/job_rag/agent/stream.py to yield typed AgentEvent instances (return type `AsyncIterator[AgentEvent]`); 4 dict yields → Pydantic instances; defensive `isinstance(args, dict) else None` + `event.get("name") or ""` coercions for LangGraph edge cases. Updated tests/test_agent.py::TestStreamAgent (attribute access on Pydantic) and tests/test_sse_contract.py::TestOpenAPISchema (widened skip-guard for Plan 06 intermediate state). Auto-fixed src/job_rag/cli.py `agent --stream` consumer (Rule 1 — broke at runtime; not in plan but discovered via pyright full-tree scan). Wire-shape byte-identity confirmed via before/after smoke (5/5 events). routes.py:143 indexing deferred to Plan 06 (deferred-items.md tracks). Full suite: 97 passed, 5 skipped, 0 failed. Stopped at: Completed 01-04-PLAN.md.
 - 2026-04-27: Plan 01-05 executed (FastAPI lifespan + CORS + get_current_user_id + asyncio.to_thread + load_profile user_id kwarg). 2 atomic commits (e968969 feat lifespan/CORS/auth + ab0657e feat asyncio.to_thread + load_profile). Rewrote src/job_rag/api/app.py: lifespan preloads `_get_reranker()` once on startup (BACK-03 closes 2-3s cold-load), creates `app.state.shutdown_event = anyio.Event()` and `app.state.active_streams = set()` (D-17), shutdown sets event then drains via `asyncio.wait_for(asyncio.gather(*active_streams), 30.0)` then disposes async DB engine; bumped version 0.2.0 → 0.3.0. CORSMiddleware wired with `allow_origins=settings.allowed_origins` (env-var driven, NEVER `*`), `allow_credentials=True`, GET/POST/OPTIONS, Authorization+Content-Type headers (BACK-01, T-05-01); explicit anti-regression comment forbids GZipMiddleware (D-18 / Pitfall 6). Appended `get_current_user_id() -> uuid.UUID` async dep to src/job_rag/api/auth.py returning `settings.seeded_user_id` directly (BACK-08, T-05-02 — body parses no input; Phase 4 rewrites body for Entra JWT per D-10). Wrapped `rerank()` callsite in src/job_rag/services/retrieval.py::rag_query as `await asyncio.to_thread(rerank, ...)` (BACK-04, T-05-03 — heartbeats keep firing); same wrap in src/job_rag/mcp_server/tools.py::search_postings. Evolved src/job_rag/services/matching.py::load_profile signature to `def load_profile(*, user_id: UUID | None = None, path: str | None = None)` keyword-only per Sequencing Caveat Option A — existing no-arg callers (api/routes.py /match + /gaps) keep working unchanged; mcp_server/tools.py callers now explicitly pass `user_id=settings.seeded_user_id` per D-08. Auto-fixed `except asyncio.TimeoutError` → `except TimeoutError` (Rule 1 — ruff UP041 enforces builtin alias for Python 3.11+). tests/test_lifespan.py reranker_preloaded + shutdown_event_initialized + tests/test_auth.py get_current_user_id all ACTIVE and PASSING. Full suite: 100 passed, 2 skipped, 0 failed (up from 97/5). routes.py:143 still deferred to Plan 06 (6 pyright errors, pre-existing from Plan 04 — NOT introduced by Plan 05). Stopped at: Completed 01-05-PLAN.md (lifespan + CORS + get_current_user_id + asyncio.to_thread + load_profile user_id kwarg). Plan 06 unblocked — only remaining Phase 1 plan.
+- 2026-04-28: Plan 02-01 executed (Schema evolution — SkillType/SkillCategory + Location submodel). 3 atomic commits (a0876fc feat models.py + dc773af feat db/models.py + 959cbf1 test test_models.py + conftest fixture). Renamed existing 8-value `SkillCategory` → `SkillType` and added new 3-value `SkillCategory(HARD/SOFT/DOMAIN)` per D-01/D-02. Added `derive_skill_category(skill_type)` deterministic mapping (D-03) — soft_skill→SOFT, domain→DOMAIN, rest→HARD. Added `Location` Pydantic submodel with all-nullable country/city/region fields (D-06, D-09). Updated `JobRequirement` to carry both `skill_type` (LLM) + `skill_category` (derived); updated `JobPosting.location: Location`. On the ORM side: renamed `JobRequirementDB.category` → `skill_type`, added `skill_category` column, swapped `ix_job_requirements_category` for `ix_job_requirements_skill_type` + `ix_job_requirements_skill_category` (D-04); dropped `JobPostingDB.location`, added flat `location_country/city/region` nullable columns + `ix_job_postings_location_country` index (D-11 + Claude's Discretion). All other ORM tables (UserDB, UserProfileDB, JobChunkDB) preserved verbatim per D-12 / D-15. Tests: added 4 new test classes (TestSkillType, TestSkillCategoryDerivation parametrized over 8→3 mapping, TestLocation parametrized over 4 D-09 examples + null edge case, TestJobRequirementBothFields); rewrote existing TestJobRequirement / TestJobPosting for new schema; added rename-gate tests as tripwires. `tests/conftest.py::sample_posting` rebuilt with `Location(country="DE",...)` + 8 `JobRequirement(...)` constructors using `skill_type=` + `skill_category=derive_skill_category(...)`. Auto-fixed 3 ruff E501/F401 violations on my own newly-written code (Rule 1 — line-length on Field description + comment + unused import on conftest). Final verification: 31/31 tests pass in test_models.py; `ruff check` all clean; `pyright` 0 errors. Requirements CORP-02 + CORP-03 marked complete in REQUIREMENTS.md. Stopped at: Completed 02-01-PLAN.md (schema evolution: SkillType/SkillCategory + Location submodel + flat location_* DB columns + test coverage). Plans 02-02 / 02-03 / 02-04 unblocked.
 - 2026-04-27: Phase 02 context gathered (`.planning/phases/02-corpus-cleanup/02-CONTEXT.md`). 4 gray areas discussed → 22 decisions captured (D-01..D-22), all Recommended. Locks: rename existing `SkillCategory` → `SkillType` + add new `SkillCategory(hard/soft/domain)` with deterministic Python derivation (soft_skill→soft, domain→domain, rest→hard); embedded `Location` Pydantic submodel with ISO-3166 alpha-2 country (nullable) + city + region (`country=null` + region populated for EU/Worldwide); deviation from CORP-03 spec — keep richer `remote_policy` enum, drop spec's `remote_allowed`; reusable `job-rag reextract` CLI subcommand with stale-only default selection + `--all`/`--posting-id`/`--dry-run` flags + per-posting commit + drift detection via `list --stats` + lifespan startup warning; embeddings preserved (resolves STATE.md open question — raw_text→chunks→embeddings unchanged); hybrid soft-skill rejection (~22-term `REJECTED_SOFT_SKILLS` tuple in `prompt.py` + f-string interpolation into `SYSTEM_PROMPT`, leadership/mentoring kept and tagged `soft`, spoken languages kept as `skill_type=language` deriving to hard); `PROMPT_VERSION` bumped to `"2.0"`. Adrian reframed Area 3 mid-discussion ("I'll be adding new postings over time, what's the best strategy?") — captured as feedback memory `~/.claude/projects/.../memory/feedback_reusable_tools.md`. Stopped at: Completed `/gsd-discuss-phase 2`. Phase 02 ready for `/gsd-plan-phase 2`.
 
 ### Next session
