@@ -67,7 +67,7 @@ class JobRequirementDB(Base):
     skill: Mapped[str] = mapped_column(String(100), nullable=False)
     # skill_type renamed from `category` in 0004 (D-04). LLM-extracted (8 values).
     skill_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    # skill_category derived from skill_type at write time via models.derive_skill_category() (D-03).
+    # skill_category derived from skill_type at write via models.derive_skill_category() (D-03).
     skill_category: Mapped[str] = mapped_column(String(20), nullable=False)
     required: Mapped[bool] = mapped_column(nullable=False)
 

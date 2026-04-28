@@ -99,7 +99,10 @@ class JobRequirement(BaseModel):
 
     skill: str = Field(description="Name of the skill, tool, or qualification")
     skill_type: SkillType = Field(
-        description="Skill kind (language, framework, cloud, database, concept, tool, soft_skill, domain)"
+        description=(
+            "Skill kind (language, framework, cloud, database, concept, tool, "
+            "soft_skill, domain)"
+        )
     )
     skill_category: SkillCategory = Field(
         description="Derived category (hard / soft / domain) — populated by code, not the LLM"
