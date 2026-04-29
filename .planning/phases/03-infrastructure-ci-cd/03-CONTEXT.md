@@ -212,5 +212,42 @@ None — `gsd-tools todo match-phase 3` returned `todo_count: 0`.
 
 ---
 
+## Plan-Locking Addendum (added 2026-04-29 after RESEARCH.md)
+
+The researcher surfaced 4 architectural questions that require user decision before plan-locking. Adrian confirmed all 4 Recommended on 2026-04-29. These supersede or refine the corresponding original decisions; the planner MUST honor the addendum over the original where they conflict.
+
+### A1. D-10 SUPERSEDED — Postgres firewall path: **Path A**
+
+**Original D-10 said:** firewall to "the static outbound IP exposed by `data \"azurerm_container_app_environment\"`".
+
+**Reality (per RESEARCH.md):** ACA Consumption-tier outbound IPs are NOT guaranteed static (Microsoft Learn networking docs + Microsoft Q&A staff answer + microsoft/azure-container-apps#801 all confirm).
+
+**Locked Path A:** Postgres firewall rule **`0.0.0.0`** ("Allow Azure services") + `require_secure_transport = on` (default) + `random_password` 32-char alphanumeric stored in KV. Adrian's home IP firewall rule (variable in tfvars) stays for local psql access. Skip the `data "azurerm_container_app_environment"` outbound-IP discovery entirely.
+
+**Security boundary:** TLS + KV-managed 32-char random password. Trade-off accepted: any Azure VM in any tenant can ATTEMPT to connect (still needs the password). Documented as a knowingly-accepted security trade-off in `infra/envs/prod/README.md`. Defer private endpoint to v2 paid tier.
+
+### A2. Repo visibility — **Public**
+
+The `adrianzaplata/job-rag` repo is or will be public (portfolio framing). Free protected environments work. D-08's second federated credential (`repo:adrianzaplata/job-rag:environment:production` for `deploy-infra.yml`) gates cleanly via the `production` protected environment with Adrian as the sole required reviewer.
+
+### A3. Two-pass CORS apply — **Script-driven**
+
+`scripts/refresh-swa-origin.sh` reads `terraform output -raw swa_default_origin` after the first apply, exports it as `TF_VAR_swa_origin`, and re-runs `terraform apply -var-file=prod.tfvars`. Stays in `scripts/` per the user's reusable-tools default (genuinely one-shot infra glue, no reuse expected). The script is idempotent — safe to re-run. Two-pass is documented in `infra/envs/prod/README.md` step-by-step.
+
+### A4. GHA service principal tenant — **Workforce tenant**
+
+The GHA SP (used by `azure/login@v2` to deploy Azure resources) lives in Adrian's personal/workforce tenant (the subscription's home tenant). The new External tenant (D-05) is for end-user identity ONLY (SPA + API app registrations live there). Two tenants for two purposes is the standard Microsoft topology. Bootstrap requires Owner-level access on the subscription, which is bound to the workforce tenant. The GHA SP's federated credentials (D-08) are created in the workforce tenant.
+
+### A5. Open question (planner-time spike): AVM Postgres `server_configuration` shape
+
+The AVM `avm/res/db-for-postgresql/flexible-server@0.2.2` module's `server_configuration` argument shape is documented as `extensions_allowlist = { name = "azure.extensions", value = "VECTOR" }` based on the AVM repo's `examples/`. The first execution task in the database module plan should run `terraform-docs markdown table .` against the pinned module version to confirm the exact key shape compiles. If different, use the actual shape and update the plan. Trivial (≤5 min) verification — not a blocker for plan generation.
+
+### Reusable-tool framing reminder
+
+Per the user's `feedback_reusable_tools.md` memory: if any plan generates one-shot operational scripts beyond `scripts/refresh-swa-origin.sh` (e.g., `scripts/firewall-update-home-ip.sh`), the planner SHOULD evaluate whether to fold them as first-class CLI subcommands of the existing `job-rag` Typer CLI vs leaving them as `scripts/`. Default: leave as `scripts/` for genuinely one-shot infra glue (low reuse expectation). Override if reuse signals present.
+
+---
+
 *Phase: 03-infrastructure-ci-cd*
 *Context gathered: 2026-04-29*
+*Plan-locking addendum: 2026-04-29 (post-RESEARCH.md)*
