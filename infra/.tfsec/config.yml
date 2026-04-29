@@ -1,0 +1,25 @@
+# tfsec config — allowlist documented €0-budget trade-offs
+# Each exclusion has an explicit comment with the decision ID + rationale.
+exclude:
+  # D-10 / Plan-Locking Addendum A1 Path A:
+  # public_network_access_enabled = true on Postgres Flex is intentional —
+  # private endpoint costs ~€130/mo, breaks €0 budget. Security boundary is
+  # TLS (require_secure_transport=on) + 32-char random alphanumeric password
+  # in Key Vault. Documented as knowingly-accepted trade-off.
+  - azure-database-no-public-access
+
+  # D-10 / Plan-Locking Addendum A1 Path A:
+  # 0.0.0.0 "Allow Azure services" firewall rule is the documented Microsoft
+  # idiom that pairs with TLS + strong password. ACA Consumption-tier outbound
+  # IP is documented non-stable (RESEARCH.md §Pitfall: ACA outbound IP).
+  - azure-database-no-public-firewall-rules
+
+severity_overrides:
+  # The remaining checks STAY at default severity:
+  # azure-keyvault-no-purge: HIGH (D-13: purge_protection_enabled=true in prod)
+  # azure-keyvault-content-type-for-secret: MEDIUM
+  # azure-keyvault-specify-network-acl: MEDIUM
+  # azure-storage-default-action-deny: HIGH
+
+# Minimum severity to fail the run on
+minimum_severity: HIGH

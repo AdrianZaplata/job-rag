@@ -16,3 +16,13 @@ wheels/
 .planning/phases/**/*.sql
 .planning/phases/**/*.log
 
+# Terraform (Phase 3 — bootstrap state must NEVER be committed; prod state lives in Azure Blob)
+infra/bootstrap/.terraform/
+infra/bootstrap/terraform.tfstate
+infra/bootstrap/terraform.tfstate.backup
+infra/bootstrap/.terraform.lock.hcl
+infra/envs/*/.terraform/
+infra/envs/*/.terraform.lock.hcl
+*.tfplan
+*.tfvars.local
+
