@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 02 plans complete — ready for /gsd-verify-work 2
-last_updated: "2026-04-29T09:01:29.756Z"
+status: Ready to execute
+last_updated: "2026-04-29T10:52:59.993Z"
 progress:
   total_phases: 8
   completed_phases: 2
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 18
+  completed_plans: 11
+  percent: 61
 ---
 
 # State: job-rag web-app milestone
@@ -169,8 +169,12 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 
 - 2026-04-28: Plan 02-04 executed (corpus refresh — live reextract). Pre-flight `dc293da` `.gitignore` commit (Task 0). pg_dump pre-flight (Task 1) SKIPPED with explicit user authorization — risk accepted given Plan 02-03's lossless dev-DB transition + per-posting commit safety net (D-15/D-16); verified safe under fire (no data loss across two runs). `reextract --dry-run` confirmed Selected=108 (Task 2). Real `job-rag reextract` (Task 3) executed in two phases: original run made productive progress for ~18 min (55 successes + 16 failures committed/logged), then hung for ~47 min on what was almost certainly a stalled instructor/OpenAI HTTP call (no log emission, near-zero CPU, no exception). User killed PID 13484; per-posting commit kept all 55 already-committed postings intact. Resume run was a plain `job-rag reextract` (default — stale-only): WHERE clause in `reextract_stale` automatically selected the 53 still-stale rows (D-14 idempotency held under failure conditions). Resume completed cleanly: Selected=53, Succeeded=43, Failed=10 (`RetryError[InstructorRetryException]`), $0.0939 cost, ~73 min wall time. **Combined corpus state: 98/108 postings now at prompt_version='2.0' (90.7%); 10 persistent failures listed in 02-04-SUMMARY.md inventory; total cost across both runs $0.2216**. SQL sanity checks (Task 4): CORP-01 FAIL (small leak — 11 rejected-skill rows / 0.56% of requirements); CORP-02 PASS (3 buckets, no NULL: 1843 hard / 77 domain / 67 soft); CORP-03 PARTIAL PASS (98 country_present, 0 country_null_region_present, 10 both_null = the failure rows; 100% alpha-2 compliance on the 98); CORP-04 PARTIAL PASS (98 at 2.0, 10 at 1.1 STALE — `job-rag list --stats` correctly shows STALE marker). Lifespan drift surface verified working under partial-failure conditions: emits `prompt_version_drift current=2.0 stale_count=10 stale_by_version={'1.1': 10}` (D-17 working as designed; will auto-flip to `prompt_version_check_clean` once residuals are reextracted). Two-log audit trail preserved: original `reextract-run.log` untouched as forensic record + sibling `reextract-run-resume.log` for the resume run (both gitignored via `*.log` rule). Task 5 (human-verify checkpoint) converted to autonomous SUMMARY synthesis per orchestrator override ("Do not checkpoint again unless something fails"). 02-04-SUMMARY.md documents all four CORP statuses, full per-posting failure inventory (with company/title), and a recommended follow-up triage plan (raw_text inspection + prompt-or-model adjustment + httpx.Timeout belt-and-suspenders for the 47-min hang failure mode). Stopped at: Completed 02-04-PLAN.md (corpus refresh — 98/108 reextracted; 10 persistent failures documented for follow-up). **Phase 2 plans complete (4/4); ready for `/gsd-verify-work 2` with documented data-quality residual.**
 
+- 2026-04-29: Plan 03-01 executed (Wave 0 — static-TF lint + scaffolding). 2 atomic commits (a07b2cb feat tflint+tfsec+gitignore Terraform block + 49dabeb feat runbook skeletons + refresh-swa-origin.sh + static-tf.yml workflow). Created infra/.tflint.hcl (azurerm ruleset 0.27.0 + recommended preset + 3 explicit terraform rules), infra/.tfsec/config.yml (allowlist azure-database-no-public-access + azure-database-no-public-firewall-rules per D-10/A1 Path A €0-budget trade-off, minimum_severity: HIGH), infra/README.md (top-level layout + bootstrap → first-apply runbook), infra/bootstrap/README.md (4 step headings, filled by Plan 02), infra/envs/prod/README.md (6 section headings incl. Two-Pass CORS Bootstrap heading anchor), infra/envs/dev/README.md (scaffold-only per D-04), scripts/refresh-swa-origin.sh (DEPL-12 two-pass CORS helper, mode 100755 set via `git update-index --chmod=+x`, set -euo pipefail, idempotent sed-with-backup), .github/workflows/static-tf.yml (PR-only on `infra/**` + .github/workflows/static-tf.yml, permissions: contents: read for T-3-02, fmt + tflint + tfsec + per-env validate with `if [ -f infra/{env}/main.tf ]` guards so Wave 0 PR stays green BEFORE Plan 02 lands real .tf files). .gitignore extended with Terraform block at tail (bootstrap state, .terraform/, *.tfplan, *.tfvars.local) — T-3-01 mitigation lands BEFORE Plan 02 runs locally. All 9 files verified on disk; bash -n script clean; section-heading greps pass. **Adrian explicitly chose Wave 0 only — execution stops here, Plans 02-07 deferred to next session.** DEPL-01, DEPL-02, DEPL-12 requirements marked complete (DEPL-12 wired but not yet exercised — script exists, will be invoked from Plan 04's prod runbook). Stopped at: Completed 03-01-PLAN.md.
+
 ### Next session
 
+- **Phase 3 Wave 0 done** (Plan 01 / 7). Static-TF validation harness and runbook scaffolding landed. Plans 02-07 still pending.
+- **Suggested next:** `/gsd-execute-phase 3` to land Plan 02 (bootstrap — Azure Storage state + Entra External tenant import), OR `/gsd-verify-work 3.01` to verify Wave 0 before proceeding.
 - **Phase 2 plans complete** (4/4) — ready for `/gsd-verify-work 2`. Verifier should expect to find documented data-quality residual (10/108 persistent failures) and a recommended follow-up plan in `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md`. CORP-* requirements are marked complete; only CORP-02 is a clean PASS in 02-04 sanity checks; CORP-01/03/04 have explicit PARTIAL/FAIL statuses with documented impact.
 - **Optional follow-up Phase 2 plan** (small, ~30 min) to triage the 10 persistent failures: inspect raw_text → decide remediation (prompt tweak / gpt-4o for those 10 / manual fixture) → add `httpx.Timeout` to the OpenAI client to prevent the silent-stall failure mode that caused the original-run 47-min hang.
 - **Suggested next:** `/gsd-discuss-phase 3` for Infrastructure & CI/CD (DEPL-01..DEPL-12) — Phases 2 and 3 are parallel-eligible per ROADMAP. Phase 5 (Dashboard) can also start; it depends on Phase 2's structural deliverables (which all landed in Plans 02-01..02-03) but tolerates the 10-row residual via `WHERE prompt_version='2.0'`.
