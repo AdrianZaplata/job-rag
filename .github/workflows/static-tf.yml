@@ -1,0 +1,64 @@
+name: Static TF
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/static-tf.yml'
+
+jobs:
+  static-tf:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive infra/
+
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Init tflint
+        run: tflint --init
+        working-directory: infra
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run tflint
+        run: tflint --recursive --config="$(pwd)/.tflint.hcl"
+        working-directory: infra
+
+      - name: Setup tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: infra
+          additional_args: --config-file infra/.tfsec/config.yml
+
+      # Terraform validate runs PER env directory (validate doesn't recurse usefully)
+      - name: Terraform validate (envs/prod)
+        run: |
+          if [ -f infra/envs/prod/main.tf ]; then
+            cd infra/envs/prod && terraform init -backend=false && terraform validate
+          fi
+
+      - name: Terraform validate (envs/dev)
+        run: |
+          if [ -f infra/envs/dev/main.tf ]; then
+            cd infra/envs/dev && terraform init -backend=false && terraform validate
+          fi
+
+      - name: Terraform validate (bootstrap)
+        run: |
+          if [ -f infra/bootstrap/main.tf ]; then
+            cd infra/bootstrap && terraform init -backend=false && terraform validate
+          fi
