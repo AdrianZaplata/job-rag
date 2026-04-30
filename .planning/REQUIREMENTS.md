@@ -79,7 +79,7 @@ All four ship as a single pair to amortize the re-extraction cost.
 
 ### Deploy — IaC, CI/CD, Azure infra (DEPL)
 
-- [ ] **DEPL-01**: Terraform remote state backend configured on Azure Blob Storage with state-locking
+- [x] **DEPL-01**: Terraform remote state backend configured on Azure Blob Storage with state-locking
 - [ ] **DEPL-02**: Terraform structure: `infra/envs/{dev,prod}` calling `infra/modules/*`; Azure Verified Modules used where available
 - [ ] **DEPL-03**: Azure Container Apps environment + Container App (API) provisioned; min-replicas = 0 for scale-to-zero; max-replicas = 1 (single-user)
 - [ ] **DEPL-04**: Azure DB for PostgreSQL Flexible Server B1ms provisioned with `pgvector` extension; SQLAlchemy pool sized to B1ms limits (`pool_size=3`, `max_overflow=2`)
@@ -201,7 +201,7 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | AUTH-05 | Phase 4 | Pending |
 | AUTH-06 | Phase 4 | Pending |
 | AUTH-07 | Phase 4 | Pending |
-| DEPL-01 | Phase 3 | Pending |
+| DEPL-01 | Phase 3 | Complete |
 | DEPL-02 | Phase 3 | Pending |
 | DEPL-03 | Phase 3 | Pending |
 | DEPL-04 | Phase 3 | Pending |
