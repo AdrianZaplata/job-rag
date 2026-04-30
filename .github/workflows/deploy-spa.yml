@@ -1,0 +1,51 @@
+name: Deploy SPA
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/deploy-spa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    name: build -> SWA upload
+    runs-on: ubuntu-latest
+    # NOTE: this workflow does NOT use OIDC — Azure/static-web-apps-deploy@v1
+    # consumes the SWA api_key directly (CONTEXT.md A2 + D-08: SWA token is the
+    # sole long-lived secret in the system; rotation cadence 180 days per
+    # Microsoft default, refreshed via deploy-infra.yml's manual runbook reminder).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/web
+
+      - name: Build
+        run: npm run build
+        working-directory: apps/web
+        # Phase 4 fills the Vite env vars (VITE_API_BASE_URL, VITE_MSAL_CLIENT_ID, etc.).
+        # Phase 3 ships only the workflow harness; first apply happens after Phase 4
+        # produces apps/web/dist/.
+
+      - name: Deploy to Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROD }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'apps/web/dist'
+          skip_app_build: true
+          skip_api_build: true
