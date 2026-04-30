@@ -82,12 +82,12 @@ All four ship as a single pair to amortize the re-extraction cost.
 - [x] **DEPL-01**: Terraform remote state backend configured on Azure Blob Storage with state-locking
 - [x] **DEPL-02**: Terraform structure: `infra/envs/{dev,prod}` calling `infra/modules/*`; Azure Verified Modules used where available
 - [x] **DEPL-03**: Azure Container Apps environment + Container App (API) provisioned; min-replicas = 0 for scale-to-zero; max-replicas = 1 (single-user)
-- [ ] **DEPL-04**: Azure DB for PostgreSQL Flexible Server B1ms provisioned with `pgvector` extension; SQLAlchemy pool sized to B1ms limits (`pool_size=3`, `max_overflow=2`)
+- [x] **DEPL-04**: Azure DB for PostgreSQL Flexible Server B1ms provisioned with `pgvector` extension; SQLAlchemy pool sized to B1ms limits (`pool_size=3`, `max_overflow=2`)
 - [ ] **DEPL-05**: Azure Static Web Apps (Free SKU) provisioned for the Vite build output
 - [x] **DEPL-06**: Azure Key Vault stores `OPENAI_API_KEY`, DB admin password, Langfuse keys; Container App retrieves them via managed identity at runtime
-- [ ] **DEPL-07**: Container images built and pushed to GitHub Container Registry (GHCR), not Azure Container Registry Basic (saves ~€60/year)
-- [ ] **DEPL-08**: GitHub Actions split into three workflows — `deploy-infra.yml` (Terraform), `deploy-api.yml` (Docker build/push/container-app update), `deploy-spa.yml` (Vite build/SWA deploy) — each with `paths` filters so changes only fire the relevant workflow
-- [ ] **DEPL-09**: Each workflow authenticates to Azure via OIDC federated credential; role assignments are resource-group-scoped Contributor (never subscription-scoped); SWA uses a deployment token (OIDC isn't GA for SWA)
+- [x] **DEPL-07**: Container images built and pushed to GitHub Container Registry (GHCR), not Azure Container Registry Basic (saves ~€60/year)
+- [x] **DEPL-08**: GitHub Actions split into three workflows — `deploy-infra.yml` (Terraform), `deploy-api.yml` (Docker build/push/container-app update), `deploy-spa.yml` (Vite build/SWA deploy) — each with `paths` filters so changes only fire the relevant workflow
+- [x] **DEPL-09**: Each workflow authenticates to Azure via OIDC federated credential; role assignments are resource-group-scoped Contributor (never subscription-scoped); SWA uses a deployment token (OIDC isn't GA for SWA)
 - [x] **DEPL-10**: Log Analytics workspace captures Container Apps + Postgres logs; a 5 GB/month quota alert is configured to prevent surprise bills
 - [x] **DEPL-11**: Azure budget alert set at €10/month on the subscription; triggers email at 80% and 100% of cap
 - [ ] **DEPL-12**: Terraform two-pass deploy handled: first apply provisions the SWA to discover its default origin; second apply injects that origin into the Container App's `ALLOWED_ORIGINS` env var
@@ -204,12 +204,12 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | DEPL-01 | Phase 3 | Complete |
 | DEPL-02 | Phase 3 | Complete |
 | DEPL-03 | Phase 3 | Complete |
-| DEPL-04 | Phase 3 | Pending |
+| DEPL-04 | Phase 3 | Complete |
 | DEPL-05 | Phase 3 | Pending |
 | DEPL-06 | Phase 3 | Complete |
-| DEPL-07 | Phase 3 | Pending |
-| DEPL-08 | Phase 3 | Pending |
-| DEPL-09 | Phase 3 | Pending |
+| DEPL-07 | Phase 3 | Complete |
+| DEPL-08 | Phase 3 | Complete |
+| DEPL-09 | Phase 3 | Complete |
 | DEPL-10 | Phase 3 | Complete |
 | DEPL-11 | Phase 3 | Complete |
 | DEPL-12 | Phase 3 | Pending |
