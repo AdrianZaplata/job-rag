@@ -242,6 +242,19 @@ The GHA SP (used by `azure/login@v2` to deploy Azure resources) lives in Adrian'
 
 The AVM `avm/res/db-for-postgresql/flexible-server@0.2.2` module's `server_configuration` argument shape is documented as `extensions_allowlist = { name = "azure.extensions", value = "VECTOR" }` based on the AVM repo's `examples/`. The first execution task in the database module plan should run `terraform-docs markdown table .` against the pinned module version to confirm the exact key shape compiles. If different, use the actual shape and update the plan. Trivial (≤5 min) verification — not a blocker for plan generation.
 
+### A6. Entrypoint scope = init-db + uvicorn only; corpus bootstrap is a separate workflow
+
+The Phase 3 ACA `scripts/docker-entrypoint.sh` runs ONLY `job-rag init-db` followed by `uvicorn` (per Plan 05b Task 3). Corpus ingest (`job-rag ingest --show-cost`) and embedding (`job-rag embed --show-cost`) are NOT part of the cold-start path — every ACA cold-start would otherwise re-embed the entire corpus, blowing the OpenAI budget and adding minutes to scale-from-zero latency.
+
+Instead, a NEW one-shot GitHub Actions workflow `.github/workflows/bootstrap-corpus.yml` (Plan 05b Task 4) runs the corpus bootstrap on demand:
+- Trigger: `workflow_dispatch` ONLY (no auto-run on push or schedule)
+- Auth: same OIDC federated credential as `deploy-api.yml` (master push subject works for workflow_dispatch from default branch)
+- Mechanism: `az containerapp exec` against the live container, running `job-rag ingest --show-cost && job-rag embed --show-cost`
+- Cadence: Adrian runs once after first deploy; re-runs on PROMPT_VERSION bumps or major corpus refresh
+- Documented in `infra/envs/prod/README.md` as a phase-close runbook step
+
+Rationale: the corpus is structurally a one-time data load (re-extraction is a planned, deliberate operation — Phase 2 D-17 lifespan drift warning catches it). Wiring it into the ACA entrypoint conflates startup with provisioning, breaking idempotence and the €0/mo OpenAI budget.
+
 ### Reusable-tool framing reminder
 
 Per the user's `feedback_reusable_tools.md` memory: if any plan generates one-shot operational scripts beyond `scripts/refresh-swa-origin.sh` (e.g., `scripts/firewall-update-home-ip.sh`), the planner SHOULD evaluate whether to fold them as first-class CLI subcommands of the existing `job-rag` Typer CLI vs leaving them as `scripts/`. Default: leave as `scripts/` for genuinely one-shot infra glue (low reuse expectation). Override if reuse signals present.

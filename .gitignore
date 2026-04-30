@@ -12,9 +12,10 @@ wheels/
 # Environment variables
 .env
 
-# Local-only planning artifacts (DB dumps, run logs — never committed)
+# Local-only planning artifacts (DB dumps, run logs, secret notes — never committed)
 .planning/phases/**/*.sql
 .planning/phases/**/*.log
+.planning/phases/**/*.local.md
 
 # Terraform (Phase 3 — bootstrap state must NEVER be committed; prod state lives in Azure Blob)
 infra/bootstrap/.terraform/

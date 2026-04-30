@@ -18,7 +18,8 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 ## Phases
 
 - [x] **Phase 1: Backend Prep** - Close the seven web-UI blockers and land the multi-tenant data-model hedges (verified 2026-04-27, 5/5 must-haves)
-- [x] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location (completed 2026-04-28)
+- [x] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location
+ (completed 2026-04-28)
 - [ ] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows
 - [ ] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context
 - [ ] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface
@@ -79,7 +80,16 @@ Plans:
   4. `deploy-infra.yml`, `deploy-api.yml`, `deploy-spa.yml` each authenticate via OIDC federated credential (no long-lived secrets except the SWA deployment token), use resource-group-scoped Contributor (never subscription-scoped), and their `paths` filters mean a frontend-only PR doesn't fire the infra workflow (DEPL-08, DEPL-09)
   5. A hello-world container image pushed to GHCR (not ACR Basic) and referenced by the Container App is reachable at the ACA FQDN over HTTPS (DEPL-07)
 **Cost delta**: ~€0/mo target (Azure free tier + B1ms free-12-months + SWA Free + LAW 5 GB free); €10/mo budget alert as the hard ceiling
-**Plans**: TBD
+**Plans**: 8 plans (split per W4: Plan 05 → 05a + 05b)
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0 validation scaffolding: tflint.hcl + tfsec config + runbook skeletons + scripts/refresh-swa-origin.sh + .github/workflows/static-tf.yml + .gitignore TF block (DEPL-01/02/12 setup)
+- [ ] 03-02-PLAN.md — Bootstrap module: infra/bootstrap/ with state-storage RG + storage + container + External tenant import path; documents portal click-path for D-05 manual tenant creation (DEPL-01)
+- [ ] 03-03-PLAN.md — Shared modules A: network (ACA env), kv (AVM 0.10.2 + RBAC + role_assignments), monitoring (AVM LAW 0.5.1 + budget €10/mo with 50/75/90/100% thresholds via data.azurerm_subscription per W1; diagnostic_setting moved to composition layer per W7) (DEPL-02/03/06/10/11)
+- [ ] 03-04-PLAN.md — Shared modules B: database (AVM Postgres 0.2.2 + B1ms + VECTOR allowlist + jobrag DB + 32-char random_password + A1 Path A firewall), compute (raw azurerm_container_app + scale-to-zero + termination_grace_period_seconds=120 + lifecycle.ignore_changes for image+revision_suffix per B5 + ingress[0].fqdn output per W5 + 5 KV secret refs + GHCR registry), identity (3 azuread_applications + 2 federated credentials with lower() subjects + RG-scoped Contributor + B1 empty-string redirect_uris fix) (DEPL-02/03/04/06/07/08/09)
+- [ ] 03-05a-PLAN.md — Prod env composition: envs/prod composes all 6 modules + adds raw SWA + 4 KV secrets + role assignments + W7 composition-layer diagnostic_setting + locals.allowed_origins_csv for DEPL-12 two-pass + 11-output Phase 4 hand-off bundle (+ swa_api_key alias for B2); fills prod README with W2 ordered runbook + B2 manual SWA-token-sync + B3 GHCR visibility (DEPL-01/02/04/05/06/12)
+- [ ] 03-05b-PLAN.md — Dev scaffold + entrypoint update + bootstrap-corpus workflow: envs/dev mirrors prod as scaffold-only per D-04; scripts/docker-entrypoint.sh runs ONLY init-db + uvicorn per B4 (corpus ingest/embed REMOVED); .github/workflows/bootstrap-corpus.yml ships as workflow_dispatch-only one-shot per A6 (DEPL-01/02)
+- [ ] 03-06-PLAN.md — GHA deploy workflows: deploy-infra.yml (OIDC + environment:production gate + B2 manual SWA-token-sync runbook reminder via summary, NO `gh secret set` step), deploy-api.yml (OIDC + docker/build-push-action@v6 to GHCR + az containerapp update + B3 visibility comment), deploy-spa.yml (sole non-OIDC, uses AZURE_STATIC_WEB_APPS_API_TOKEN_PROD) (DEPL-07/08/09)
+- [ ] 03-07-PLAN.md — Live-Azure smoke runbook: M1–M13 from VALIDATION.md against applied prod stack; produces 03-SMOKE.md with evidence covering all 12 DEPL-* requirements + 8 T-3-* threat verifications; autonomous: false because verification requires real Azure resources
 
 ### Phase 4: Frontend Shell + Auth
 **Goal**: Phase 4 ships a logged-in-end-to-end SPA when the Vite+React shell loads from SWA, Entra login completes a real round-trip, and the FastAPI `/health` endpoint returns 200 only when called with a valid Entra-issued Bearer JWT — with Adrian's `oid` as the single permitted user.
@@ -169,7 +179,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Backend Prep | 6/6 | ✓ Complete | 2026-04-27 |
 | 2. Corpus Cleanup | 4/4 | Complete   | 2026-04-28 |
-| 3. Infrastructure & CI/CD | 0/? | Not started | - |
+| 3. Infrastructure & CI/CD | 0/8 | Not started | - |
 | 4. Frontend Shell + Auth | 0/? | Not started | - |
 | 5. Dashboard | 0/? | Not started | - |
 | 6. Chat | 0/? | Not started | - |
