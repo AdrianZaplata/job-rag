@@ -45,12 +45,11 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -input=false -auto-approve -var-file=prod.tfvars
-        # Sensitive var values come from environment-scoped GitHub Actions secrets via TF_VAR_* env vars.
+        # Option B: openai/langfuse secret VALUES are seeded out-of-band via
+        # `az keyvault secret set ...` (see prod/README.md). TF only needs ghcr_pat
+        # at apply time — OPENAI_API_KEY and LANGFUSE_* are NOT GitHub secrets.
         env:
-          TF_VAR_ghcr_pat:             ${{ secrets.GHCR_PAT }}
-          TF_VAR_openai_api_key:       ${{ secrets.OPENAI_API_KEY }}
-          TF_VAR_langfuse_public_key:  ${{ secrets.LANGFUSE_PUBLIC_KEY }}
-          TF_VAR_langfuse_secret_key:  ${{ secrets.LANGFUSE_SECRET_KEY }}
+          TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
 
       # B2 (locked decision): SWA token sync is a MANUAL runbook step, NOT a workflow step.
       # Adrian runs `terraform output -raw swa_api_key | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN_PROD --repo adrianzaplata/job-rag`

@@ -58,26 +58,7 @@ variable "image_tag" {
   default     = "latest"
 }
 
-variable "openai_api_key" {
-  type        = string
-  description = "OpenAI API key — written to KV. Placeholder in dev (D-04 — never applied)."
-  sensitive   = true
-  default     = ""
-}
-
-variable "langfuse_public_key" {
-  type        = string
-  description = "Langfuse public key. Optional."
-  default     = ""
-  sensitive   = true
-}
-
-variable "langfuse_secret_key" {
-  type        = string
-  description = "Langfuse secret key. Optional."
-  default     = ""
-  sensitive   = true
-}
+# Application secrets — out-of-band (Option B). See prod/variables.tf for rationale.
 
 variable "seeded_user_entra_oid" {
   type        = string

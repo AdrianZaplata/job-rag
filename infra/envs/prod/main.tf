@@ -87,29 +87,48 @@ module "database" {
 }
 
 # ─── Application secrets in KV (4 secrets — postgres password is owned by database module) ─
+#
+# OUT-OF-BAND SEEDING (Option B):
+# openai/langfuse secret VALUES are NOT managed by Terraform. TF creates the secret
+# resource shells with a placeholder value; Adrian seeds the real values once via
+# `az keyvault secret set ...` (see prod/README.md "Out-of-band secret seeding"),
+# and `lifecycle.ignore_changes = [value]` keeps subsequent applies from clobbering
+# them. This keeps OPENAI_API_KEY out of GitHub Actions secrets entirely.
 
 resource "azurerm_key_vault_secret" "openai_api_key" {
   name         = "openai-api-key"
-  value        = var.openai_api_key
+  value        = "managed-out-of-band"
   key_vault_id = module.kv.kv_id
   content_type = "text/plain"
   depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "langfuse_public_key" {
   name         = "langfuse-public-key"
-  value        = var.langfuse_public_key
+  value        = "managed-out-of-band"
   key_vault_id = module.kv.kv_id
   content_type = "text/plain"
   depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "langfuse_secret_key" {
   name         = "langfuse-secret-key"
-  value        = var.langfuse_secret_key
+  value        = "managed-out-of-band"
   key_vault_id = module.kv.kv_id
   content_type = "text/plain"
   depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "seeded_user_entra_oid" {

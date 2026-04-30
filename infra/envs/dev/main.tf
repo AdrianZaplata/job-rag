@@ -94,29 +94,43 @@ module "database" {
 }
 
 # ─── Application secrets in KV ────────────────────────────────────────────────
+# Out-of-band seeding (Option B) — see prod/main.tf for rationale. Same pattern
+# applied to dev for parity even though dev is scaffold-only (D-04).
 
 resource "azurerm_key_vault_secret" "openai_api_key" {
   name         = "openai-api-key"
-  value        = var.openai_api_key
+  value        = "managed-out-of-band"
   key_vault_id = module.kv.kv_id
   content_type = "text/plain"
   depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "langfuse_public_key" {
   name         = "langfuse-public-key"
-  value        = var.langfuse_public_key
+  value        = "managed-out-of-band"
   key_vault_id = module.kv.kv_id
   content_type = "text/plain"
   depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "langfuse_secret_key" {
   name         = "langfuse-secret-key"
-  value        = var.langfuse_secret_key
+  value        = "managed-out-of-band"
   key_vault_id = module.kv.kv_id
   content_type = "text/plain"
   depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "seeded_user_entra_oid" {

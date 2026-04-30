@@ -8,7 +8,7 @@
 
 - `infra/bootstrap/` has already been applied (per `infra/bootstrap/README.md`).
 - `backend.tf` placeholder values have been replaced with real bootstrap outputs (Step 3 of bootstrap runbook).
-- `terraform.tfvars.local` (gitignored) provides the secret variables: `ghcr_pat`, `openai_api_key`, `langfuse_public_key`, `langfuse_secret_key` (or use `TF_VAR_*` env vars).
+- `terraform.tfvars.local` (gitignored) provides the only TF-managed secret: `ghcr_pat` (or use `TF_VAR_ghcr_pat`). `openai_api_key` and `langfuse_*` are NOT TF variables — they are seeded out-of-band into Key Vault after pass 1 (see "Out-of-band secret seeding" below).
 - Adrian is signed in via `az login` to the subscription that owns `jobrag-tfstate-rg`.
 
 ## Ordered runbook (W2 — explicit step ordering)
@@ -16,12 +16,13 @@
 The two-pass apply is sequenced per the W2 fix to make the "image not deployed yet" expectation explicit:
 
 1. **Bootstrap apply** (one-time, separate directory): `cd infra/bootstrap && terraform apply` — creates state-storage RG. (See `infra/bootstrap/README.md`.)
-2. **Prod env pass 1**: `cd infra/envs/prod && terraform init && terraform apply -var-file=prod.tfvars` — creates ACA + SWA + KV + Postgres + LAW + budget. **Expected behavior:** the Container App revision will fail to start (image tag `latest` doesn't exist in GHCR yet). This is normal at this stage; the resource exists, just no image to run.
-3. **First image push**: either run `deploy-api.yml` manually via `gh workflow run deploy-api.yml --ref master`, OR push from local: `docker push ghcr.io/adrianzaplata/job-rag:latest`. (See "Image push: GHCR visibility" below for the B3 visibility step.)
-4. **Prod env pass 2** (CORS injection): `bash ../../../scripts/refresh-swa-origin.sh` — script rewrites `swa_origin` in tfvars and re-applies. The Container App revision now starts cleanly (image exists, ALLOWED_ORIGINS now includes the SWA origin).
-5. **GitHub secrets sync** (manual, B2): `terraform output -raw swa_api_key | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN_PROD --repo adrianzaplata/job-rag`. (See "Phase-close: GitHub secrets sync" below.)
-6. **Corpus bootstrap** (one-time, A6): `gh workflow run bootstrap-corpus.yml --ref master`. (See "Corpus bootstrap" below.)
-7. **M1–M13 smoke** (Plan 07): execute the live-Azure smoke per `.planning/phases/03-infrastructure-ci-cd/03-VALIDATION.md`.
+2. **Prod env pass 1**: `cd infra/envs/prod && terraform init && terraform apply -var-file=prod.tfvars` — creates ACA + SWA + KV + Postgres + LAW + budget. **Expected behavior:** the Container App revision will fail to start (image tag `latest` doesn't exist in GHCR yet, AND the openai/langfuse KV secrets are still placeholder strings). This is normal at this stage.
+3. **Out-of-band secret seeding** (Option B, one-time + on rotation): `az keyvault secret set ...` for `openai-api-key` / `langfuse-public-key` / `langfuse-secret-key`. (See "Out-of-band secret seeding" below.)
+4. **First image push**: either run `deploy-api.yml` manually via `gh workflow run deploy-api.yml --ref master`, OR push from local: `docker push ghcr.io/adrianzaplata/job-rag:latest`. (See "Image push: GHCR visibility" below for the B3 visibility step.)
+5. **Prod env pass 2** (CORS injection): `bash ../../../scripts/refresh-swa-origin.sh` — script rewrites `swa_origin` in tfvars and re-applies. The Container App revision now starts cleanly (image exists, real secrets in KV, ALLOWED_ORIGINS now includes the SWA origin).
+6. **GitHub secrets sync** (manual, B2): `terraform output -raw swa_api_key | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN_PROD --repo adrianzaplata/job-rag`. (See "Phase-close: GitHub secrets sync" below.)
+7. **Corpus bootstrap** (one-time, A6): `gh workflow run bootstrap-corpus.yml --ref master`. (See "Corpus bootstrap" below.)
+8. **M1–M13 smoke** (Plan 07): execute the live-Azure smoke per `.planning/phases/03-infrastructure-ci-cd/03-VALIDATION.md`.
 
 ## First apply (pass 1)
 
@@ -33,7 +34,44 @@ terraform plan -var-file=prod.tfvars -out=plan-pass-1.tfplan
 terraform apply plan-pass-1.tfplan
 ```
 
-After apply succeeds, the SWA exists and `terraform output -raw swa_default_origin` returns its hostname. The Container App's `ALLOWED_ORIGINS` env var contains only `http://localhost:5173` at this point (per `locals.allowed_origins_csv` with `var.swa_origin = ""`). The Container App revision will fail to start (no image yet) — that's expected; proceed to image push.
+After apply succeeds, the SWA exists and `terraform output -raw swa_default_origin` returns its hostname. The Container App's `ALLOWED_ORIGINS` env var contains only `http://localhost:5173` at this point (per `locals.allowed_origins_csv` with `var.swa_origin = ""`). The Container App revision will fail to start (no image yet) — that's expected; proceed to **out-of-band secret seeding** (next section), then image push.
+
+## Out-of-band secret seeding (Option B — required after pass 1, before image push)
+
+Why: keeps `OPENAI_API_KEY` and `LANGFUSE_*` out of GitHub Actions secrets. TF creates the KV secret resource shells with placeholder value `"managed-out-of-band"` and `lifecycle.ignore_changes = [value]`, so Adrian seeds the real values directly via Azure CLI. Subsequent `terraform apply` runs do NOT overwrite them.
+
+When to run: **once after first apply**, and again on rotation (recommend quarterly for OpenAI, on-demand for Langfuse).
+
+```bash
+KV_NAME=$(terraform output -raw kv_name)
+
+az keyvault secret set --vault-name "$KV_NAME" --name openai-api-key      --value "<sk-...>"
+az keyvault secret set --vault-name "$KV_NAME" --name langfuse-public-key --value "<pk-...>"
+az keyvault secret set --vault-name "$KV_NAME" --name langfuse-secret-key --value "<sk-...>"
+```
+
+If Langfuse is disabled (Phase 1 fail-open behavior), set both langfuse keys to empty strings:
+
+```bash
+az keyvault secret set --vault-name "$KV_NAME" --name langfuse-public-key --value ""
+az keyvault secret set --vault-name "$KV_NAME" --name langfuse-secret-key --value ""
+```
+
+After seeding, force a Container App revision restart so the new env var values are picked up (the ACA `secretRef` resolves at revision creation time, not on every request):
+
+```bash
+RG=$(terraform output -raw resource_group_name 2>/dev/null || echo "jobrag-prod-rg")
+az containerapp revision restart --name jobrag-prod-aca --resource-group "$RG" \
+  --revision "$(az containerapp revision list --name jobrag-prod-aca --resource-group "$RG" --query '[0].name' -o tsv)"
+```
+
+Verify (does NOT print the secret — only its `versionless_id`):
+
+```bash
+az keyvault secret show --vault-name "$KV_NAME" --name openai-api-key --query 'attributes.updated' -o tsv
+```
+
+**Do NOT** put these values in `terraform.tfvars.local` or in any `TF_VAR_*` env var — the variables don't exist anymore in `variables.tf`. The only TF-managed secret is `ghcr_pat` (registry credential, passed via `TF_VAR_ghcr_pat` from the workflow).
 
 ## Two-Pass CORS Bootstrap
 
@@ -145,8 +183,8 @@ Per CONTEXT.md Plan-Locking Addendum A1 (Path A) and Plan 04 module READMEs:
 
 | Token | Cadence | Procedure |
 |-------|---------|-----------|
-| `var.openai_api_key` (KV: `openai-api-key`) | When OpenAI rotates or exposed | `terraform apply -var openai_api_key="<new>"` updates KV; ACA picks up on next revision swap |
-| `var.langfuse_public_key` / `secret_key` | When rotated in Langfuse Cloud | Same as above |
+| KV secret `openai-api-key` (out-of-band, Option B) | Quarterly recommended; immediately on exposure | `az keyvault secret set --vault-name $(terraform output -raw kv_name) --name openai-api-key --value "<new>"` then `az containerapp revision restart ...` so the new revision picks it up |
+| KV secret `langfuse-public-key` / `langfuse-secret-key` | When rotated in Langfuse Cloud | Same `az keyvault secret set` pattern as above |
 | `var.ghcr_pat` | 90 days (GitHub fine-grained PAT max) | Generate new PAT; `terraform apply -var ghcr_pat="<new>"` rotates registry secret |
 | Postgres admin password (KV: `postgres-admin-password`) | On-demand only | `terraform taint module.database.random_password.pg_admin && terraform apply` |
 | SWA api_key (KV: N/A — direct GH secret) | **180 days** (Microsoft default) | Run the B2 manual sync command above (`terraform output -raw swa_api_key \| gh secret set ...`) from local. NO automated rotation in workflow per B2. |

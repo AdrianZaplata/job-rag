@@ -33,7 +33,10 @@ budget_alert_email = "adrianzaplata@gmail.com"
 seeded_user_id        = "REPLACE_WITH_ADRIAN_UUID"             # Phase 1 D-08 SEEDED_USER_ID
 seeded_user_entra_oid = "00000000-0000-0000-0000-000000000000" # Phase 4 fills after first login
 
-# Application secrets — DO NOT commit; provide via terraform.tfvars.local or TF_VAR_*
-# openai_api_key       = "..."
-# langfuse_public_key  = "..."
-# langfuse_secret_key  = "..."
+# Application secrets are SEEDED OUT-OF-BAND directly in Key Vault (Option B).
+# After first apply, run (once per environment + on rotation):
+#   az keyvault secret set --vault-name <kv-name> --name openai-api-key      --value "<sk-...>"
+#   az keyvault secret set --vault-name <kv-name> --name langfuse-public-key --value "<pk-...>"
+#   az keyvault secret set --vault-name <kv-name> --name langfuse-secret-key --value "<sk-...>"
+# See README "Out-of-band secret seeding". Subsequent `terraform apply` runs will NOT
+# overwrite these (lifecycle.ignore_changes = [value] on the *_key_vault_secret resources).

@@ -59,26 +59,11 @@ variable "image_tag" {
   default     = "latest"
 }
 
-# Application secrets
-variable "openai_api_key" {
-  type        = string
-  description = "OpenAI API key — written to KV as 'openai-api-key' secret. ACA pulls via MI."
-  sensitive   = true
-}
-
-variable "langfuse_public_key" {
-  type        = string
-  description = "Langfuse public key. Written to KV. Optional — empty string disables Langfuse (fail-open per Phase 1)."
-  default     = ""
-  sensitive   = true
-}
-
-variable "langfuse_secret_key" {
-  type        = string
-  description = "Langfuse secret key. Written to KV."
-  default     = ""
-  sensitive   = true
-}
+# Application secrets — OUT-OF-BAND (Option B): openai/langfuse values live only
+# in Key Vault, seeded once via `az keyvault secret set ...` (see README "Out-of-band
+# secret seeding"). TF owns the secret resource shells with lifecycle.ignore_changes
+# on value. No `var.openai_api_key` / `var.langfuse_*` declarations here on purpose —
+# this keeps OPENAI_API_KEY out of GitHub Actions secrets entirely.
 
 variable "seeded_user_entra_oid" {
   type        = string
