@@ -1,0 +1,71 @@
+name: Bootstrap corpus (one-shot)
+
+# A6 (locked decision per CONTEXT.md): the ACA entrypoint runs ONLY init-db + uvicorn,
+# so corpus ingest + embed live HERE — invoked manually by Adrian after first deploy
+# and on PROMPT_VERSION bumps that require full re-extraction.
+#
+# Trigger: workflow_dispatch ONLY. NO push/schedule trigger — every cold-start re-running
+# embed would blow the €0 OpenAI budget (Phase 1 D-25 + Phase 2 prompt-version drift).
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledge_cost:
+        description: 'Type "yes" to acknowledge that this will incur OpenAI ingest+embed cost (~€0.20 per 108-posting full re-extract).'
+        required: true
+        default: 'no'
+
+permissions:
+  id-token: write   # OIDC handshake to Azure (same fed cred as deploy-api.yml)
+  contents: read
+
+jobs:
+  bootstrap-corpus:
+    name: ingest + embed via az containerapp exec
+    runs-on: ubuntu-latest
+    # NOTE: no `environment: production` gate — this workflow uses the master-push
+    # federated credential (workflow_dispatch from default branch matches subject
+    # "repo:<owner>/<repo>:ref:refs/heads/master"). Same auth as deploy-api.yml.
+    steps:
+      - name: Acknowledge cost
+        run: |
+          if [[ "${{ inputs.acknowledge_cost }}" != "yes" ]]; then
+            echo "::error::Cost not acknowledged. Re-run with input 'yes'."
+            exit 1
+          fi
+          echo "Cost acknowledged — proceeding."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run job-rag ingest + embed inside the live container
+        run: |
+          # az containerapp exec runs the command inside the active revision's
+          # `api` container. The container's PATH already has `job-rag` (Typer CLI
+          # installed via the multi-stage Dockerfile). Stdout is streamed back to
+          # the workflow log so Adrian sees ingest + embed cost reports inline.
+          az containerapp exec \
+            --name jobrag-prod-api \
+            --resource-group jobrag-prod-rg \
+            --container api \
+            --command "/bin/sh -c 'job-rag ingest --show-cost && job-rag embed --show-cost'"
+
+      - name: Print summary
+        if: always()
+        run: |
+          {
+            echo "## Corpus bootstrap result"
+            echo ""
+            echo "- Triggered: $(date -u +%Y-%m-%dT%H:%M:%SZ) UTC"
+            echo "- Container app: jobrag-prod-api"
+            echo "- Resource group: jobrag-prod-rg"
+            echo ""
+            echo "Verify corpus state with M8 from Plan 07 smoke (psql \\dx + row counts)."
+          } >> "$GITHUB_STEP_SUMMARY"
