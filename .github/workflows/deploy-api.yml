@@ -1,0 +1,85 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Dockerfile'
+      - 'alembic/**'
+      - 'scripts/docker-entrypoint.sh'
+      - '.github/workflows/deploy-api.yml'
+
+permissions:
+  id-token: write   # OIDC handshake to Azure
+  contents: read
+  packages: write   # GHCR push
+
+jobs:
+  build-and-deploy:
+    name: build -> push GHCR -> ACA revision
+    runs-on: ubuntu-latest
+    # NO environment gate — push to master is the federated credential subject
+    # (Plan 04 identity module's azuread_application_federated_identity_credential.master).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # B3: After first push, the GHCR package's visibility must be set to public
+      # (recommended for portfolio repo per A2) OR var.ghcr_pat must have read:packages
+      # scope on the package. See infra/envs/prod/README.md "Image push: GHCR visibility"
+      # for the runbook (one-time portal click after first `docker push`).
+      - name: GHCR login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update Container App image
+        run: |
+          az containerapp update \
+            --name jobrag-prod-api \
+            --resource-group jobrag-prod-rg \
+            --image "ghcr.io/${{ github.repository }}:${{ github.sha }}"
+
+      - name: Smoke /health after revision swap
+        run: |
+          # Wait up to 90s for the new revision to be active and reachable.
+          ACA_FQDN="$(az containerapp show \
+            --name jobrag-prod-api \
+            --resource-group jobrag-prod-rg \
+            --query properties.configuration.ingress.fqdn -o tsv)"
+
+          for i in {1..18}; do
+            if curl -fs --max-time 5 "https://${ACA_FQDN}/health" >/dev/null; then
+              echo "Health check passed after $((i*5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check did not pass after 90s — revision may be unhealthy"
+          exit 1

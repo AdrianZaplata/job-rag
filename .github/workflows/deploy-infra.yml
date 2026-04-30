@@ -1,0 +1,84 @@
+name: Deploy infrastructure
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy-infra.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC handshake to Azure
+  contents: read
+
+jobs:
+  apply:
+    name: terraform apply (prod)
+    runs-on: ubuntu-latest
+    # Protected environment — Adrian as the sole required reviewer.
+    # Federated credential matches subject "repo:<owner>/<repo>:environment:production"
+    # (Plan 04 identity module's azuread_application_federated_identity_credential.production_env).
+    environment: production
+    defaults:
+      run:
+        working-directory: infra/envs/prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+          terraform_wrapper: false
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}        # GHA app reg client_id (workforce tenant per A4)
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}        # workforce tenant ID
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve -var-file=prod.tfvars
+        # Sensitive var values come from environment-scoped GitHub Actions secrets via TF_VAR_* env vars.
+        env:
+          TF_VAR_ghcr_pat:             ${{ secrets.GHCR_PAT }}
+          TF_VAR_openai_api_key:       ${{ secrets.OPENAI_API_KEY }}
+          TF_VAR_langfuse_public_key:  ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          TF_VAR_langfuse_secret_key:  ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+      # B2 (locked decision): SWA token sync is a MANUAL runbook step, NOT a workflow step.
+      # Adrian runs `terraform output -raw swa_api_key | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN_PROD --repo adrianzaplata/job-rag`
+      # from his local terminal after first apply (and on token rotation, ~180 days).
+      # Rationale: avoids the long-lived GH_PAT_FOR_SECRETS that would otherwise be needed.
+      # See infra/envs/prod/README.md "Phase-close: GitHub secrets sync" for the runbook.
+
+      # Capture outputs to job summary for runbook traceability.
+      - name: Print non-sensitive outputs
+        run: |
+          {
+            echo "## Terraform outputs"
+            echo ""
+            echo "| Output | Value |"
+            echo "|--------|-------|"
+            echo "| swa_default_origin | $(terraform output -raw swa_default_origin) |"
+            echo "| aca_fqdn | $(terraform output -raw aca_fqdn) |"
+            echo "| kv_name | $(terraform output -raw kv_name) |"
+            echo "| spa_app_client_id | $(terraform output -raw spa_app_client_id) |"
+            echo "| api_app_client_id | $(terraform output -raw api_app_client_id) |"
+            echo "| tenant_subdomain | $(terraform output -raw tenant_subdomain) |"
+            echo ""
+            echo "**Reminder (B2 manual runbook):** if the SWA was just created or rotated, run from your local terminal:"
+            echo ""
+            echo '```bash'
+            echo "cd infra/envs/prod"
+            echo "terraform output -raw swa_api_key | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN_PROD --repo ${{ github.repository }}"
+            echo '```'
+            echo ""
+            echo "See \`infra/envs/prod/README.md\` -> 'Phase-close: GitHub secrets sync' for full procedure (~180-day rotation cadence)."
+          } >> "$GITHUB_STEP_SUMMARY"
