@@ -82,3 +82,23 @@ variable "budget_alert_email" {
   description = "Email recipient for budget alerts."
   default     = "adrianzaplata@gmail.com"
 }
+
+# Bootstrap state container — needed so this env can grant the GHA SP
+# Storage Blob Data Contributor on the tfstate container, allowing
+# deploy-infra.yml's federated identity to read/write remote state via AAD auth.
+variable "tfstate_storage_account_name" {
+  type        = string
+  description = "Bootstrap storage account name (from `terraform output -raw storage_account_name` in infra/bootstrap/). Same value used in backend.tf."
+}
+
+variable "tfstate_resource_group_name" {
+  type        = string
+  description = "Bootstrap state RG name. Same value used in backend.tf."
+  default     = "jobrag-tfstate-rg"
+}
+
+variable "tfstate_container_name" {
+  type        = string
+  description = "Bootstrap state container name. Same value used in backend.tf."
+  default     = "tfstate"
+}

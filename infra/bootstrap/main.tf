@@ -45,6 +45,10 @@ resource "azurerm_resource_group" "tfstate" {
   }
 }
 
+# Identity of the principal running `terraform apply` here (Adrian).
+# Used to grant blob-data RBAC on the tfstate container so AAD-auth backend works.
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_storage_account" "tfstate" {
   name                     = "jobragtfstate${random_string.suffix.result}"
   resource_group_name      = azurerm_resource_group.tfstate.name
@@ -61,6 +65,11 @@ resource "azurerm_storage_account" "tfstate" {
     }
   }
 
+  # Disable shared-key auth — forces AAD-only access. Eliminates the long-lived
+  # storage account key as an attack surface. The backend uses use_azuread_auth=true
+  # in infra/envs/{prod,dev}/backend.tf, so AAD is the only auth path anyway.
+  shared_access_key_enabled = false
+
   tags = {
     project    = "job-rag"
     managed_by = "terraform-bootstrap"
@@ -71,4 +80,15 @@ resource "azurerm_storage_container" "tfstate" {
   name                  = "tfstate"
   storage_account_name  = azurerm_storage_account.tfstate.name
   container_access_type = "private"
+}
+
+# Grant Adrian (the bootstrap apply principal) the blob-data role he needs to
+# read/write tfstate via AAD auth from infra/envs/prod/. Scoped to the container,
+# not the storage account — principle of least privilege. Required because
+# subscription-Owner (management plane) does NOT imply blob-data access (data plane).
+resource "azurerm_role_assignment" "deployer_tfstate_blob_data_contributor" {
+  scope                = azurerm_storage_container.tfstate.resource_manager_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azurerm_client_config.current.object_id
+  description          = "Grants the bootstrap deployer (Adrian) read/write access to terraform state blobs via AAD auth."
 }

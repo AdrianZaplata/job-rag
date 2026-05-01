@@ -6,7 +6,7 @@
 location = "westeurope"
 
 # External tenant — replace tenant_id_external with bootstrap output value
-tenant_id_external = "REPLACE_FROM_BOOTSTRAP_OUTPUT"
+tenant_id_external = "3fd51a76-f36e-43a1-aa37-564dad4c41fd"
 tenant_subdomain   = "jobrag"
 
 # GitHub
@@ -19,7 +19,7 @@ github_repo  = "job-rag"
 swa_origin = ""
 
 # Postgres firewall — Adrian's home IP (refresh via runbook in modules/database/README.md)
-home_ip = "REPLACE_WITH_CURRENT_HOME_IP"
+home_ip = "0.0.0.0"
 
 # GHCR
 ghcr_username = "adrianzaplata"
@@ -29,8 +29,14 @@ image_tag = "latest"
 # Budget
 budget_alert_email = "adrianzaplata@gmail.com"
 
+# Bootstrap state container — same values as backend.tf. Used to grant the GHA SP
+# Storage Blob Data Contributor on the tfstate container so deploy-infra.yml works.
+tfstate_storage_account_name = "jobragtfstateq7u9r"
+tfstate_resource_group_name  = "jobrag-tfstate-rg"
+tfstate_container_name       = "tfstate"
+
 # Application IDs
-seeded_user_id        = "REPLACE_WITH_ADRIAN_UUID"             # Phase 1 D-08 SEEDED_USER_ID
+seeded_user_id        = "00000000-0000-0000-0000-000000000001"             # Phase 1 D-08 SEEDED_USER_ID
 seeded_user_entra_oid = "00000000-0000-0000-0000-000000000000" # Phase 4 fills after first login
 
 # Application secrets are SEEDED OUT-OF-BAND directly in Key Vault (Option B).

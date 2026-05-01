@@ -13,6 +13,11 @@ output "resource_group_name" {
   value       = azurerm_resource_group.tfstate.name
 }
 
+output "tfstate_container_resource_manager_id" {
+  description = "ARM resource ID of the tfstate container — passed to prod env for granting the GHA SP the Storage Blob Data Contributor role."
+  value       = azurerm_storage_container.tfstate.resource_manager_id
+}
+
 output "tenant_id_external" {
   description = "External tenant GUID — referenced by infra/envs/prod/prod.tfvars as var.tenant_id_external."
   value       = var.tenant_id_external

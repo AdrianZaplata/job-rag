@@ -6,7 +6,7 @@ terraform {
     # Real values look like: storage_account_name = "jobragtfstateab123" (yours will differ).
     # Same backend as prod; different `key` so dev state lives in a separate blob.
     resource_group_name  = "jobrag-tfstate-rg"
-    storage_account_name = "REPLACE_FROM_BOOTSTRAP_OUTPUT"
+    storage_account_name = "jobragtfstateq7u9r"
     container_name       = "tfstate"
     key                  = "dev.tfstate"
     use_azuread_auth     = true

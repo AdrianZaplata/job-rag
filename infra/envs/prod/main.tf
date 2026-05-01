@@ -24,6 +24,24 @@ module "identity" {
   resource_group_id = azurerm_resource_group.prod.id
 }
 
+# ─── Grant GHA SP the data-plane role needed to read/write remote tfstate ─────
+# deploy-infra.yml authenticates as the GHA SP via OIDC and runs `terraform apply`
+# from infra/envs/prod/. The backend uses use_azuread_auth=true, so the SP needs
+# Storage Blob Data Contributor on the tfstate container — subscription-Contributor
+# (granted by the identity module at RG scope) does NOT cover blob data plane.
+
+data "azurerm_storage_account" "tfstate" {
+  name                = var.tfstate_storage_account_name
+  resource_group_name = var.tfstate_resource_group_name
+}
+
+resource "azurerm_role_assignment" "gha_tfstate_blob_data_contributor" {
+  scope                = "${data.azurerm_storage_account.tfstate.id}/blobServices/default/containers/${var.tfstate_container_name}"
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = module.identity.gha_object_id
+  description          = "Grants the GitHub Actions federated SP read/write access to terraform state blobs via AAD auth (deploy-infra.yml)."
+}
+
 # ─── Monitoring (LAW workspace + budget) ───────────────────────────────────────
 
 module "monitoring" {
