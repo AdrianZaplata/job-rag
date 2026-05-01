@@ -45,16 +45,16 @@ terraform init -backend=false
 
 # Apply — creates RG + storage account + container + locks in tenant variables.
 # Also grants the apply principal (Adrian) "Storage Blob Data Contributor" on the
-# tfstate container, and sets shared_access_key_enabled=false on the account to
-# eliminate the long-lived storage key as an attack surface (AAD-only auth).
+# tfstate container so the AAD-auth backend in infra/envs/prod/ can read/write
+# state. (Disabling shared-key auth on the storage account is deferred — see the
+# NOTE in main.tf for what the full hardening requires.)
 terraform apply -var-file=terraform.tfvars.local
 ```
 
 > **Note on re-applies**: subsequent bootstrap applies are safe and idempotent. If you
-> bootstrapped this account before this change shipped, re-running `terraform apply`
-> will (a) add the role assignment, (b) flip `shared_access_key_enabled` to `false`.
-> Wait ~30 seconds after apply for AAD role propagation before running `terraform init`
-> in `infra/envs/prod/`.
+> bootstrapped this account before the role-assignment change shipped, re-running
+> `terraform apply` will add the role assignment. Wait ~30 seconds after apply for
+> AAD role propagation before running `terraform init` in `infra/envs/prod/`.
 
 After apply succeeds, capture three values from `terraform output`:
 

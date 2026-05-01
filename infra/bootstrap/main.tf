@@ -65,10 +65,14 @@ resource "azurerm_storage_account" "tfstate" {
     }
   }
 
-  # Disable shared-key auth — forces AAD-only access. Eliminates the long-lived
-  # storage account key as an attack surface. The backend uses use_azuread_auth=true
-  # in infra/envs/{prod,dev}/backend.tf, so AAD is the only auth path anyway.
-  shared_access_key_enabled = false
+  # NOTE: shared_access_key_enabled is left at the provider default (true) for now.
+  # Future hardening: flip to false to force AAD-only. That requires also setting
+  # `storage_use_azuread = true` on the azurerm provider AND granting the deployer
+  # Storage Queue Data Contributor + Storage File Data Privileged Contributor in
+  # addition to Blob Data Contributor (the provider refreshes queue/share/blob
+  # service properties on every plan, and AAD must cover all three). Tracked as
+  # a follow-up hardening — backend already uses use_azuread_auth=true regardless,
+  # so TF state itself never travels the shared-key path.
 
   tags = {
     project    = "job-rag"
