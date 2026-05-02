@@ -67,10 +67,12 @@ module "postgres" {
   # azure.extensions is the per-server allowlist that gates `CREATE EXTENSION`.
   # Alembic migration 0001 (Phase 1) actually runs CREATE EXTENSION IF NOT EXISTS
   # vector against the jobrag database at container startup.
+  # AVM 0.2.2: server_configuration entries take `name` + `config` (the value).
+  # Earlier docs said `value`; the actual var schema is `config`.
   server_configuration = {
     extensions_allowlist = {
-      name  = "azure.extensions"
-      value = "VECTOR" # case-insensitive; uppercase matches Microsoft docs convention
+      name   = "azure.extensions"
+      config = "VECTOR" # case-insensitive; uppercase matches Microsoft docs convention
     }
   }
 

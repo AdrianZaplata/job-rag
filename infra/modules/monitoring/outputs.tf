@@ -19,5 +19,8 @@ output "workspace_customer_id" {
 
 output "workspace_name" {
   description = "LAW name (jobrag-prod-law) — exposed for portal navigation."
-  value       = module.log_analytics.name
+  # AVM 0.5.1 emits the workspace via a single `resource` output (the underlying
+  # azurerm_log_analytics_workspace), and that output is marked sensitive. Unwrap
+  # the name with nonsensitive() since the workspace name itself is not secret.
+  value = nonsensitive(module.log_analytics.resource.name)
 }
