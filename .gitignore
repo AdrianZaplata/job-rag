@@ -27,3 +27,7 @@ infra/envs/*/.terraform.lock.hcl
 *.tfplan
 *.tfvars.local
 
+# Local-only TF runtime artifacts (crash dumps + apply logs)
+infra/envs/*/errored.tfstate
+infra/envs/*/*-apply.log
+
