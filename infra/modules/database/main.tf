@@ -85,15 +85,18 @@ module "postgres" {
   # CONTEXT.md A1 Path A: 0.0.0.0 "Allow Azure services" + Adrian's home IP.
   # Skip the data.azurerm_container_app_environment.static_ip approach (Consumption-
   # tier outbound IP is documented non-stable per RESEARCH.md Pitfall).
+  # AVM 0.2.2 firewall_rules schema requires `name` per entry.
   firewall_rules = merge(
     {
       home = {
+        name             = "home"
         start_ip_address = var.home_ip
         end_ip_address   = var.home_ip
       }
     },
     var.use_allow_azure_services ? {
       allow_azure_services = {
+        name             = "AllowAzureServices"
         start_ip_address = "0.0.0.0"
         end_ip_address   = "0.0.0.0"
       }

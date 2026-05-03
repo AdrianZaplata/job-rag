@@ -29,9 +29,12 @@ module "key_vault" {
   public_network_access_enabled  = true # ACA Consumption can't reach private endpoints
 
   # ACA system-assigned MI gets "Key Vault Secrets User" — read-only for secret values.
-  # The deployer (GHA SP or Adrian's interactive creds) gets "Key Vault Secrets Officer"
-  # at envs/prod/main.tf composition layer (so this module stays generic).
-  role_assignments = {
+  # In the standard composition (envs/prod/main.tf), this role is assigned at
+  # composition layer AFTER compute creates the MI (resource
+  # `azurerm_role_assignment.aca_kv_secrets_user`), so var.aca_principal_id is
+  # null and we skip the inline assignment here. Inline assignment is preserved
+  # for callers that already have a principal_id at module-call time.
+  role_assignments = var.aca_principal_id == null ? {} : {
     aca_system_mi = {
       role_definition_id_or_name = "Key Vault Secrets User"
       principal_id               = var.aca_principal_id
