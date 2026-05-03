@@ -32,6 +32,12 @@ RUN chown -R appuser:appuser /home/appuser/.cache
 # Copy application code and data
 COPY src/ src/
 COPY data/ data/
+# Alembic migrations — required at container startup; init_db calls
+# command.upgrade(cfg, "head") which reads /app/alembic.ini and walks
+# /app/alembic/versions/. Missing either crashes startup with
+# "No 'script_location' key found in configuration."
+COPY alembic.ini ./
+COPY alembic/ alembic/
 COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN chmod +x /app/docker-entrypoint.sh && \
