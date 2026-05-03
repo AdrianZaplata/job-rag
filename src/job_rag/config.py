@@ -1,15 +1,20 @@
+import os
+import urllib.parse
 import uuid
 from typing import Annotated
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+_DEFAULT_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/job_rag"
+_DEFAULT_ASYNC_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/job_rag"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/job_rag"
-    async_database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/job_rag"
+    database_url: str = _DEFAULT_DATABASE_URL
+    async_database_url: str = _DEFAULT_ASYNC_DATABASE_URL
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-small"
@@ -54,6 +59,39 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
+
+    @model_validator(mode="after")
+    def _compose_db_urls_from_parts(self) -> "Settings":
+        """Build DATABASE_URL/ASYNC_DATABASE_URL from POSTGRES_* parts when in ACA.
+
+        The ACA compute module wires POSTGRES_HOST/USER/DB env vars and exposes
+        POSTGRES_ADMIN_PASSWORD via KV secretRef, but does NOT set DATABASE_URL
+        directly (passwords would have to live in plain env). The docker
+        entrypoint composes the URL once at startup, but `az containerapp exec`
+        spawns a fresh shell that bypasses the entrypoint — so the CLI
+        (job-rag ingest, etc.) sees only the default localhost URL and fails.
+        Composing here makes any code path correct regardless of launcher.
+        """
+        host = os.environ.get("POSTGRES_HOST")
+        if not host:
+            return self
+        if self.database_url != _DEFAULT_DATABASE_URL:
+            return self  # Caller already supplied an explicit URL; respect it.
+
+        user = os.environ.get("POSTGRES_USER")
+        db = os.environ.get("POSTGRES_DB")
+        password = os.environ.get("POSTGRES_ADMIN_PASSWORD")
+        if not (user and db and password):
+            return self  # Incomplete parts — keep localhost default and let the connection error surface naturally.
+
+        encoded_pw = urllib.parse.quote(password, safe="")
+        self.database_url = (
+            f"postgresql://{user}:{encoded_pw}@{host}:5432/{db}?sslmode=require"
+        )
+        self.async_database_url = (
+            f"postgresql+asyncpg://{user}:{encoded_pw}@{host}:5432/{db}?ssl=require"
+        )
+        return self
 
 
 settings = Settings()
