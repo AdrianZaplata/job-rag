@@ -100,7 +100,11 @@ resource "azuread_service_principal" "github_actions" {
 }
 
 # Federated credential #1: master push (deploy-api.yml + deploy-spa.yml).
-# Subject MUST be lowercase (PITFALLS §7 + RESEARCH.md Pitfall §AADSTS700213).
+# Subject MUST match GitHub's actual case (Microsoft tightened case-sensitivity
+# in Aug 2024 — AADSTS7002138 is thrown if the registered subject differs from
+# the presented assertion in case). Pass var.github_owner / var.github_repo
+# in the exact case as they appear on GitHub. Earlier guidance to `lower()`
+# everything is obsolete and now actively breaks the OIDC handshake.
 resource "azuread_application_federated_identity_credential" "master" {
   provider = azuread.workforce
 
@@ -108,7 +112,7 @@ resource "azuread_application_federated_identity_credential" "master" {
   display_name   = "gha-master-push"
   description    = "GHA OIDC for master push (deploy-api.yml, deploy-spa.yml uses long-lived SWA token)"
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${lower(var.github_owner)}/${lower(var.github_repo)}:ref:refs/heads/master"
+  subject        = "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/master"
   audiences      = ["api://AzureADTokenExchange"]
 }
 
@@ -121,7 +125,7 @@ resource "azuread_application_federated_identity_credential" "production_env" {
   display_name   = "gha-environment-production"
   description    = "GHA OIDC for environment:production (deploy-infra.yml)"
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${lower(var.github_owner)}/${lower(var.github_repo)}:environment:production"
+  subject        = "repo:${var.github_owner}/${var.github_repo}:environment:production"
   audiences      = ["api://AzureADTokenExchange"]
 }
 

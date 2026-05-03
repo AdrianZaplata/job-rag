@@ -51,11 +51,15 @@ jobs:
           # `api` container. The container's PATH already has `job-rag` (Typer CLI
           # installed via the multi-stage Dockerfile). Stdout is streamed back to
           # the workflow log so Adrian sees ingest + embed cost reports inline.
-          az containerapp exec \
+          #
+          # `script -qc ... /dev/null` fakes a TTY because `az containerapp exec`
+          # calls `tty.setcbreak()` which otherwise crashes with
+          # "Inappropriate ioctl for device" on GHA runners (no terminal in CI).
+          script -qc "az containerapp exec \
             --name jobrag-prod-api \
             --resource-group jobrag-prod-rg \
             --container api \
-            --command "/bin/sh -c 'job-rag ingest --show-cost && job-rag embed --show-cost'"
+            --command \"/bin/sh -c 'job-rag ingest --show-cost && job-rag embed --show-cost'\"" /dev/null
 
       - name: Print summary
         if: always()

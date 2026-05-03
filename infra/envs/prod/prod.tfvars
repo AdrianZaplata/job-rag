@@ -9,8 +9,9 @@ location = "westeurope"
 tenant_id_external = "3fd51a76-f36e-43a1-aa37-564dad4c41fd"
 tenant_subdomain   = "jobrag"
 
-# GitHub
-github_owner = "adrianzaplata"
+# GitHub — case-sensitive (Aug 2024 OIDC change: AADSTS7002138 if mismatched).
+# Adrian's GitHub login is "AdrianZaplata"; the repo is "job-rag" (already lower).
+github_owner = "AdrianZaplata"
 github_repo  = "job-rag"
 
 # CORS — DEPL-12 two-pass.
