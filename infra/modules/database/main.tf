@@ -46,7 +46,11 @@ module "postgres" {
   source  = "Azure/avm-res-dbforpostgresql-flexibleserver/azurerm"
   version = "0.2.2"
 
-  name                = "jobrag-${var.env}-pg"
+  # Region-coded suffix dodges stale ARM name reservations from prior failed
+  # applies (LocationIsOfferRestricted leaves the name reserved globally even
+  # though no resource is visible via `az resource list`). Bump the suffix on
+  # each new region attempt: -de (germanywestcentral), -ie (northeurope), etc.
+  name                = "jobrag-${var.env}-pg-ie"
   location            = var.location
   resource_group_name = var.resource_group_name
 

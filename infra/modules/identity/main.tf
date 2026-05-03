@@ -55,6 +55,13 @@ resource "azuread_application" "spa" {
 
   display_name = "jobrag-spa"
 
+  # External tenant rejects v1 access tokens — the application object must
+  # declare requested_access_token_version = 2. azuread provider's default is
+  # null which the API rejects with InvalidAccessTokenVersion.
+  api {
+    requested_access_token_version = 2
+  }
+
   # B1 fix: compact() drops null AND empty-string entries. The original
   # ternary produced `null` which Terraform rejects when constructing the
   # list (lists cannot contain null). Use empty-string + compact() instead.

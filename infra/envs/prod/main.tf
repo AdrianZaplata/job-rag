@@ -94,8 +94,12 @@ resource "azurerm_role_assignment" "deployer_kv_secrets_officer" {
 module "database" {
   source = "../../modules/database"
 
-  env                         = "prod"
-  location                    = var.location
+  env = "prod"
+  # Postgres Flex is offer-restricted on this subscription in westeurope AND
+  # germanywestcentral (LocationIsOfferRestricted). northeurope (Ireland) is
+  # the standard fallback for free-tier PG Flex on German subscriptions.
+  # Cross-region ACA(westeurope)→PG(northeurope) is acceptable for v1.
+  location                    = "northeurope"
   resource_group_name         = azurerm_resource_group.prod.name
   key_vault_id                = module.kv.kv_id
   kv_admin_role_assignment_id = azurerm_role_assignment.deployer_kv_secrets_officer.id
@@ -192,19 +196,24 @@ resource "azurerm_role_assignment" "aca_kv_secrets_user" {
 }
 
 # ─── Monitoring diagnostic setting (W7: lives at composition, NOT in monitoring module) ─
-# References module.compute.aca_id (Container App created above) and
-# module.monitoring.workspace_id (LAW created in monitoring module).
-# D-16: ContainerAppConsoleLogs_CL only; SystemLogs_CL deliberately omitted.
+# Diagnostic categories ContainerAppConsoleLogs / ContainerAppSystemLogs are
+# only exposed at the Microsoft.App/managedEnvironments resource level — the
+# individual containerApp resource does NOT accept them (verified by 400
+# "Category 'ContainerAppConsoleLogs' is not supported" against the app ID).
+# Target the env instead; logs from every Container App in the env flow into
+# the same LAW table.
+# D-16: ContainerAppConsoleLogs only; ContainerAppSystemLogs deliberately omitted.
+# (The `_CL` suffix is the LAW *table name* — diagnostic category names drop it.)
 
 resource "azurerm_monitor_diagnostic_setting" "aca" {
   name                       = "${local.prefix}-aca-diag"
-  target_resource_id         = module.compute.aca_id
+  target_resource_id         = module.network.env_id
   log_analytics_workspace_id = module.monitoring.workspace_id
 
   enabled_log {
-    category = "ContainerAppConsoleLogs_CL"
+    category = "ContainerAppConsoleLogs"
   }
-  # NOTE: ContainerAppSystemLogs_CL intentionally omitted per D-16.
+  # NOTE: ContainerAppSystemLogs intentionally omitted per D-16.
 }
 
 # ─── Static Web App (raw — D-03 single-resource, no AVM) ──────────────────────

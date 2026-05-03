@@ -28,6 +28,18 @@ module "key_vault" {
   soft_delete_retention_days     = 7
   public_network_access_enabled  = true # ACA Consumption can't reach private endpoints
 
+  # AVM 0.10.2 defaults network_acls = {} which expands to
+  # bypass=None + default_action=Deny + ip_rules=[] — that blocks ALL callers
+  # including the deployer (data plane uses the same firewall as RBAC).
+  # Explicit Allow disables IP filtering entirely; access is RBAC-gated, same
+  # posture as Postgres (D-10) and the tfstate storage account.
+  # (Null is documented to "create with no firewall" but doesn't trigger drift
+  # on a KV that already has network_acls set; an explicit object does.)
+  network_acls = {
+    bypass         = "AzureServices"
+    default_action = "Allow"
+  }
+
   # ACA system-assigned MI gets "Key Vault Secrets User" — read-only for secret values.
   # In the standard composition (envs/prod/main.tf), this role is assigned at
   # composition layer AFTER compute creates the MI (resource

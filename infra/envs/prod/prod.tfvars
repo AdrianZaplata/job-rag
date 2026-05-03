@@ -16,10 +16,10 @@ github_repo  = "job-rag"
 # CORS — DEPL-12 two-pass.
 # First apply: leave empty → ALLOWED_ORIGINS = "http://localhost:5173".
 # Second apply (after scripts/refresh-swa-origin.sh): script rewrites to "https://<swa-default>".
-swa_origin = ""
+swa_origin = "https://witty-flower-065dac003.7.azurestaticapps.net"
 
 # Postgres firewall — Adrian's home IP (refresh via runbook in modules/database/README.md)
-home_ip = "0.0.0.0"
+home_ip = "79.228.31.2"
 
 # GHCR
 ghcr_username = "adrianzaplata"
