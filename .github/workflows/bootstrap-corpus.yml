@@ -45,21 +45,17 @@ jobs:
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Run job-rag ingest + embed inside the live container
+      - name: Run job-rag ingest inside the live container
         run: |
-          # az containerapp exec runs the command inside the active revision's
-          # `api` container. The container's PATH already has `job-rag` (Typer CLI
-          # installed via the multi-stage Dockerfile). Stdout is streamed back to
-          # the workflow log so Adrian sees ingest + embed cost reports inline.
-          #
           # `script -qc ... /dev/null` fakes a TTY because `az containerapp exec`
           # calls `tty.setcbreak()` which otherwise crashes with
           # "Inappropriate ioctl for device" on GHA runners (no terminal in CI).
-          script -qc "az containerapp exec \
-            --name jobrag-prod-api \
-            --resource-group jobrag-prod-rg \
-            --container api \
-            --command \"/bin/sh -c 'job-rag ingest --show-cost && job-rag embed --show-cost'\"" /dev/null
+          # Two separate exec calls avoid the nested-quote mess of /bin/sh -c.
+          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag ingest --show-cost'" /dev/null
+
+      - name: Run job-rag embed inside the live container
+        run: |
+          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag embed --show-cost'" /dev/null
 
       - name: Print summary
         if: always()
