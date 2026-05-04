@@ -8,8 +8,9 @@ from typing import Protocol, runtime_checkable
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import NullPool
 
 from job_rag.config import settings
 from job_rag.db.engine import AsyncSessionLocal
@@ -399,10 +400,19 @@ def ingest_file(
     """
 
     async def _run() -> IngestResult:
-        async with AsyncSessionLocal() as async_session:
-            return await ingest_from_source(
-                async_session, MarkdownFileSource(file_path)
-            )
+        # Per-call engine + NullPool: ingest_directory drives many `asyncio.run()`s
+        # back-to-back, each of which spins a fresh event loop. The module-level
+        # async_engine's pool retains connections bound to the FIRST loop, and
+        # subsequent calls hit "Future attached to a different loop". A throwaway
+        # engine with NullPool sidesteps the cross-loop pool-reuse entirely.
+        engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+        try:
+            async with async_sessionmaker(bind=engine, expire_on_commit=False)() as async_session:
+                return await ingest_from_source(
+                    async_session, MarkdownFileSource(file_path)
+                )
+        finally:
+            await engine.dispose()
 
     result = asyncio.run(_run())
 
