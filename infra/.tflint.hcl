@@ -12,7 +12,7 @@ plugin "azurerm" {
 # Enforce naming convention from CONTEXT.md Discretion: jobrag-{env}-{kind}
 config {
   format = "compact"
-  call_module_type = "all"
+  call_module_type = "local"
 }
 
 # Module versions are pinned in main.tf; tflint warns if the pin is missing
