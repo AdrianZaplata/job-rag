@@ -41,14 +41,23 @@ jobs:
       - name: Setup buildx
         uses: docker/setup-buildx-action@v3
 
+      # GHCR rejects uppercase repository paths (Docker Registry spec). github.repository
+      # preserves the GitHub username case (here "AdrianZaplata"), so lowercase it before
+      # building any tag. This is orthogonal to the Entra federated credential subject —
+      # OIDC requires the JWT subject to match GitHub's actual case (Aug 2024 AADSTS7002138)
+      # and is configured uppercase in infra/modules/identity/main.tf; do not touch that.
+      - name: Lowercase repo
+        id: repo
+        run: echo "lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ steps.repo.outputs.lc }}:${{ github.sha }}
+            ghcr.io/${{ steps.repo.outputs.lc }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -64,7 +73,7 @@ jobs:
           az containerapp update \
             --name jobrag-prod-api \
             --resource-group jobrag-prod-rg \
-            --image "ghcr.io/${{ github.repository }}:${{ github.sha }}"
+            --image "ghcr.io/${{ steps.repo.outputs.lc }}:${{ github.sha }}"
 
       - name: Smoke /health after revision swap
         run: |
