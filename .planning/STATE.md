@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-05T10:25:00.000Z"
+last_updated: "2026-05-05T11:50:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 2
@@ -144,7 +144,7 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 ### Blockers
 
 - **Phase 2 follow-up (small, non-blocking):** 10 of 108 postings persistently fail Instructor extraction across 2 runs (`RetryError[InstructorRetryException]`). See `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md` for the full posting_id + company/title inventory and the recommended remediation path (raw_text inspection → prompt tweak / model upgrade / manual fixture + add `httpx.Timeout` belt-and-suspenders). Does NOT block Phase 3 (Infrastructure & CI/CD) or Phase 5 (Dashboard, which can filter `WHERE prompt_version='2.0'` to exclude residuals).
-- **Phase 3 Test 2 follow-up (tfsec resolved 2026-05-05; NEW blocker surfaced):** Quick task 260505-h1p landed `min_tls_version = "TLS1_2"` on `azurerm_storage_account.tfstate` (commit bd65e3f). tfsec gate is now green on PR #4 run 25370681564. NEW failure on `Terraform validate (envs/prod)`: downloaded AVM module `Azure/avm-res-dbforpostgresql-flexibleserver/azurerm 0.2.2` declares `variable "administrator_password_wo" { ephemeral = true }` (write-only / ephemeral input variable, requires Terraform ≥ 1.10). CI runner's Terraform via `hashicorp/setup-terraform@v3` default does not support it. Local TF v1.15.0 does, hence local validate passed. Likely fix paths: pin `terraform_version` in `.github/workflows/static-tf.yml` to ≥ 1.10, or pin the AVM module to a pre-ephemeral version. Until resolved, 03-UAT.md Test 2 stays `result: issue` (severity field needs updating to reflect the new error, not the closed tfsec one) and the Phase 3 Gaps entry remains. Out of scope for 260505-h1p per stop-on-new-failure rule.
+- **Phase 3 Test 2 — RESOLVED 2026-05-05:** Quick task 260505-j0p bumped `terraform_version: 1.9.5 → 1.15.0` in `.github/workflows/static-tf.yml` (commit b709eed). `static-tf` workflow on PR #4 is now fully green end-to-end (run 25374378624) — fmt + tflint + tfsec + validate(envs/prod) + validate(envs/dev) + validate(bootstrap) all pass in 37s. UAT Test 2 promoted to `result: pass`; Gaps section reset to `[none yet]`. Closed the four-step chain: ff0697c (fmt) → e2a061e (tflint AVM scope) → bd65e3f (tfsec TLS) → b709eed (TF version pin).
 
 ### Quick Tasks Completed
 
@@ -152,6 +152,7 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 |---|-------------|------|--------|-----------|
 | 260505-eup | tflint call_module_type local for AVM modules — fix landed; static-tf paused on new tfsec finding (out of scope) | 2026-05-05 | e2a061e | [260505-eup-tflint-call-module-type-local-for-avm-mo](./quick/260505-eup-tflint-call-module-type-local-for-avm-mo/) |
 | 260505-h1p | Fix static-tf tfsec failure — add min_tls_version=TLS1_2 to tfstate storage account; tfsec green, NEW failure on validate(envs/prod) re: AVM ephemeral var requires TF≥1.10 (out of scope) | 2026-05-05 | bd65e3f | [260505-h1p-fix-static-tf-tfsec-failure-add-min-tls-](./quick/260505-h1p-fix-static-tf-tfsec-failure-add-min-tls-/) |
+| 260505-j0p | Drive static-tf to fully green — bump terraform_version 1.9.5→1.15.0; local sweep clean (fmt/tflint/validate); CI green in 37s; UAT Test 2 promoted to pass | 2026-05-05 | b709eed | [260505-j0p-drive-static-tf-to-fully-green-bump-tf-v](./quick/260505-j0p-drive-static-tf-to-fully-green-bump-tf-v/) |
 
 ### Open Questions (from research, to resolve during planning)
 
