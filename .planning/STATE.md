@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-05T08:50:00.000Z"
+last_updated: "2026-05-05T10:25:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 2
@@ -15,7 +15,7 @@ progress:
 # State: job-rag web-app milestone
 
 **Initialized:** 2026-04-23
-**Last updated:** 2026-04-27
+**Last updated:** 2026-05-05
 
 ## Project Reference
 
@@ -144,13 +144,14 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 ### Blockers
 
 - **Phase 2 follow-up (small, non-blocking):** 10 of 108 postings persistently fail Instructor extraction across 2 runs (`RetryError[InstructorRetryException]`). See `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md` for the full posting_id + company/title inventory and the recommended remediation path (raw_text inspection → prompt tweak / model upgrade / manual fixture + add `httpx.Timeout` belt-and-suspenders). Does NOT block Phase 3 (Infrastructure & CI/CD) or Phase 5 (Dashboard, which can filter `WHERE prompt_version='2.0'` to exclude residuals).
-- **Phase 3 Test 2 follow-up (newly surfaced):** static-tf workflow advanced past tflint after quick task 260505-eup landed `call_module_type=local`. NEW tfsec failure on `infra/bootstrap/main.tf:52-81` (`azure-storage-use-secure-tls-policy` — storage account missing `min_tls_version`). One-line follow-up: add `min_tls_version = "TLS1_2"` to `azurerm_storage_account.tfstate` in bootstrap. Until that lands, 03-UAT.md Test 2 stays `result: issue` and the Phase 3 Gaps entry remains. Out of scope for 260505-eup per stop-on-new-failure rule.
+- **Phase 3 Test 2 follow-up (tfsec resolved 2026-05-05; NEW blocker surfaced):** Quick task 260505-h1p landed `min_tls_version = "TLS1_2"` on `azurerm_storage_account.tfstate` (commit bd65e3f). tfsec gate is now green on PR #4 run 25370681564. NEW failure on `Terraform validate (envs/prod)`: downloaded AVM module `Azure/avm-res-dbforpostgresql-flexibleserver/azurerm 0.2.2` declares `variable "administrator_password_wo" { ephemeral = true }` (write-only / ephemeral input variable, requires Terraform ≥ 1.10). CI runner's Terraform via `hashicorp/setup-terraform@v3` default does not support it. Local TF v1.15.0 does, hence local validate passed. Likely fix paths: pin `terraform_version` in `.github/workflows/static-tf.yml` to ≥ 1.10, or pin the AVM module to a pre-ephemeral version. Until resolved, 03-UAT.md Test 2 stays `result: issue` (severity field needs updating to reflect the new error, not the closed tfsec one) and the Phase 3 Gaps entry remains. Out of scope for 260505-h1p per stop-on-new-failure rule.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260505-eup | tflint call_module_type local for AVM modules — fix landed; static-tf paused on new tfsec finding (out of scope) | 2026-05-05 | e2a061e | [260505-eup-tflint-call-module-type-local-for-avm-mo](./quick/260505-eup-tflint-call-module-type-local-for-avm-mo/) |
+| 260505-h1p | Fix static-tf tfsec failure — add min_tls_version=TLS1_2 to tfstate storage account; tfsec green, NEW failure on validate(envs/prod) re: AVM ephemeral var requires TF≥1.10 (out of scope) | 2026-05-05 | bd65e3f | [260505-h1p-fix-static-tf-tfsec-failure-add-min-tls-](./quick/260505-h1p-fix-static-tf-tfsec-failure-add-min-tls-/) |
 
 ### Open Questions (from research, to resolve during planning)
 
