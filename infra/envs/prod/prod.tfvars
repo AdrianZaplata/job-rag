@@ -37,7 +37,7 @@ tfstate_resource_group_name  = "jobrag-tfstate-rg"
 tfstate_container_name       = "tfstate"
 
 # Application IDs
-seeded_user_id        = "00000000-0000-0000-0000-000000000001"             # Phase 1 D-08 SEEDED_USER_ID
+seeded_user_id        = "00000000-0000-0000-0000-000000000001" # Phase 1 D-08 SEEDED_USER_ID
 seeded_user_entra_oid = "00000000-0000-0000-0000-000000000000" # Phase 4 fills after first login
 
 # Application secrets are SEEDED OUT-OF-BAND directly in Key Vault (Option B).
