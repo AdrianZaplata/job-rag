@@ -15,7 +15,7 @@
 
 ## Bootstrap → first apply runbook
 
-1. `cd infra/bootstrap && terraform init && terraform apply` (one-time, manual)
+1. `cd infra/bootstrap && terraform init && terraform apply` (one-time, manual).
 2. Copy outputs into `infra/envs/prod/backend.tf` literals
 3. `cd infra/envs/prod && terraform init && terraform apply -var-file=prod.tfvars` (first pass — `swa_origin` empty)
 4. `bash scripts/refresh-swa-origin.sh` (reads SWA default origin, rewrites tfvars, re-applies — second pass)
