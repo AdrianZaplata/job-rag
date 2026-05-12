@@ -93,10 +93,18 @@ module "kv" {
 }
 
 # Deployer gets "Key Vault Secrets Officer" — required to WRITE secrets.
+# Gap H fix (2026-05-12): principal_id is pinned via var.deployer_object_id
+# rather than data.azurerm_client_config.current.object_id. The data source
+# evaluates differently across contexts (Adrian's user OID on local apply vs
+# the GHA SP OID under CI's OIDC auth), so refresh on CI wants to REPLACE the
+# role assignment (destroy Adrian's KV access, grant to the SP). Pinning makes
+# state stable across local + CI contexts. The GHA SP has its own KV access
+# via gha_kv_secrets_officer (Gap 8.B), so this resource is exclusively for
+# the human deployer's data-plane access during local apply.
 resource "azurerm_role_assignment" "deployer_kv_secrets_officer" {
   scope                = module.kv.kv_id
   role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.deployer_object_id
 }
 
 # ─── Database (Postgres Flex + random_password + KV secret) ────────────────────

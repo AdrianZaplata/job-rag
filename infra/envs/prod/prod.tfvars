@@ -40,6 +40,10 @@ tfstate_container_name       = "tfstate"
 seeded_user_id        = "00000000-0000-0000-0000-000000000001"             # Phase 1 D-08 SEEDED_USER_ID
 seeded_user_entra_oid = "00000000-0000-0000-0000-000000000000" # Phase 4 fills after first login
 
+# Human deployer (Adrian) user OID for KV Secrets Officer assignment.
+# Stable across local apply + CI plan contexts (Gap H fix).
+deployer_object_id = "58ad20b2-0cba-4d5b-81cd-84d29f64daa2"
+
 # Application secrets are SEEDED OUT-OF-BAND directly in Key Vault (Option B).
 # After first apply, run (once per environment + on rotation):
 #   az keyvault secret set --vault-name <kv-name> --name openai-api-key      --value "<sk-...>"

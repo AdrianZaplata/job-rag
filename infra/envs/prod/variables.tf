@@ -124,3 +124,8 @@ variable "use_oidc_auth" {
   description = "Toggle azuread provider OIDC auth. true on CI runner (set via TF_VAR_use_oidc_auth in deploy-infra.yml); false on local (default) so azuread falls through to CLI auth using Adrian's az login context."
   default     = false
 }
+
+variable "deployer_object_id" {
+  type        = string
+  description = "AAD object ID of the human deployer who runs `terraform apply` locally (Adrian's user OID). Pinned via variable so CI plan does not try to swap principal_id to the GHA SP OID when refreshing the deployer_kv_secrets_officer role assignment (Gap H fix). The SP has its own KV access via gha_kv_secrets_officer (Gap 8.B), so this resource is exclusively for the human deployer's KV data-plane access during local apply."
+}
