@@ -111,3 +111,19 @@ resource "azurerm_role_assignment" "gha_cost_management_contributor" {
   principal_id         = azuread_service_principal.github_actions.object_id
   description          = "Named exception to D-08: required so deploy-infra.yml can manage the EUR 10/mo subscription-scoped consumption budget (DEPL-11). Cost Mgmt roles cannot mutate workloads."
 }
+
+# Gap F + G fix: SP needs Microsoft.Authorization/roleAssignments/read at sub scope
+# to refresh cross-scope role assignments (gha_tfstate_blob_data_contributor lives in
+# the tfstate RG; gha_cost_management_contributor is sub-scoped). Contributor at prod
+# RG cascades only within that RG, so refresh would 403 on these.
+#
+# Reader is "*/read" only - pure information disclosure, no mutation capability.
+# This is Microsoft's standard CI/CD principal pattern. D-08's mutation-isolation
+# intent is preserved (Reader cannot grant roles, write resources, or modify state).
+# See CONTEXT.md D-08 Amendment v2 for the full rationale.
+resource "azurerm_role_assignment" "gha_reader_subscription" {
+  scope                = var.subscription_id
+  role_definition_name = "Reader"
+  principal_id         = azuread_service_principal.github_actions.object_id
+  description          = "Refresh-permission for cross-scope role assignments (Gaps F, G). Read-only, no mutation outside prod RG (D-08 v2)."
+}
