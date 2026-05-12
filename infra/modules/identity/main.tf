@@ -135,3 +135,15 @@ resource "azurerm_role_assignment" "gha_rg_contributor" {
   role_definition_name = "Contributor"
   principal_id         = azuread_service_principal.github_actions.object_id
 }
+
+# Gap 8.B fix: GHA SP needs KV data-plane access to manage azurerm_key_vault_secret
+# resources from CI. KV is in RBAC mode (enable_rbac_authorization = true per
+# CONTEXT.md / D-13 Claude's-Discretion clause); RG Contributor does not cover the
+# data plane. Scope is the KV resource itself, the narrowest data-plane role
+# possible. D-08 preserved (KV-scoped, not subscription, not RG-wide).
+resource "azurerm_role_assignment" "gha_kv_secrets_officer" {
+  scope                = var.kv_id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = azuread_service_principal.github_actions.object_id
+  description          = "Grants GitHub Actions federated SP read/write on KV secrets (deploy-infra.yml manages azurerm_key_vault_secret resources, Gap 8.B)."
+}

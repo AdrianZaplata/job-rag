@@ -18,3 +18,8 @@ variable "resource_group_id" {
   type        = string
   description = "Resource group resource ID for the RG-scoped Contributor role assignment per D-08 (NEVER subscription)."
 }
+
+variable "kv_id" {
+  type        = string
+  description = "Key Vault resource ID (from module.kv.kv_id), scope for the GHA SP's Key Vault Secrets Officer role assignment (Gap 8.B fix). KV-scoped, not RG, preserves D-08."
+}

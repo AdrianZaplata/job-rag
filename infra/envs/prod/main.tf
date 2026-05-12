@@ -22,6 +22,7 @@ module "identity" {
   github_owner      = var.github_owner
   github_repo       = var.github_repo
   resource_group_id = azurerm_resource_group.prod.id
+  kv_id             = module.kv.kv_id # Gap 8.B: KV-scoped Secrets Officer for GHA SP
 }
 
 # ─── Grant GHA SP the data-plane role needed to read/write remote tfstate ─────
