@@ -42,14 +42,25 @@ jobs:
 
       - name: Terraform Init
         run: terraform init -input=false
+        # Gap 8.C: azuread provider OIDC auth requires these TF vars at init time too
+        # (init resolves provider auth when downloading provider plugins schemas).
+        env:
+          TF_VAR_gha_client_id:       ${{ secrets.AZURE_CLIENT_ID }}
+          TF_VAR_tenant_id_workforce: ${{ secrets.AZURE_TENANT_ID }}
+          TF_VAR_use_oidc_auth:       "true"
 
       - name: Terraform Apply
         run: terraform apply -input=false -auto-approve -var-file=prod.tfvars
         # Option B: openai/langfuse secret VALUES are seeded out-of-band via
         # `az keyvault secret set ...` (see prod/README.md). TF only needs ghcr_pat
-        # at apply time — OPENAI_API_KEY and LANGFUSE_* are NOT GitHub secrets.
+        # at apply time. OPENAI_API_KEY and LANGFUSE_* are NOT GitHub secrets.
+        # Gap 8.C: TF_VAR_gha_client_id / tenant_id_workforce / use_oidc_auth flip
+        # the azuread provider into OIDC auth on the CI runner (no Azure CLI dep).
         env:
-          TF_VAR_ghcr_pat: ${{ secrets.GHCR_PAT }}
+          TF_VAR_ghcr_pat:            ${{ secrets.GHCR_PAT }}
+          TF_VAR_gha_client_id:       ${{ secrets.AZURE_CLIENT_ID }}
+          TF_VAR_tenant_id_workforce: ${{ secrets.AZURE_TENANT_ID }}
+          TF_VAR_use_oidc_auth:       "true"
 
       # B2 (locked decision): SWA token sync is a MANUAL runbook step, NOT a workflow step.
       # Adrian runs `terraform output -raw swa_api_key | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN_PROD --repo adrianzaplata/job-rag`

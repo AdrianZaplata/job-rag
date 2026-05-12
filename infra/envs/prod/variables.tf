@@ -102,3 +102,25 @@ variable "tfstate_container_name" {
   description = "Bootstrap state container name. Same value used in backend.tf."
   default     = "tfstate"
 }
+
+# azuread provider OIDC auth (Gap 8.C). CI runner has no `az login` context for
+# the workforce tenant; without explicit OIDC config the azuread provider falls
+# back to Azure CLI auth and throws AADSTS700016. On local apply Adrian's
+# `az login` context is used (defaults below keep CLI path live).
+variable "gha_client_id" {
+  type        = string
+  description = "Workforce-tenant GitHub Actions service principal appId (client_id). Sourced from secrets.AZURE_CLIENT_ID via TF_VAR_gha_client_id in deploy-infra.yml. Required by azuread provider OIDC auth (Gap 8.C). Empty on local apply; the provider falls through to CLI auth when var.use_oidc_auth = false."
+  default     = ""
+}
+
+variable "tenant_id_workforce" {
+  type        = string
+  description = "Workforce tenant ID (subscription home tenant per CONTEXT.md A4). Sourced from secrets.AZURE_TENANT_ID via TF_VAR_tenant_id_workforce in deploy-infra.yml. Defaults to empty: when empty, azuread.workforce provider resolves tenant from az login context (local apply path)."
+  default     = ""
+}
+
+variable "use_oidc_auth" {
+  type        = bool
+  description = "Toggle azuread provider OIDC auth. true on CI runner (set via TF_VAR_use_oidc_auth in deploy-infra.yml); false on local (default) so azuread falls through to CLI auth using Adrian's az login context."
+  default     = false
+}

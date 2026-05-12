@@ -26,15 +26,26 @@ provider "azurerm" {
   }
 }
 
-# Default azuread provider — workforce tenant (subscription home) per A4.
+# Workforce tenant (subscription home) per A4. Auth chain (Gap 8.C):
+#   CI:    use_oidc=true via TF_VAR_use_oidc_auth=true; client_id + tenant_id
+#          from CI env vars. ARM_OIDC_TOKEN populated by azure/login@v2
+#          (id-token: write permission).
+#   Local: use_oidc=false (default); use_cli=true picks up Adrian's `az login`.
 # Used for the GHA service principal + RG-scoped role assignment.
 provider "azuread" {
-  alias = "workforce"
-  # tenant_id resolved from `az login` context — defaults to subscription home tenant.
+  alias     = "workforce"
+  use_cli   = !var.use_oidc_auth
+  use_oidc  = var.use_oidc_auth
+  client_id = var.gha_client_id # ignored when use_oidc=false
+  tenant_id = var.tenant_id_workforce != "" ? var.tenant_id_workforce : null
 }
 
-# External tenant alias — used for SPA + API app registrations only.
+# External tenant alias. Used for SPA + API app registrations only.
+# Same auth toggle as workforce; tenant_id stays var.tenant_id_external (required).
 provider "azuread" {
   alias     = "external"
+  use_cli   = !var.use_oidc_auth
+  use_oidc  = var.use_oidc_auth
+  client_id = var.gha_client_id
   tenant_id = var.tenant_id_external
 }
