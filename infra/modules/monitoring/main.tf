@@ -23,6 +23,16 @@ module "log_analytics" {
   log_analytics_workspace_retention_in_days = 30   # default — Discretion
   log_analytics_workspace_daily_quota_gb    = 0.15 # D-16 — ≈4.5 GB/mo, 90% of DEPL-10's 5GB alert
 
+  # Gap 12.A: AVM avm-res-operationalinsights-workspace 0.5.1 defaults both
+  # publicNetworkAccessForIngestion and publicNetworkAccessForQuery to Disabled
+  # when no override is supplied, which blocks ACA Console Logs ingestion AND
+  # Adrian local az monitor log-analytics query from his home IP (Test 10 / 12
+  # NspValidationFailedError). Restoring public access matches the free-tier
+  # posture (DEPL-10 intent) and CONTEXT.md A1 Path A precedent (TLS + scoped
+  # auth, not network isolation, is the boundary).
+  log_analytics_workspace_internet_ingestion_enabled = true
+  log_analytics_workspace_internet_query_enabled     = true
+
   tags = var.tags
 }
 
