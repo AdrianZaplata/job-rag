@@ -8,7 +8,7 @@ terraform {
     azuread = {
       source                = "hashicorp/azuread"
       version               = "~> 3.0"
-      configuration_aliases = [azuread.external, azuread.workforce]
+      configuration_aliases = [azuread.workforce]
     }
     random = {
       source  = "hashicorp/random"
@@ -17,75 +17,25 @@ terraform {
   }
 }
 
-# A consistent UUID for the API's access_as_user scope (id stays the same across
-# applies — generated once, hardcoded). Per RESEARCH.md line 1100.
-resource "random_uuid" "access_as_user_scope" {}
-
-# ─── External tenant: SPA + API app registrations (D-05, D-06, D-07) ───────────
-
-resource "azuread_application" "api" {
-  provider = azuread.external
-
-  display_name    = "jobrag-api"
-  identifier_uris = ["api://jobrag-api"]
-
-  api {
-    requested_access_token_version = 2
-
-    oauth2_permission_scope {
-      id                         = random_uuid.access_as_user_scope.result
-      admin_consent_description  = "Allow the SPA to act on behalf of the signed-in user."
-      admin_consent_display_name = "Access job-rag API as user"
-      enabled                    = true
-      type                       = "User"
-      user_consent_description   = "Allow the SPA to access job-rag on your behalf."
-      user_consent_display_name  = "Access job-rag API"
-      value                      = "access_as_user"
-    }
-  }
-}
-
-resource "azuread_service_principal" "api" {
-  provider  = azuread.external
-  client_id = azuread_application.api.client_id
-}
-
-resource "azuread_application" "spa" {
-  provider = azuread.external
-
-  display_name = "jobrag-spa"
-
-  # External tenant rejects v1 access tokens — the application object must
-  # declare requested_access_token_version = 2. azuread provider's default is
-  # null which the API rejects with InvalidAccessTokenVersion.
-  api {
-    requested_access_token_version = 2
-  }
-
-  # B1 fix: compact() drops null AND empty-string entries. The original
-  # ternary produced `null` which Terraform rejects when constructing the
-  # list (lists cannot contain null). Use empty-string + compact() instead.
-  single_page_application {
-    redirect_uris = compact([
-      var.swa_origin == "" ? "" : "${var.swa_origin}/",
-      "http://localhost:5173/", # local dev per D-06
-    ])
-  }
-
-  required_resource_access {
-    resource_app_id = azuread_application.api.client_id
-
-    resource_access {
-      id   = random_uuid.access_as_user_scope.result
-      type = "Scope"
-    }
-  }
-}
-
-resource "azuread_service_principal" "spa" {
-  provider  = azuread.external
-  client_id = azuread_application.spa.client_id
-}
+# ─── External tenant resources: managed LOCALLY ONLY (Gap D, 2026-05-12) ───────
+#
+# The SPA + API app registrations (jobrag-spa, jobrag-api), their service
+# principals, and the random_uuid for the access_as_user OAuth2 scope used to
+# live here behind the azuread.external provider alias. They have been moved
+# OUT of CI-managed prod state and into a local-only ops surface.
+#
+# Rationale: the azuread.external provider cannot authenticate as the Workforce
+# GHA SP (AADSTS700016 - app not registered in External tenant 'JobRag').
+# Microsoft Entra External ID guidance treats CIAM tenants as deliberately-
+# isolated trust boundaries that should NOT be managed with Workforce-tenant
+# credentials. CI uses the Workforce-tenant GHA SP; therefore CI cannot manage
+# External-tenant resources without re-litigating the trust boundary.
+#
+# Going forward Adrian manages these 5 resources locally via his multi-tenant
+# `az login` context (separate bootstrap surface). See
+# `.planning/quick/260512-hui-fix-test-8-gap-12-a-azuread-oidc-kv-secr/260512-hui-SUMMARY.md`
+# and `.planning/phases/03-infrastructure-ci-cd/03-UAT.md` Gap D entry for the
+# full architectural rationale.
 
 # ─── Workforce tenant: GitHub Actions service principal (A4) ───────────────────
 

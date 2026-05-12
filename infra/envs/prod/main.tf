@@ -20,7 +20,6 @@ module "identity" {
   source = "../../modules/identity"
 
   providers = {
-    azuread.external  = azuread.external
     azuread.workforce = azuread.workforce
   }
 

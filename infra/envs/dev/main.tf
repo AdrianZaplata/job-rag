@@ -15,14 +15,21 @@ resource "azurerm_resource_group" "dev" {
 
 data "azurerm_client_config" "current" {}
 
-# ─── Identity (External tenant app regs + GHA SP federated credentials) ───────
-# D-06: same External tenant as prod; identity module handles dual redirect URIs.
+# Gap A / Gap D parity with prod: subscription resource ID (full
+# /subscriptions/<guid> form) needed for the GHA SP Cost Management Contributor
+# scope wired through module.identity. Mirrors prod; required input now that
+# the identity module declares var.subscription_id.
+data "azurerm_subscription" "current" {}
+
+# ─── Identity (Workforce GHA SP + role assignments) ────────────────────────────
+# External-tenant SPA + API app registrations are now managed locally only
+# (Gap D, 2026-05-12). The identity module no longer takes the azuread.external
+# provider alias; only azuread.workforce remains.
 
 module "identity" {
   source = "../../modules/identity"
 
   providers = {
-    azuread.external  = azuread.external
     azuread.workforce = azuread.workforce
   }
 
@@ -30,6 +37,8 @@ module "identity" {
   github_owner      = var.github_owner
   github_repo       = var.github_repo
   resource_group_id = azurerm_resource_group.dev.id
+  kv_id             = module.kv.kv_id                      # parity with prod (Gap 8.B)
+  subscription_id   = data.azurerm_subscription.current.id # parity with prod (Gap 8.D)
 }
 
 # ─── Monitoring (LAW workspace; NO budget — owned by prod) ────────────────────

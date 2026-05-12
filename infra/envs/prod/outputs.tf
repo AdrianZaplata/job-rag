@@ -28,15 +28,10 @@ output "tenant_id" {
   value       = var.tenant_id_external
 }
 
-output "spa_app_client_id" {
-  description = "SPA app reg client ID — Phase 4 MSAL clientId."
-  value       = module.identity.spa_app_client_id
-}
-
-output "api_app_client_id" {
-  description = "API app reg client ID — Phase 4 MSAL apiClientId."
-  value       = module.identity.api_app_client_id
-}
+# spa_app_client_id and api_app_client_id outputs removed (Gap D, 2026-05-12).
+# The underlying External-tenant app registrations moved to a local-only ops
+# surface; see infra/modules/identity/main.tf header block. Phase 4 will pull
+# these client IDs from `az ad app show` or a local-state file (TBD).
 
 output "gha_client_id" {
   description = "GitHub Actions SP client ID — set as repo secret AZURE_CLIENT_ID."

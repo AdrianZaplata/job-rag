@@ -31,15 +31,9 @@ output "tenant_id" {
   value       = var.tenant_id_external
 }
 
-output "spa_app_client_id" {
-  description = "SPA app reg client ID."
-  value       = module.identity.spa_app_client_id
-}
-
-output "api_app_client_id" {
-  description = "API app reg client ID."
-  value       = module.identity.api_app_client_id
-}
+# spa_app_client_id and api_app_client_id outputs removed (Gap D, 2026-05-12).
+# Mirrors prod: External-tenant app registrations moved to a local-only ops
+# surface. See infra/modules/identity/main.tf header block.
 
 output "gha_client_id" {
   description = "GitHub Actions SP client ID."

@@ -79,8 +79,8 @@ jobs:
             echo "| swa_default_origin | $(terraform output -raw swa_default_origin) |"
             echo "| aca_fqdn | $(terraform output -raw aca_fqdn) |"
             echo "| kv_name | $(terraform output -raw kv_name) |"
-            echo "| spa_app_client_id | $(terraform output -raw spa_app_client_id) |"
-            echo "| api_app_client_id | $(terraform output -raw api_app_client_id) |"
+            # spa_app_client_id + api_app_client_id removed (Gap D, 2026-05-12):
+            # External-tenant app registrations moved to a local-only ops surface.
             echo "| tenant_subdomain | $(terraform output -raw tenant_subdomain) |"
             echo ""
             echo "**Reminder (B2 manual runbook):** if the SWA was just created or rotated, run from your local terminal:"

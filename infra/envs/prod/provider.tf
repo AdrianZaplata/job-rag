@@ -7,7 +7,7 @@ terraform {
     azuread = {
       source                = "hashicorp/azuread"
       version               = "~> 3.0"
-      configuration_aliases = [azuread.workforce, azuread.external]
+      configuration_aliases = [azuread.workforce]
     }
     random = {
       source  = "hashicorp/random"
@@ -40,12 +40,7 @@ provider "azuread" {
   tenant_id = var.tenant_id_workforce != "" ? var.tenant_id_workforce : null
 }
 
-# External tenant alias. Used for SPA + API app registrations only.
-# Same auth toggle as workforce; tenant_id stays var.tenant_id_external (required).
-provider "azuread" {
-  alias     = "external"
-  use_cli   = !var.use_oidc_auth
-  use_oidc  = var.use_oidc_auth
-  client_id = var.gha_client_id
-  tenant_id = var.tenant_id_external
-}
+# External-tenant `azuread.external` provider removed (Gap D, 2026-05-12).
+# The SPA + API app registrations have moved to a local-only ops surface; CI
+# (Workforce GHA SP) cannot authenticate into the External tenant. See
+# infra/modules/identity/main.tf header block for the architectural rationale.

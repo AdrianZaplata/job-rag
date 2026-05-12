@@ -7,7 +7,7 @@ terraform {
     azuread = {
       source                = "hashicorp/azuread"
       version               = "~> 3.0"
-      configuration_aliases = [azuread.workforce, azuread.external]
+      configuration_aliases = [azuread.workforce]
     }
     random = {
       source  = "hashicorp/random"
@@ -34,9 +34,7 @@ provider "azuread" {
   # tenant_id resolved from `az login` context — defaults to subscription home tenant.
 }
 
-# External tenant alias — used for SPA + API app registrations only.
-# D-06: same External tenant as prod (one tenant, multiple redirect URIs).
-provider "azuread" {
-  alias     = "external"
-  tenant_id = var.tenant_id_external
-}
+# External-tenant `azuread.external` provider removed (Gap D, 2026-05-12).
+# Mirrors prod: SPA + API app registrations are now managed locally only via
+# Adrian's multi-tenant `az login` context. See infra/modules/identity/main.tf
+# header block for the architectural rationale.
