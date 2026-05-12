@@ -8,6 +8,12 @@ resource "azurerm_resource_group" "prod" {
 
 data "azurerm_client_config" "current" {}
 
+# Gap 8.D: subscription resource ID (full /subscriptions/<guid> form) for the
+# GHA SP's Cost Management Contributor role assignment scope. client_config
+# returns subscription_id as bare GUID; subscription data source returns the
+# full resource ID needed by azurerm_role_assignment.scope.
+data "azurerm_subscription" "current" {}
+
 # ─── Identity (External tenant app regs + GHA SP federated credentials) ────────
 
 module "identity" {
@@ -22,7 +28,8 @@ module "identity" {
   github_owner      = var.github_owner
   github_repo       = var.github_repo
   resource_group_id = azurerm_resource_group.prod.id
-  kv_id             = module.kv.kv_id # Gap 8.B: KV-scoped Secrets Officer for GHA SP
+  kv_id             = module.kv.kv_id                      # Gap 8.B: KV-scoped Secrets Officer for GHA SP
+  subscription_id   = data.azurerm_subscription.current.id # Gap 8.D: sub-scoped Cost Mgmt Contributor (D-08 named exception)
 }
 
 # ─── Grant GHA SP the data-plane role needed to read/write remote tfstate ─────

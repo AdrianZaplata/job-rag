@@ -147,3 +147,17 @@ resource "azurerm_role_assignment" "gha_kv_secrets_officer" {
   principal_id         = azuread_service_principal.github_actions.object_id
   description          = "Grants GitHub Actions federated SP read/write on KV secrets (deploy-infra.yml manages azurerm_key_vault_secret resources, Gap 8.B)."
 }
+
+# Gap 8.D fix + named D-08 exception (see CONTEXT.md D-08 Amendment 2026-05-12):
+# azurerm_consumption_budget_subscription.prod (monitoring module) is
+# subscription-scoped; RG Contributor doesn't cover it. Cost Management
+# Contributor at subscription scope CANNOT mutate workloads (only operates on
+# Microsoft.Consumption/* and Microsoft.CostManagement/* providers), so this is
+# the narrowest widening that resolves the architectural conflict. Documented
+# exception.
+resource "azurerm_role_assignment" "gha_cost_management_contributor" {
+  scope                = var.subscription_id
+  role_definition_name = "Cost Management Contributor"
+  principal_id         = azuread_service_principal.github_actions.object_id
+  description          = "Named exception to D-08: required so deploy-infra.yml can manage the EUR 10/mo subscription-scoped consumption budget (DEPL-11). Cost Mgmt roles cannot mutate workloads."
+}
