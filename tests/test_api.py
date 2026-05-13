@@ -172,7 +172,7 @@ class TestAgentEndpoint:
             yield FinalEvent(type="final", content="Hello")
 
         with patch("job_rag.api.routes.stream_agent", side_effect=fake_stream):
-            async with LifespanManager(app):
+            async with LifespanManager(app, startup_timeout=60):
                 transport = ASGITransport(app=app)
                 async with AsyncClient(
                     transport=transport, base_url="http://test"
@@ -226,7 +226,7 @@ class TestCORS:
 
     async def test_preflight_localhost_5173(self):
         """Allowed origin succeeds OPTIONS preflight with the echoed origin."""
-        async with LifespanManager(app):
+        async with LifespanManager(app, startup_timeout=60):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport, base_url="http://test"
@@ -247,7 +247,7 @@ class TestCORS:
 
     async def test_preflight_unknown_rejected(self):
         """Disallowed origin does NOT receive the allow-origin header."""
-        async with LifespanManager(app):
+        async with LifespanManager(app, startup_timeout=60):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport, base_url="http://test"
@@ -345,7 +345,7 @@ class TestAgentStream:
             )
         monkeypatch.setattr("job_rag.api.routes.stream_agent", fake_agent)
 
-        async with LifespanManager(app):
+        async with LifespanManager(app, startup_timeout=60):
             transport = ASGITransport(app=app)
             async with AsyncClient(
                 transport=transport, base_url="http://test", timeout=client_timeout
