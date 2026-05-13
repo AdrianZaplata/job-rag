@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from job_rag.config import settings
-from job_rag.db.engine import AsyncSessionLocal
 from job_rag.db.models import JobPostingDB, JobRequirementDB
 from job_rag.extraction.extractor import extract_linkedin_id, extract_posting
 from job_rag.extraction.prompt import PROMPT_VERSION

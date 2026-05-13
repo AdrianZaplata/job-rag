@@ -82,7 +82,8 @@ class Settings(BaseSettings):
         db = os.environ.get("POSTGRES_DB")
         password = os.environ.get("POSTGRES_ADMIN_PASSWORD")
         if not (user and db and password):
-            return self  # Incomplete parts — keep localhost default and let the connection error surface naturally.
+            # Incomplete parts. Keep localhost default; let the connection error surface naturally.
+            return self
 
         encoded_pw = urllib.parse.quote(password, safe="")
         self.database_url = (
