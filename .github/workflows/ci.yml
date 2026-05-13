@@ -62,4 +62,4 @@ jobs:
           uv run alembic upgrade head   # idempotent second run
 
       - name: Audit dependencies
-        run: uv run pip-audit --ignore-vuln CVE-2025-69872  # diskcache 5.6.3, no fix available (transitive via ragas)
+        run: uv run pip-audit --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-6587  # CVE-2025-69872 diskcache 5.6.3 (no fix, transitive via ragas) + CVE-2026-6587 ragas 0.4.3 (no fix yet)
