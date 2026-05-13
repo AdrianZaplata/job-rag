@@ -185,7 +185,7 @@ Per CONTEXT.md Plan-Locking Addendum A1 (Path A) and Plan 04 module READMEs:
 |-------|---------|-----------|
 | KV secret `openai-api-key` (out-of-band, Option B) | Quarterly recommended; immediately on exposure | `az keyvault secret set --vault-name $(terraform output -raw kv_name) --name openai-api-key --value "<new>"` then `az containerapp revision restart ...` so the new revision picks it up |
 | KV secret `langfuse-public-key` / `langfuse-secret-key` | When rotated in Langfuse Cloud | Same `az keyvault secret set` pattern as above |
-| `var.ghcr_pat` | 90 days (GitHub fine-grained PAT max) | Generate new PAT; `terraform apply -var ghcr_pat="<new>"` rotates registry secret |
+| `var.ghcr_pat` | 90 days (GitHub fine-grained PAT max) | Generate new PAT (`read:packages` on the `job-rag` package). Apply BOTH surfaces in parallel: (1) update `terraform.tfvars.local` and run `terraform apply -var ghcr_pat="<new>"` (rotates state + ACA registry secret); (2) `gh secret set GHCR_PAT --repo AdrianZaplata/job-rag` (CI parity, else the next `deploy-infra.yml` run fails with `ContainerAppSecretInvalid: secret(s) 'ghcr-pat' invalid` when `TF_VAR_ghcr_pat` resolves to empty string). |
 | Postgres admin password (KV: `postgres-admin-password`) | On-demand only | `terraform taint module.database.random_password.pg_admin && terraform apply` |
 | SWA api_key (KV: N/A — direct GH secret) | **180 days** (Microsoft default) | Run the B2 manual sync command above (`terraform output -raw swa_api_key \| gh secret set ...`) from local. NO automated rotation in workflow per B2. |
 | GHA SP federated credentials | Never (OIDC = no long-lived secret to rotate) | n/a |
