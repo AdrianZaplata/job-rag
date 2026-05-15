@@ -1,0 +1,31 @@
+# Default: let git auto-detect text vs binary, normalize text to LF in repo
+* text=auto eol=lf
+
+# Force LF on all source/config (cross-platform safe; works in WSL, Docker, CI)
+*.py        text eol=lf
+*.sh        text eol=lf
+*.toml      text eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.tf        text eol=lf
+*.tfvars    text eol=lf
+*.hcl       text eol=lf
+*.cfg       text eol=lf
+*.ini       text eol=lf
+*.lock      text eol=lf
+*.txt       text eol=lf
+Dockerfile  text eol=lf
+.env*       text eol=lf
+
+# Binary — no line ending normalization, no diff noise
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.pdf       binary
+*.zip       binary
+*.whl       binary
+*.so        binary
+*.dylib     binary
