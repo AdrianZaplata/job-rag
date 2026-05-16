@@ -45,6 +45,18 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def configure_alembic_url(cfg: Config, url: str) -> None:
+    """Set sqlalchemy.url on an alembic Config, escaping % for ConfigParser.
+
+    Alembic's set_main_option() uses ConfigParser, which validates that the
+    value is interpolation-safe. URL-encoded chars in a password (e.g. & → %26)
+    look like unfinished %(name)s substitutions and raise InterpolationSyntaxError.
+    Doubling % to %% lets ConfigParser interpolate it back to a single %, which
+    SQLAlchemy then URL-decodes correctly.
+    """
+    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+
+
 def init_db() -> None:
     """Run all pending Alembic migrations to bring the DB up to head.
 
@@ -54,5 +66,5 @@ def init_db() -> None:
     """
     # Walk: src/job_rag/db/engine.py -> src/job_rag/db/ -> src/job_rag/ -> src/ -> repo root.
     cfg = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
-    cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    configure_alembic_url(cfg, settings.database_url)
     command.upgrade(cfg, "head")

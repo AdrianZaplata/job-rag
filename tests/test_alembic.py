@@ -81,7 +81,8 @@ def test_0004_upgrade_smoke():
     from job_rag.config import settings
 
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    from job_rag.db.engine import configure_alembic_url
+    configure_alembic_url(cfg, settings.database_url)
 
     # Ensure we're at 0003 to exercise the upgrade path. If already at 0004 (or
     # later), this rolls back to 0003 first.
@@ -159,7 +160,8 @@ def test_0004_downgrade_smoke():
     from job_rag.config import settings
 
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    from job_rag.db.engine import configure_alembic_url
+    configure_alembic_url(cfg, settings.database_url)
 
     # Ensure we're at 0004 (upgrade smoke ran first or DB is at head).
     command.upgrade(cfg, "0004")

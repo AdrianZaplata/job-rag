@@ -12,7 +12,7 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from job_rag.db import models as _models  # noqa: F401 — side-effect import
-from job_rag.db.engine import Base
+from job_rag.db.engine import Base, configure_alembic_url
 
 config = context.config
 if config.config_file_name is not None:
@@ -23,7 +23,7 @@ target_metadata = Base.metadata
 
 def run_migrations_online() -> None:
     """Run migrations against a live DB connection (NullPool per D-02)."""
-    config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+    configure_alembic_url(config, os.environ["DATABASE_URL"])
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
