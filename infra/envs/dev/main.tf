@@ -193,9 +193,9 @@ resource "azurerm_monitor_diagnostic_setting" "aca" {
   log_analytics_workspace_id = module.monitoring.workspace_id
 
   enabled_log {
-    category = "ContainerAppConsoleLogs_CL"
+    category = "ContainerAppConsoleLogs" # drop _CL suffix; that suffix is the LAW table name, not the category
   }
-  # NOTE: ContainerAppSystemLogs_CL intentionally omitted per D-16.
+  # NOTE: ContainerAppSystemLogs intentionally omitted per D-16.
 }
 
 # ─── Static Web App (raw — D-03 single-resource, no AVM) ──────────────────────
