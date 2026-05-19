@@ -20,7 +20,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 - [x] **Phase 1: Backend Prep** - Close the seven web-UI blockers and land the multi-tenant data-model hedges (verified 2026-04-27, 5/5 must-haves)
 - [x] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location
  (completed 2026-04-28)
-- [ ] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows
+- [x] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows (verified 2026-05-19, 12/12 must-haves)
 - [ ] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context
 - [ ] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface
 - [ ] **Phase 6: Chat** - Ship the number-one portfolio-signal feature: streaming tokens with inline tool-call chips
