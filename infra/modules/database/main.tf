@@ -29,10 +29,11 @@ resource "random_password" "pg_admin" {
 # already have "Key Vault Secrets Officer" on the KV — the role assignment ID is
 # passed in via var.kv_admin_role_assignment_id so this resource depends_on it.
 resource "azurerm_key_vault_secret" "pg_admin_password" {
-  name         = "postgres-admin-password"
-  value        = random_password.pg_admin.result
-  key_vault_id = var.key_vault_id
-  content_type = "text/plain"
+  name             = "postgres-admin-password"
+  value_wo         = random_password.pg_admin.result
+  value_wo_version = 1
+  key_vault_id     = var.key_vault_id
+  content_type     = "text/plain"
 
   depends_on = [var.kv_admin_role_assignment_id]
 }
