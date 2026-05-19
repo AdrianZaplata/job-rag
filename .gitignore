@@ -12,6 +12,9 @@ wheels/
 # Environment variables
 .env
 
+# Local-only Docker Compose override (per-machine port mappings, etc.)
+docker-compose.override.yml
+
 # Local-only planning artifacts (DB dumps, run logs, secret notes — never committed)
 .planning/phases/**/*.sql
 .planning/phases/**/*.log
