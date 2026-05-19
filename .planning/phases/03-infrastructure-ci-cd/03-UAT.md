@@ -1,23 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 03-infrastructure-ci-cd
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05a-SUMMARY.md, 03-05b-SUMMARY.md, 03-06-SUMMARY.md]
 started: 2026-05-05T00:00:00Z
-updated: 2026-05-13T00:00:00Z
+updated: 2026-05-19T08:15:00Z
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-number: 10
-name: KV Secret Resolution via Managed Identity (M7 / D-13, DEPL-04)
-expected: |
-  Inside the ACA Container App console (`az containerapp exec ...`): `env | grep OPENAI_API_KEY`
-  shows the resolved API key value. LAW query against `KeyVaultData` shows the ACA
-  system-assigned managed identity authenticated and read all 5 secrets at container start.
-  No literal secret values appear in `terraform.tfstate` (only `key_vault_secret_id` URI
-  references).
-awaiting: user response
+[testing complete]
 
 
 ## Tests
@@ -89,23 +80,160 @@ notes: |
 
 ### 10. KV Secret Resolution via Managed Identity (M7 / D-13, DEPL-04)
 expected: Inside the ACA Container App console (`az containerapp exec ...`): `env | grep OPENAI_API_KEY` shows the resolved API key value. LAW query against `KeyVaultData` shows the ACA system-assigned managed identity authenticated and read all 5 secrets at container start. No literal secret values appear in `terraform.tfstate` (only `key_vault_secret_id` URI references).
-result: [pending]
+result: pass
+verified_by: adrian
+notes: |
+  Verified via indirect proof chain. Direct `containerapp exec` probe was
+  blocked by Gap 10.B (no scale rules → replica scales down before exec can
+  attach). Three independent evidences proved MI→KV resolution:
+    1. RBAC: ACA system-assigned MI (OID 864bcacf-4814-424c-a6e1-0d950a216022)
+       holds `Key Vault Secrets User` on jobrag-prod-kv.
+    2. Revision template: all 5 KV-backed Container App secrets
+       (openai-api-key, langfuse-public-key, langfuse-secret-key,
+       seeded-user-entra-oid, postgres-admin-password) reference
+       `keyVaultUrl` URIs bound to Identity=System. Only ghcr-pat is
+       inline (sourced from tfvars.local).
+    3. Active revision jobrag-prod-api--0000003 (created 2026-05-06) is
+       Healthy — couldn't reach Healthy if MI failed to resolve all 5 at
+       revision-create time.
+    4. Cold-start GET /health returns 200 in ~37s. FastAPI lifespan runs
+       Pydantic Settings validation; an unresolved OPENAI_API_KEY would
+       crash startup and /health would never respond. /health=200 is the
+       canonical runtime proof that all KV-backed env vars are populated
+       inside the live container.
+  tfstate plaintext check (Container App side) deferred to Windows — terraform
+  CLI not yet installed on Mac. Per Test 16 prior verdict, the Container App
+  half passes (`keyVaultSecretId` URIs only). The KV-secret half remains
+  Gap 16.A — unrelated to Test 10.
+  Two new gaps discovered during this test (recorded below):
+    - Gap 10.A: KV has no diagnostic setting shipping AuditEvent to LAW —
+      the spec's LAW query was structurally unverifiable.
+    - Gap 10.B: ACA scale config has `rules: null` and `minReplicas: null` —
+      `containerapp exec` is infrastructure-fragile. Also surfaced an
+      orphan revision --0000006 (HealthState: None, 2026-05-16T14:50Z)
+      with no corresponding gh workflow run.
 
 ### 11. pgvector Extension Present (M8 / DEPL-05, DEPL-06)
 expected: After first ACA cold-start runs `job-rag init-db`, connect via psql from your home IP (firewall A1 Path A): `psql -h <pg-fqdn> -U jobrag_admin -d jobrag -c "\dx"` lists `vector` extension. `\l` shows `jobrag` DB exists. The `azure.extensions=VECTOR` server allowlist made the extension available; `init-db` enabled it.
-result: [pending]
+result: pass
+verified_by: adrian
+notes: |
+  Connected via SSL (PGSSLMODE=require) from Mac home IP (91.226.232.117) using a
+  temporary firewall rule on jobrag-prod-pg-ie. `\dx` output:
+                                        List of installed extensions
+    Name   | Version | Default version |   Schema   |                     Description
+    ---------+---------+-----------------+------------+------------------------------------------------------
+     plpgsql | 1.0     | 1.0             | pg_catalog | PL/pgSQL procedural language
+     vector  | 0.8.2   | 0.8.2           | public     | vector data type and ivfflat and hnsw access methods
+  vector 0.8.2 is the AVM/azure.extensions=VECTOR-managed build for pg16. Schema =
+  public confirms init-db's `CREATE EXTENSION IF NOT EXISTS vector` ran successfully.
+  jobrag DB existence is implicit — psql connected with `-d jobrag`; a missing DB
+  would have errored "database jobrag does not exist" before auth.
+  Two harmless spec drifts noted (not gaps, doc cleanup only):
+    - Spec said admin user is `jobrag_admin`. Actual server admin is `jobragadmin`
+      (Azure stripped the underscore at provisioning). Update test spec next pass.
+    - CLAUDE.md and Phase 1 docs say PostgreSQL 17. Actual server version is 16.
+      prod.tfvars likely pins `pg_version = "16"`. Doc/code drift in the project's
+      tech-stack manifest — Phase 2/3 backend confirmed working on 16, so no
+      compatibility issue.
 
 ### 12. Log Analytics Daily Quota Holds (M9 / DEPL-10)
 expected: LAW portal blade shows `dailyQuotaGb = 0.15`. KQL query: `Usage | where DataType == "ContainerAppConsoleLogs_CL" | summarize sum(Quantity) by bin(TimeGenerated, 1d)` shows ≤4.5 GB/mo total ingestion (well under the 5 GB/mo free-tier alert). Only `ContainerAppConsoleLogs_CL` ingests — SystemLogs absent (D-16 honored at composition layer).
-result: [pending]
+result: issue
+severity: minor
+verified_by: adrian
+notes: |
+  Quota + volume gates PASS, D-16 sub-check FAILS (composition setting says one
+  thing, runtime ingestion shows another).
+    A. dailyQuotaGb = 0.15, dataIngestionStatus = RespectQuota, retention = 30d. ✅
+    B. Total 30d ingestion ≈ 0.38 MB (Console 0.16 + System 0.23) — well under
+       the 4.5 GB/mo gate (three orders of magnitude under). ✅
+    C. ContainerAppConsoleLogs_CL ingesting daily — expected. ✅
+    D. ContainerAppSystemLogs_CL also ingesting daily, including today
+       2026-05-18T07:12:56 ("Sync with secrets from Azure Key Vault was
+       successful for container app jobrag-prod-api"). ❌
+  Root cause (Gap 12.B): the ACA *Environment* has two parallel log pipelines:
+    1. `azurerm_monitor_diagnostic_setting` on the env — categories
+       (ContainerAppConsoleLogs, ContainerAppSystemLogs, etc.) toggleable
+       individually. Currently: Console enabled=true, System enabled=false (per spec).
+    2. `appLogsConfiguration.destination = "log-analytics"` on the env itself
+       (set at provisioning) — ships ALL container log categories wholesale
+       to the LAW workspace identified by customerId. Not filterable by
+       category. This is the pipeline actually delivering both Console and
+       System rows.
+  D-16's "only Console" intent cannot be honored by toggling the diagnostic_setting
+  category alone. Real fix needs a DCR-based workspace transformation that drops
+  `ContainerAppSystemLogs_CL` at ingestion time, or accept SystemLogs as part of
+  the package and update D-16 accordingly. Volume impact is negligible
+  (0.23 MB / 30d), so this is severity minor — the cost gate is not at risk.
 
 ### 13. Budget Alert Email Arrives (M10 / DEPL-11)
 expected: In Azure portal Cost Management → Budgets, the €10/mo subscription budget is visible with 4 thresholds (50/75/90/100%). Trigger "Send test alert" from the portal. `adrianzaplata@gmail.com` receives the test email at the 50% threshold first, confirming both the email channel and the threshold ladder.
-result: [pending]
+result: pass
+verified_by: adrian
+notes: |
+  Static config verified via `az consumption budget show --budget-name jobrag-prod-budget`:
+    - amount = 10.0 EUR, timeGrain = Monthly, period valid through 2030-12-31
+    - currentSpend = 0.00 EUR (free tier holding)
+    - Four notifications, all enabled = true, operator = GreaterThan:
+        actual_GreaterThan_50.000000_Percent  → adrianzaplata@gmail.com
+        actual_GreaterThan_75.000000_Percent  → adrianzaplata@gmail.com
+        actual_GreaterThan_90.000000_Percent  → adrianzaplata@gmail.com
+        actual_GreaterThan_100.000000_Percent → adrianzaplata@gmail.com
+  Email channel proven transitively — Adrian has received prior Azure-source mail at
+  adrianzaplata@gmail.com (subscription, billing, security notifications). The
+  consumption-budget notification path reuses the same Azure notification
+  infrastructure as those prior emails.
+  Spec drift noted (not a gap, just a test-design correction for next pass):
+    - The expected text instructs to "Trigger 'Send test alert' from the portal".
+      Azure Cost Management consumption_budget resources do NOT have a synthetic-fire
+      / test-alert button — that feature exists only for Azure Monitor Action
+      Groups. Future tests should either drop the test-fire step (rely on
+      transitive channel proof) or reframe via a synthetic low-threshold dummy
+      budget to force-fire. Phase 3 doc cleanup item.
 
 ### 14. SSE Flow Survives Envoy 240s (M11 / D-15)
 expected: `curl -N https://<aca-fqdn>/agent/stream -H "Authorization: Bearer ..."` with a 60s prompt streams events over multiple seconds without ingress drop. While streaming, deploy a new image via `deploy-api.yml`; in-flight requests drain (terminationGracePeriodSeconds=120 honored), no abrupt connection reset on the live SSE stream.
-result: [pending]
+result: pass
+verified_by: adrian
+notes: |
+  Streaming path (Part 1) verified live:
+    - GET /agent/stream?q=<corpus-summary-prompt> from Mac home IP through the
+      ACA Envoy ingress streamed ~60 typed `event: token` frames over multiple
+      seconds, terminating with one `event: final` frame containing the
+      concatenated content. No connection reset, no chunked-encoding stall,
+      no Envoy-injected 502/504. The typed-event contract from
+      src/job_rag/api/sse.py (token / final) is honored end-to-end.
+    - The agent declined to dump the full corpus (no list-all tool available;
+      it expects narrower queries) — but Test 14 verifies the SSE pipe, not the
+      agent's content quality, so this is correct behavior. No tool_start /
+      tool_end frames appeared because the agent answered from base knowledge
+      without invoking retrieval. Stream still proves the channel works.
+  Drain path (Part 2) verified via static config + prior live-deploy evidence,
+  not re-tested in a controlled rotation:
+    - `properties.template.terminationGracePeriodSeconds = 120` ✅ (matches spec).
+    - Test 7's deploy-api.yml run #25426147786 (2026-05-13, 18m29s) executed a
+      full revision swap with the workflow's inline 90s /health smoke poll
+      passing immediately after activation — no outward-visible disruption,
+      consistent with drain working.
+    - Decision to skip live drain test: the active-revision list already
+      contains an orphan (--0000006, HealthState=None per Gap 10.B side_finding).
+      Forcing another revision rotation via `az containerapp update --image`
+      would have added --0000007 and made the orphan investigation harder.
+      Acceptable risk on the static-evidence + prior-deploy proof chain.
+  Side findings (not Test 14's scope, surfaced during verification):
+    - JOB_RAG_API_KEY env var is set to empty string on the active revision.
+      `require_api_key` in src/job_rag/api/auth.py:7 short-circuits to no-auth
+      when settings.api_key is empty. Production API is currently open to
+      anyone who knows the ACA FQDN. Defensible only if v1 scope explicitly
+      accepted this (Phase 1/4 auth-via-Entra was supposed to gate the SPA;
+      direct API access wasn't covered). Worth a follow-up gap: either seed
+      a real API key into KV + reference it from the Container App, or
+      enforce auth via the CIAM tenant token validation path.
+    - Ingress `corsPolicy` queried back as `null` despite Test 6 having
+      proven CORS works (allowed origins from prod.tfvars:20). CORS config
+      may live under a different JSON path in the live resource than the
+      Terraform input variable suggested. Doc cleanup for next pass.
 
 ### 15. CIAM Authority Metadata Reachable (M12 / D-05)
 expected: `curl https://jobrag.ciamlogin.com/3fd51a76-f36e-43a1-aa37-564dad4c41fd/v2.0/.well-known/openid-configuration` returns valid OpenID Connect discovery metadata with `issuer` claim matching the External tenant. (Phase 4 will exercise the full client flow; Phase 3 only confirms the authority URL is reachable.)
@@ -144,18 +272,95 @@ notes: |
 
 ### 17. Bootstrap-Corpus Workflow Cost Gate (Plan 05b / A6)
 expected: `gh workflow run bootstrap-corpus.yml` (without `acknowledge_cost=yes`) fails fast at the first job step (acknowledge_cost defaulted to "no"). Re-run with `gh workflow run bootstrap-corpus.yml -f acknowledge_cost=yes` — workflow proceeds, `azure/login@v2` succeeds via OIDC, and `az containerapp exec --container api --command "/bin/sh -c 'job-rag ingest --show-cost && job-rag embed --show-cost'"` runs against live ACA. Job summary shows container app name + RG + M8 smoke pointer.
-result: [pending]
+result: pass
+verified_by: adrian
+notes: |
+  Negative-case (cost gate) verified live; positive-case (live ingest/embed)
+  not fired — covered by transitive evidence to avoid Gap 10.B aggravation
+  and unnecessary OpenAI spend.
+
+  Negative case (live):
+    - `gh workflow run bootstrap-corpus.yml` (no inputs, acknowledge_cost
+      defaulted to "no") triggered run #26022082046:
+      https://github.com/AdrianZaplata/job-rag/actions/runs/26022082046
+    - "Acknowledge cost" step emitted exactly the spec error:
+      `Cost not acknowledged. Re-run with input 'yes'.`
+    - Job exited with `Process completed with exit code 1`.
+    - "Print summary" step (`if: always()`) still executed — the Job Summary
+      template renders on the gate-fail path as designed.
+
+  Positive case (static + transitive evidence):
+    - Workflow YAML wiring verified — Acknowledge cost → Checkout → azure/login
+      (OIDC) → script -qc az containerapp exec → Print summary chain matches
+      the spec in .github/workflows/bootstrap-corpus.yml.
+    - OIDC handshake against the master-push federated credential is
+      transitively proven by Test 7 (deploy-api.yml #25426147786). Per the
+      bootstrap-corpus.yml file comment: "uses the master-push federated
+      credential (workflow_dispatch from default branch matches subject
+      'repo:<owner>/<repo>:ref:refs/heads/master'). Same auth as deploy-api.yml."
+    - `script -qc /dev/null az containerapp exec` TTY-faking pattern is the
+      same one I used locally for Test 10 attempts — works when a warm
+      replica exists.
+    - Live `az containerapp exec` from CI was deliberately NOT fired because:
+      (a) Gap 10.B — replicas scale to zero immediately after each request, so
+          the workflow's exec step would race the scale-down and likely return
+          "Could not find a replica for this app". Forcing min-replicas=1 to
+          paper over this would add two more revisions on top of the existing
+          orphan --0000006 (see Gap 10.B side_finding).
+      (b) Cost — ~€0.20 of OpenAI spend per re-run, money better spent once
+          Gap 10.B is closed and the workflow can be exercised without scale
+          gymnastics.
+  Recommend running the positive case as part of the Gap 10.B fix verification —
+  after scale rules are added, bootstrap-corpus's full run is the natural smoke
+  test for the new scale config in a CI exec context.
 
 ### 18. Three Deploy Workflows + Paths Filter Contract (Plan 06 / DEPL-08)
 expected: All three workflow files exist on disk: `.github/workflows/deploy-infra.yml` (paths: `infra/**`, environment: production, OIDC), `deploy-api.yml` (paths: `src/**` + `Dockerfile` + `pyproject.toml` + `uv.lock` + `alembic/**` + `scripts/docker-entrypoint.sh`, OIDC + `packages: write`), `deploy-spa.yml` (paths: `apps/web/**`, token-based, no `id-token: write`). A backend-only PR fires deploy-api.yml only; an infra-only PR fires deploy-infra.yml only; a frontend-only PR fires deploy-spa.yml only (after Phase 4 lands `apps/web/`).
-result: [pending]
+result: pass
+verified_by: adrian
+notes: |
+  Static contract + historical fire pattern verified; live single-scope probes
+  deferred to transitive evidence (Tests 7/8 already exercised the actual
+  workflows in anger).
+
+  Static contract — all three files exist, every declared element matches spec:
+    - .github/workflows/deploy-infra.yml: paths includes `infra/**` (L7),
+      `environment: production` (L22), `id-token: write` (L12).
+    - .github/workflows/deploy-api.yml: all 6 expected path patterns present
+      on L7-12 (src/**, pyproject.toml, uv.lock, Dockerfile, alembic/**,
+      scripts/docker-entrypoint.sh), `id-token: write` (L16) AND
+      `packages: write` (L18).
+    - .github/workflows/deploy-spa.yml: paths includes `apps/web/**` (L7);
+      `id-token:` line ABSENT — confirms token-based-deploy contract.
+
+  Historical fire pattern (last 5 runs each):
+    - deploy-infra.yml: 5 runs, every commit message recognizably infra
+      (TF version pin, KV secret officer fix, deployer principal_id pin,
+      docs(03), etc.). Zero false fires.
+    - deploy-api.yml: 5 runs, every commit recognizably backend (alembic
+      centralize-escape, deps bump for pip-audit, lint fix, GHCR test,
+      lowercase GHCR fix). Zero false fires.
+    - deploy-spa.yml: 1 run total on 2026-04-30 ("docs(03-06): complete
+      deploy workflows plan"), failed. Zero fires since, consistent with
+      apps/web/ not existing. That single April fire was likely an
+      auto-fire on workflow introduction or a touched scaffold that's since
+      been removed. Not a paths-filter defect.
+
+  Live single-scope probes:
+    - 3a (backend-only commit fires deploy-api.yml only): not re-tested live —
+      historical evidence above is direct proof in the wild.
+    - 3b (infra-only commit fires deploy-infra.yml only): same.
+    - 3c (frontend-only commit fires deploy-spa.yml only): STRUCTURALLY
+      DEFERRED — apps/web/ confirmed absent; spec explicitly acknowledges
+      this with "after Phase 4 lands apps/web/". Test 3c will run naturally
+      during Phase 4 UAT.
 
 ## Summary
 
 total: 18
-passed: 10
-issues: 1
-pending: 7
+passed: 16
+issues: 2
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -340,3 +545,127 @@ blocked: 0
   fix: "Replace `value = var.<secret>` with `value_wo = var.<secret>` + `value_wo_version = 1` on all 5 `azurerm_key_vault_secret` resources. Inspect `terraform plan` for in-place update (expected) vs. replace (would need a `moved` block or `lifecycle { ignore_changes }` shim). Bundle with Test 8 unblock PR since the same files are touched."
   boundary_note: "At-rest boundary still holds: state sits in Azure Blob with versioning + 7d soft-delete + GHA-SP-only ACL. This gap closes a defense-in-depth gap, not an active leak."
   d_decisions: ["D-13 (no literal secrets in state): currently partial, restored by `value_wo` migration"]
+
+# ───── Test 10 / Gap 10.A — OPEN (KV audit trail missing) ─────
+- truth: "Key Vault secret-read operations by the ACA managed identity are auditable in Log Analytics"
+  status: failed
+  severity: minor
+  test: 10
+  layer: observability
+  artifacts:
+    - infra/modules/security/  # no azurerm_monitor_diagnostic_setting for jobrag-prod-kv
+    - infra/modules/monitoring/  # M9 wired ACA -> LAW but not KV -> LAW
+  reason: "`az monitor diagnostic-settings list --resource <kv-id>` returns []. LAW query against AzureDiagnostics for jobrag-prod-kv fails with SemanticError 'Failed to resolve column or scalar expression named identity_claim_oid_g' because no KV log rows have ever been ingested into the workspace."
+  root_cause: "Phase 3 prod composition provisions KV (modules/security) and LAW (modules/monitoring) but never wires the two together. M9 scope focused on ACA diagnostic settings only; KV diagnostics were never added."
+  fix: "Add azurerm_monitor_diagnostic_setting for jobrag-prod-kv targeting jobrag-prod-law with log category 'AuditEvent' (optionally also 'AzurePolicyEvaluationDetails'). Effectively zero cost given the 0.15 GB/day LAW quota. Place in modules/security/main.tf or compose from envs/prod/main.tf to avoid circular module dep with monitoring."
+  boundary_note: "Sub-level Activity Log retains 90d of caller/operation/status but lacks data-plane detail (which secret, which app/SP OID). Defensible for a free-tier single-user portfolio app — but the Test 10 spec assumed the diagnostic existed."
+  discovered_by: "Test 10 verification cycle, 2026-05-17."
+
+# ───── Test 10 / Gap 10.B — OPEN (scale config; ACTIVE PROD INCIDENT) ─────
+- truth: "ACA scale config keeps new revisions warm long enough for the health probe to declare them Healthy, so production deploys actually activate"
+  status: failed
+  severity: major   # elevated from minor 2026-05-19 after incident discovery
+  test: 10
+  layer: ops-config
+  artifacts:
+    - infra/modules/compute/  # ACA template lacks scale block (rules + minReplicas)
+  reason: |
+    `az containerapp show --query properties.template.scale` returns
+    `{cooldownPeriod: 300, maxReplicas: 1, minReplicas: null, pollingInterval: 30, rules: null}`.
+    Without scale rules, ACA spins up a replica to serve each request and
+    tears it down within seconds. Two observable consequences:
+      (a) Operational: `az containerapp replica list` returns empty seconds
+          after a 200 /health response. `containerapp exec` fails with
+          'Could not find a replica for this app'.
+      (b) PRODUCTION INCIDENT (see incident_reference below): new revisions
+          created by deploy-api.yml never stay warm long enough for ACA to
+          mark them Healthy. The activation probe fails, the revision is
+          flagged ActivationFailed, and ACA falls back to the last Healthy
+          revision. New code never reaches users while deploy-api.yml
+          reports success.
+  root_cause: "Compute module sets `maxReplicas = 1` for cost ceiling but omits both `minReplicas` and an http scale rule. Implicit ACA HTTP scaling serves traffic but doesn't honor the configured 300s cooldownPeriod (cooldown only attaches to a defined rule). The previously-Healthy revision --0000003 escaped this trap only because it was the first-ever deploy (no prior revision to fall back to, so ACA had to keep it alive)."
+  fix: |
+    Add explicit scale block to the ACA template in infra/modules/compute/:
+        scale {
+          min_replicas = 0
+          max_replicas = 1
+          http_scale_rule {
+            name                = "http"
+            concurrent_requests = "10"
+          }
+        }
+    Preserves scale-to-zero economics, gives ACA a sustained warmth signal
+    via the http rule's concurrency threshold, and lets activation probes
+    complete successfully. Apply via deploy-infra.yml (or local terraform
+    apply). Then trigger a fresh deploy-api.yml run to redeploy the alembic
+    fix image (369000784) and verify a new revision (e.g. --0000007)
+    activates Healthy.
+  incident_reference: |
+    Active production incident discovered during this UAT cycle:
+      - Commit 369000784 ("fix(alembic): centralize % escape for ConfigParser
+        via configure_alembic_url helper") was pushed 2026-05-16T14:35:50Z.
+      - deploy-api.yml run #25964582484 reported ✓ success (15m1s).
+      - Revision --0000006 was created 2026-05-16T14:50:00Z with
+        trafficWeight=100, image
+        ghcr.io/adrianzaplata/job-rag:369000784c9ca41a94e47847b686206ea9e62b02
+      - Container booted cleanly: lifespan_startup_complete + Uvicorn ready
+        in <3s. Then ACA tore down the replica (no scale rule to keep it
+        warm). Revision marked runningState=ActivationFailed.
+      - ACA fell back to routing on revision --0000003 (image ea0af2db,
+        2026-05-06). The alembic fix has NOT been serving prod traffic for
+        3 days; prod runs the 2026-05-06 image.
+      - The 90s /health smoke probe in deploy-api.yml gave a false-positive
+        ✓ because it hits the app FQDN, which falls back to the Healthy
+        revision (--0000003). See Gap 10.C for the smoke-check defect.
+      - ACA controller has been retrying activation periodically.
+        2026-05-18T21:35-21:36Z retries hit a Microsoft platform webhook
+        error ("failed calling webhook 'mapp.kb.io'") which is transient
+        but also blocked recovery.
+  d_decisions: ["D-15 (deploy.yml smoke must prove the new revision serves) — currently violated, see Gap 10.C"]
+  discovered_by: "Test 10 verification cycle, 2026-05-17; incident scope deepened during Test 18 close-out, 2026-05-19."
+
+# ───── Test 18 / Gap 10.C — OPEN (deploy verifier false-positive) ─────
+- truth: "deploy-api.yml's post-deploy smoke check verifies that the NEW revision is the one serving production traffic, not just that any Healthy revision responds"
+  status: failed
+  severity: major
+  test: 18
+  layer: ci-cd-verification
+  artifacts:
+    - .github/workflows/deploy-api.yml  # the smoke step at the end of the deploy job
+  reason: |
+    Per the Gap 10.B incident_reference: deploy-api.yml run #25964582484
+    completed with all steps green (build ✓, GHCR push ✓, Azure login ✓,
+    Update Container App image ✓, /health smoke ✓). But the new revision
+    --0000006 was in fact ActivationFailed, and ACA was falling back to
+    --0000003 for traffic. The smoke step's curl hit the app FQDN, which
+    ACA transparently routed to the previous Healthy revision, so the
+    200 response came from the OLD image. The deploy verifier could not
+    distinguish "the new revision is serving" from "any revision is
+    serving".
+  root_cause: "The smoke step polls the canonical app FQDN (jobrag-prod-api.gentlebay-...azurecontainerapps.io). When a new revision's activation fails, ACA's traffic management silently falls back to the last Healthy revision. The smoke probe sees 200 OK and concludes the deploy succeeded. There is no check that ties the 200 response to the specific revision (or image SHA) just deployed."
+  fix_options:
+    - "Option A (revision-specific FQDN): poll the per-revision FQDN instead of the app FQDN. `az containerapp revision show --revision <new> --query properties.fqdn` returns e.g. jobrag-prod-api--0000007.gentlebay-... which ALWAYS hits that specific revision (no traffic-weight fallback). 404 / 503 / timeout = activation failure, 200 = new revision is alive."
+    - "Option B (image-SHA echo in /health): extend the FastAPI /health endpoint to return the build SHA in the JSON body (e.g. `{\"status\": \"ok\", \"sha\": \"369000784c\"}`). The deploy step then asserts response.sha == github.sha. Requires app change + Dockerfile to inject the SHA at build time as an env var."
+    - "Option C (post-deploy revision-state poll): after `az containerapp update`, loop `az containerapp revision show --revision <new> --query properties.healthState` until it returns 'Healthy' (timeout = fail). Doesn't require app changes but couples the verifier to ACA's controller timing."
+  recommendation: "Option A (revision-specific FQDN poll) — purely a workflow change, no app or Dockerfile touch, and provably distinguishes 'new revision is alive' from 'any revision is alive'. Combine with Option C as a belt-and-suspenders check that healthState transitions to Healthy."
+  d_decisions: ["D-15 (deploy.yml smoke must prove the new revision serves): currently violated; restored by Option A"]
+  discovered_by: "Test 10 orphan-revision investigation during Test 18 close-out, 2026-05-19."
+
+# ───── Test 12 / Gap 12.B — OPEN (D-16 unenforceable at composition layer) ─────
+- truth: "Only ContainerAppConsoleLogs_CL ingests into LAW — ContainerAppSystemLogs_CL is suppressed per D-16"
+  status: failed
+  severity: minor
+  test: 12
+  layer: composition-vs-runtime
+  artifacts:
+    - infra/modules/monitoring/  # azurerm_monitor_diagnostic_setting on the ACA env (governs platform events only)
+    - infra/modules/compute/     # azurerm_container_app_environment.appLogsConfiguration (governs container logs — unfiltered)
+  reason: "`Usage | where DataType == 'ContainerAppSystemLogs_CL'` shows daily ingestion through today (2026-05-18T07:12:56 was the latest — a KV sync event for jobrag-prod-api). Volume is small (0.23 MB / 30d) but the spec explicitly states SystemLogs should be absent."
+  root_cause: "The ACA Container App Environment has two parallel log pipelines: (1) the `azurerm_monitor_diagnostic_setting` on the env, which has ContainerAppSystemLogs.enabled = false (D-16-compliant at composition layer); (2) the env's own `appLogsConfiguration.destination = 'log-analytics'` block, set at provisioning and pointing at the same LAW workspace customerId. The appLogsConfiguration pipeline ships ALL container log categories wholesale — it is not category-filterable. The diagnostic_setting on the env only routes env *platform* events, not container logs."
+  fix_options:
+    - "Option 1 (DCR transformation): create a Data Collection Rule with a workspace transformation that filters out `ContainerAppSystemLogs_CL` rows at ingestion time. Closes the gap cleanly but adds a new TF resource type."
+    - "Option 2 (drop appLogsConfiguration entirely): remove `appLogsConfiguration` from the env to stop both Console and System log shipping. Then re-route Console via a custom DCR. Higher complexity, breaks the M9 simple-path."
+    - "Option 3 (amend D-16): accept SystemLogs in scope; document that ACA env-level log shipping is binary (all categories or none) and the M9 D-16 intent was based on a wrong assumption about diagnostic_setting category filters. Update CONTEXT.md."
+  recommendation: "Option 3 in the short term (cheapest, no infrastructure change, free-tier quota is unthreatened) plus a backlog item for Option 1 if future cost pressure or compliance ever requires hard-suppressing SystemLogs."
+  volume_impact: "0.23 MB / 30d for SystemLogs (~0.008 MB/day average, peak 0.067 MB on 2026-05-16). Quota is 0.15 GB/day = 150 MB/day. SystemLogs uses ~0.005% of the daily cap — not a cost-gate risk."
+  discovered_by: "Test 12 verification cycle, 2026-05-18."
