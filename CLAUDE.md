@@ -9,7 +9,7 @@ A private web app that productizes the existing job-rag backend (Python 3.12 / F
 
 ### Constraints
 
-- **Tech stack (frozen)**: Python 3.12, FastAPI, LangGraph 1.1.x, PostgreSQL 17 + pgvector, SQLAlchemy 2.x async, Instructor, OpenAI SDK. The backend stack is inherited; this milestone doesn't introduce new backend frameworks.
+- **Tech stack (frozen)**: Python 3.12, FastAPI, LangGraph 1.1.x, PostgreSQL (local dev: 17 via `pgvector/pgvector:pg17`, prod: 16 on Azure Postgres Flex per `infra/modules/database/main.tf:60`) + pgvector, SQLAlchemy 2.x async, Instructor, OpenAI SDK. The backend stack is inherited; this milestone doesn't introduce new backend frameworks.
 - **Frontend stack (chosen)**: Vite + React 18+ + TypeScript, Tailwind CSS, shadcn/ui, MSAL React for Entra ID. Pure SPA — no SSR.
 - **Cloud provider (chosen)**: Azure only. No multi-cloud.
 - **Budget**: target €0/month on Azure free tier for year 1; ≤ €20/month year 2 (via DB stop + scale-to-zero).
@@ -93,9 +93,9 @@ A private web app that productizes the existing job-rag backend (Python 3.12 / F
 ## Platform Requirements
 - Python 3.12+
 - uv package manager
-- PostgreSQL 17 (or pgvector/pgvector:pg17 Docker image)
+- PostgreSQL: local dev runs 17 via `pgvector/pgvector:pg17` (docker-compose.yml:3); prod runs 16 (Azure Postgres Flex, pinned in `infra/modules/database/main.tf:60`). Application code targets both.
 - Docker with Docker Compose
-- PostgreSQL 17 with pgvector extension enabled (via `CREATE EXTENSION IF NOT EXISTS vector`)
+- pgvector extension enabled on whichever PG major is in use (via `CREATE EXTENSION IF NOT EXISTS vector`)
 - OPENAI_API_KEY required (secrets managed outside container)
 - FastAPI runs on `0.0.0.0:8000` (Uvicorn in docker-entrypoint)
 - Database runs on port 5432 (PostgreSQL in Docker, not exposed to host)
