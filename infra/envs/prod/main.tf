@@ -238,6 +238,33 @@ resource "azurerm_monitor_diagnostic_setting" "aca" {
   # NOTE: ContainerAppSystemLogs intentionally omitted per D-16.
 }
 
+# ─── KV diagnostic setting (Gap 10.A: KV -> LAW audit pipe) ───────────────────
+# Wires Key Vault secret-read operations into LAW so the ACA managed identity's
+# secret access is auditable. Without this, `az monitor diagnostic-settings list
+# --resource <kv-id>` returns empty and any LAW KQL query against AzureDiagnostics
+# for jobrag-prod-kv has nothing to return.
+#
+# Placed at the composition layer for the same reason as azurerm_monitor_diagnostic_setting.aca:
+# the diagnostic_setting needs both module.kv.kv_id AND module.monitoring.workspace_id,
+# which only exist together at this layer. Folding into infra/modules/kv/ would
+# require the kv module to take a workspace_id input, breaking the existing
+# "monitoring module depends on nothing; kv module depends on nothing" boundary.
+#
+# log category 'AuditEvent' captures every secret read/write + role assignment
+# change. Volume impact: trivial — ACA cold-start reads 5 secrets once per revision
+# activation. LAW daily quota is 0.15 GB/day; KV audit rows are ~1 KB each; even
+# with 100 reads/day the cost is approximately 0.0001% of the daily cap.
+
+resource "azurerm_monitor_diagnostic_setting" "kv" {
+  name                       = "${local.prefix}-kv-diag"
+  target_resource_id         = module.kv.kv_id
+  log_analytics_workspace_id = module.monitoring.workspace_id
+
+  enabled_log {
+    category = "AuditEvent"
+  }
+}
+
 # ─── Static Web App (raw — D-03 single-resource, no AVM) ──────────────────────
 
 resource "azurerm_static_web_app" "spa" {
