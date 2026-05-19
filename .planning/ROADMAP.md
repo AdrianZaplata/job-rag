@@ -80,7 +80,7 @@ Plans:
   4. `deploy-infra.yml`, `deploy-api.yml`, `deploy-spa.yml` each authenticate via OIDC federated credential (no long-lived secrets except the SWA deployment token), use resource-group-scoped Contributor (never subscription-scoped), and their `paths` filters mean a frontend-only PR doesn't fire the infra workflow (DEPL-08, DEPL-09)
   5. A hello-world container image pushed to GHCR (not ACR Basic) and referenced by the Container App is reachable at the ACA FQDN over HTTPS (DEPL-07)
 **Cost delta**: ~€0/mo target (Azure free tier + B1ms free-12-months + SWA Free + LAW 5 GB free); €10/mo budget alert as the hard ceiling
-**Plans**: 8 plans (split per W4: Plan 05 → 05a + 05b)
+**Plans**: 9 plans (split per W4: Plan 05 → 05a + 05b; Plan 08 added as gap-closure post-UAT)
 Plans:
 - [x] 03-01-PLAN.md — Wave 0 validation scaffolding: tflint.hcl + tfsec config + runbook skeletons + scripts/refresh-swa-origin.sh + .github/workflows/static-tf.yml + .gitignore TF block (DEPL-01/02/12 setup)
 - [x] 03-02-PLAN.md — Bootstrap module: infra/bootstrap/ with state-storage RG + storage + container + External tenant import path; documents portal click-path for D-05 manual tenant creation (DEPL-01)
@@ -90,6 +90,7 @@ Plans:
 - [x] 03-05b-PLAN.md — Dev scaffold + entrypoint update + bootstrap-corpus workflow: envs/dev mirrors prod as scaffold-only per D-04; scripts/docker-entrypoint.sh runs ONLY init-db + uvicorn per B4 (corpus ingest/embed REMOVED); .github/workflows/bootstrap-corpus.yml ships as workflow_dispatch-only one-shot per A6 (DEPL-01/02)
 - [x] 03-06-PLAN.md — GHA deploy workflows: deploy-infra.yml (OIDC + environment:production gate + B2 manual SWA-token-sync runbook reminder via summary, NO `gh secret set` step), deploy-api.yml (OIDC + docker/build-push-action@v6 to GHCR + az containerapp update + B3 visibility comment), deploy-spa.yml (sole non-OIDC, uses AZURE_STATIC_WEB_APPS_API_TOKEN_PROD) (DEPL-07/08/09)
 - [ ] 03-07-PLAN.md — Live-Azure smoke runbook: M1–M13 from VALIDATION.md against applied prod stack; produces 03-SMOKE.md with evidence covering all 12 DEPL-* requirements + 8 T-3-* threat verifications; autonomous: false because verification requires real Azure resources
+- [ ] 03-08-PLAN.md — Post-UAT gap closure (Wave 5): Gap 16.A (5 azurerm_key_vault_secret resources -> value_wo + value_wo_version=1, restores D-13 from partial to full) + Gap 10.A (new azurerm_monitor_diagnostic_setting.kv -> LAW AuditEvent pipe) + Gap 12.B (D-16 amendment in CONTEXT.md + Deferred entry for DCR-based filtering + Knowingly-Accepted row in prod README); autonomous: false because terraform apply against live prod must run from Adrian's local az login (DEPL-04, DEPL-10)
 
 ### Phase 4: Frontend Shell + Auth
 **Goal**: Phase 4 ships a logged-in-end-to-end SPA when the Vite+React shell loads from SWA, Entra login completes a real round-trip, and the FastAPI `/health` endpoint returns 200 only when called with a valid Entra-issued Bearer JWT — with Adrian's `oid` as the single permitted user.
