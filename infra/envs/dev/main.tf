@@ -107,11 +107,12 @@ module "database" {
 # applied to dev for parity even though dev is scaffold-only (D-04).
 
 resource "azurerm_key_vault_secret" "openai_api_key" {
-  name         = "openai-api-key"
-  value        = "managed-out-of-band"
-  key_vault_id = module.kv.kv_id
-  content_type = "text/plain"
-  depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+  name             = "openai-api-key"
+  value_wo         = "managed-out-of-band"
+  value_wo_version = 1
+  key_vault_id     = module.kv.kv_id
+  content_type     = "text/plain"
+  depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
     ignore_changes = [value]
@@ -119,11 +120,12 @@ resource "azurerm_key_vault_secret" "openai_api_key" {
 }
 
 resource "azurerm_key_vault_secret" "langfuse_public_key" {
-  name         = "langfuse-public-key"
-  value        = "managed-out-of-band"
-  key_vault_id = module.kv.kv_id
-  content_type = "text/plain"
-  depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+  name             = "langfuse-public-key"
+  value_wo         = "managed-out-of-band"
+  value_wo_version = 1
+  key_vault_id     = module.kv.kv_id
+  content_type     = "text/plain"
+  depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
     ignore_changes = [value]
@@ -131,11 +133,12 @@ resource "azurerm_key_vault_secret" "langfuse_public_key" {
 }
 
 resource "azurerm_key_vault_secret" "langfuse_secret_key" {
-  name         = "langfuse-secret-key"
-  value        = "managed-out-of-band"
-  key_vault_id = module.kv.kv_id
-  content_type = "text/plain"
-  depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+  name             = "langfuse-secret-key"
+  value_wo         = "managed-out-of-band"
+  value_wo_version = 1
+  key_vault_id     = module.kv.kv_id
+  content_type     = "text/plain"
+  depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
     ignore_changes = [value]
@@ -143,11 +146,12 @@ resource "azurerm_key_vault_secret" "langfuse_secret_key" {
 }
 
 resource "azurerm_key_vault_secret" "seeded_user_entra_oid" {
-  name         = "seeded-user-entra-oid"
-  value        = var.seeded_user_entra_oid
-  key_vault_id = module.kv.kv_id
-  content_type = "text/plain"
-  depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+  name             = "seeded-user-entra-oid"
+  value_wo         = var.seeded_user_entra_oid
+  value_wo_version = 1
+  key_vault_id     = module.kv.kv_id
+  content_type     = "text/plain"
+  depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 }
 
 # ─── Compute (Container App) ──────────────────────────────────────────────────
@@ -193,9 +197,9 @@ resource "azurerm_monitor_diagnostic_setting" "aca" {
   log_analytics_workspace_id = module.monitoring.workspace_id
 
   enabled_log {
-    category = "ContainerAppConsoleLogs_CL"
+    category = "ContainerAppConsoleLogs" # drop _CL suffix; that suffix is the LAW table name, not the category
   }
-  # NOTE: ContainerAppSystemLogs_CL intentionally omitted per D-16.
+  # NOTE: ContainerAppSystemLogs intentionally omitted per D-16.
 }
 
 # ─── Static Web App (raw — D-03 single-resource, no AVM) ──────────────────────

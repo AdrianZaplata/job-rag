@@ -38,16 +38,20 @@ Per CONTEXT.md A5: confirm `server_configuration` shape on first apply by runnin
 
 ## Home IP refresh runbook
 
-Adrian's home IP rotates with ISP DHCP cycles. To refresh:
+Adrian's home IP rotates with ISP DHCP cycles. The value lives in `terraform.tfvars.local`
+(gitignored) to keep residential IP / ISP / geolocation data out of the public commit
+history. To refresh:
 
 ```bash
 # Get current public IP
 curl -s ifconfig.me
 
-# Update the value in infra/envs/prod/prod.tfvars
-sed -i.bak "s|^home_ip.*|home_ip = \"$(curl -s ifconfig.me)\"|" infra/envs/prod/prod.tfvars
+# Update the value in infra/envs/prod/terraform.tfvars.local (gitignored — NOT in the repo)
+sed -i.bak "s|^home_ip.*|home_ip = \"$(curl -s ifconfig.me)\"|" infra/envs/prod/terraform.tfvars.local
+rm -f infra/envs/prod/terraform.tfvars.local.bak
 
-# Re-apply (only the firewall_rules.home rule changes)
+# Re-apply (only the firewall_rules.home rule changes).
+# Terraform auto-loads terraform.tfvars.local alongside the explicit prod.tfvars var-file.
 cd infra/envs/prod && terraform apply -var-file=prod.tfvars
 ```
 
