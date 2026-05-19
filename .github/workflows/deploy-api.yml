@@ -75,20 +75,94 @@ jobs:
             --resource-group jobrag-prod-rg \
             --image "ghcr.io/${{ steps.repo.outputs.lc }}:${{ github.sha }}"
 
-      - name: Smoke /health after revision swap
+      - name: Smoke new revision (per-revision FQDN + runningState)
         run: |
-          # Wait up to 90s for the new revision to be active and reachable.
-          ACA_FQDN="$(az containerapp show \
+          set -euo pipefail
+          # UAT Gap 10.C fix (incident: run #25964582484, 2026-05-16): the previous
+          # smoke step polled the canonical app FQDN, which ACA silently routes to the
+          # last Healthy revision if the new one ActivationFailed. That shipped a
+          # false-positive green while prod kept serving a 10-day-old image.
+          #
+          # This step pins both probes to the NEW revision:
+          #   (A) curl the per-revision FQDN (e.g. jobrag-prod-api--0000007.gentlebay-...)
+          #   (B) poll properties.runningState; ActivationFailed/Failed = terminal exit 1
+          # Both signals must be green (HTTP 200 + runningState=Running) to succeed.
+          # Total budget: 150s (30 iterations x 5s) — fits the 120-180s window.
+
+          # 1) Resolve the NEW revision name (latest by createdTime). Fall back to
+          #    the legacy latestRevisionName query if the list lookup returns empty,
+          #    and loudly warn so the fallback path is visible in workflow logs.
+          NEW_REVISION="$(az containerapp revision list \
             --name jobrag-prod-api \
             --resource-group jobrag-prod-rg \
-            --query properties.configuration.ingress.fqdn -o tsv)"
+            --query "[?properties.createdTime != null] | sort_by(@, &properties.createdTime)[-1].name" \
+            -o tsv)"
+          if [ -z "$NEW_REVISION" ]; then
+            echo "WARN: revision-list lookup failed, using latestRevisionName fallback"
+            NEW_REVISION="$(az containerapp show \
+              --name jobrag-prod-api \
+              --resource-group jobrag-prod-rg \
+              --query properties.latestRevisionName -o tsv)"
+          fi
+          if [ -z "$NEW_REVISION" ]; then
+            echo "FATAL: could not resolve new revision name from either lookup"
+            exit 1
+          fi
 
-          for i in {1..18}; do
-            if curl -fs --max-time 5 "https://${ACA_FQDN}/health" >/dev/null; then
-              echo "Health check passed after $((i*5))s"
-              exit 0
+          # 2) Resolve the per-revision FQDN. Empty = fatal (can't probe what we
+          #    can't address).
+          REV_FQDN="$(az containerapp revision show \
+            --name jobrag-prod-api \
+            --resource-group jobrag-prod-rg \
+            --revision "$NEW_REVISION" \
+            --query properties.fqdn -o tsv)"
+          if [ -z "$REV_FQDN" ]; then
+            echo "FATAL: per-revision FQDN is empty for revision $NEW_REVISION"
+            exit 1
+          fi
+
+          # 3) Echo forensic anchors BEFORE polling — any future incident triage
+          #    starts from these two lines in the run log.
+          IMAGE_TAG="ghcr.io/${{ steps.repo.outputs.lc }}:${{ github.sha }}"
+          echo "Smoke target revision: $NEW_REVISION"
+          echo "Smoke target FQDN:     $REV_FQDN"
+          echo "Smoke target image:    $IMAGE_TAG"
+
+          # 4) Poll loop: 30 iterations x 5s = 150s total budget.
+          STATE=""
+          for i in $(seq 1 30); do
+            STATE="$(az containerapp revision show \
+              --name jobrag-prod-api \
+              --resource-group jobrag-prod-rg \
+              --revision "$NEW_REVISION" \
+              --query properties.runningState -o tsv)"
+
+            # 4a) Terminal failure states — stop immediately, don't burn budget.
+            if [ "$STATE" = "ActivationFailed" ] || [ "$STATE" = "Failed" ]; then
+              echo "FATAL: revision $NEW_REVISION entered terminal state '$STATE'"
+              echo "       image: $IMAGE_TAG"
+              echo "       elapsed: $((i*5))s"
+              exit 1
             fi
+
+            # 4b) Health probe against per-revision FQDN. Both HTTP 200 AND
+            #     runningState=Running must hold before we declare success.
+            if curl -fs --max-time 5 "https://${REV_FQDN}/health" >/dev/null; then
+              if [ "$STATE" = "Running" ]; then
+                echo "Smoke passed after $((i*5))s — revision $NEW_REVISION is Running and serving /health 200"
+                exit 0
+              fi
+              echo "Iteration $i: /health 200 but runningState='$STATE' — continuing to poll"
+            else
+              echo "Iteration $i: /health not yet ready, runningState='$STATE'"
+            fi
+
             sleep 5
           done
-          echo "Health check did not pass after 90s — revision may be unhealthy"
+
+          # 5) Budget exhausted — fail loudly with the last observed state.
+          echo "FATAL: smoke check did not pass after 150s"
+          echo "       revision: $NEW_REVISION"
+          echo "       image:    $IMAGE_TAG"
+          echo "       last observed runningState: '$STATE'"
           exit 1
