@@ -13,12 +13,20 @@
 set -euo pipefail
 cd "$(dirname "$0")/../infra/envs/prod"
 
-# Read SWA default host name from terraform state (must come from a TF output)
-SWA_ORIGIN="https://$(terraform output -raw swa_default_origin)"
+# Read SWA default host name from terraform state (must come from a TF output).
+# Validate the output is non-empty before string-templating — otherwise we'd
+# silently write `swa_origin = "https://"` and pass a broken value to apply.
+SWA_HOST="$(terraform output -raw swa_default_origin)"
+if [ -z "$SWA_HOST" ]; then
+  echo "FATAL: terraform output swa_default_origin returned empty" >&2
+  exit 1
+fi
+SWA_ORIGIN="https://${SWA_HOST}"
 
 # Re-write prod.tfvars in place
 if grep -q '^swa_origin' prod.tfvars; then
   sed -i.bak "s|^swa_origin.*|swa_origin = \"$SWA_ORIGIN\"|" prod.tfvars
+  rm -f prod.tfvars.bak # cleanup; macOS sed leaves a .bak we don't need
 else
   echo "swa_origin = \"$SWA_ORIGIN\"" >> prod.tfvars
 fi
