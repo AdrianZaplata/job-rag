@@ -34,3 +34,7 @@ infra/envs/*/.terraform.lock.hcl
 infra/envs/*/errored.tfstate
 infra/envs/*/*-apply.log
 
+
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
