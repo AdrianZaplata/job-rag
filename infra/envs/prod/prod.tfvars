@@ -19,8 +19,10 @@ github_repo  = "job-rag"
 # Second apply (after scripts/refresh-swa-origin.sh): script rewrites to "https://<swa-default>".
 swa_origin = "https://witty-flower-065dac003.7.azurestaticapps.net"
 
-# Postgres firewall — Adrian's home IP (refresh via runbook in modules/database/README.md)
-home_ip = "79.228.31.2"
+# Postgres firewall — Adrian's home IP lives in terraform.tfvars.local (gitignored)
+# to keep ISP/geolocation OPSEC data out of the public commit history. Variable has
+# no default, so `terraform apply` fails loudly if absent. Refresh runbook lives in
+# modules/database/README.md and mutates terraform.tfvars.local.
 
 # GHCR
 ghcr_username = "adrianzaplata"
@@ -37,7 +39,7 @@ tfstate_resource_group_name  = "jobrag-tfstate-rg"
 tfstate_container_name       = "tfstate"
 
 # Application IDs
-seeded_user_id        = "00000000-0000-0000-0000-000000000001"             # Phase 1 D-08 SEEDED_USER_ID
+seeded_user_id        = "00000000-0000-0000-0000-000000000001" # Phase 1 D-08 SEEDED_USER_ID
 seeded_user_entra_oid = "00000000-0000-0000-0000-000000000000" # Phase 4 fills after first login
 
 # Human deployer (Adrian) user OID for KV Secrets Officer assignment.
