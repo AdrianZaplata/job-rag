@@ -165,6 +165,15 @@ resource "azurerm_container_app" "api" {
         value = var.seeded_user_id # Adrian's UUID per Phase 1 D-08
       }
     }
+
+    http_scale_rule {
+      # Without an explicit rule, ACA tears replicas down between requests,
+      # so new revisions never stay warm long enough for the activation
+      # probe to declare Healthy — deploys silently fall back to the last
+      # Healthy revision while CI reports success.
+      name                = "http"
+      concurrent_requests = "10"
+    }
   }
 
   tags = var.tags
