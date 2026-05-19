@@ -3,7 +3,7 @@ status: complete
 phase: 03-infrastructure-ci-cd
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05a-SUMMARY.md, 03-05b-SUMMARY.md, 03-06-SUMMARY.md]
 started: 2026-05-05T00:00:00Z
-updated: 2026-05-19T08:15:00Z
+updated: 2026-05-19T13:00:00Z
 ---
 
 ## Current Test
@@ -139,8 +139,8 @@ notes: |
 
 ### 12. Log Analytics Daily Quota Holds (M9 / DEPL-10)
 expected: LAW portal blade shows `dailyQuotaGb = 0.15`. KQL query: `Usage | where DataType == "ContainerAppConsoleLogs_CL" | summarize sum(Quantity) by bin(TimeGenerated, 1d)` shows ≤4.5 GB/mo total ingestion (well under the 5 GB/mo free-tier alert). Only `ContainerAppConsoleLogs_CL` ingests — SystemLogs absent (D-16 honored at composition layer).
-result: issue
-severity: minor
+result: pass
+resolution: "Gap 12.B closed via Plan 03-08 Tasks 5+6 (Option 3 — documentation-only). D-16 amended in 03-CONTEXT.md to acknowledge ACA env-level log shipping is binary (appLogsConfiguration is not category-filterable); Knowingly-Accepted Trade-offs row added to infra/envs/prod/README.md; DCR-based filtering recorded as Deferred Idea (Option 1) for future compliance/cost pressure. Volume impact remains ~0.005% of daily cap."
 verified_by: adrian
 notes: |
   Quota + volume gates PASS, D-16 sub-check FAILS (composition setting says one
@@ -252,8 +252,8 @@ notes: |
 
 ### 16. tfstate Has No Literal Secrets (M13 / D-13, security)
 expected: `cd infra/envs/prod && terraform state pull | jq '.. | select(type=="string") | select(test("sk-"))'` returns empty. Searching for OpenAI/Langfuse key prefixes finds nothing in state. Container App secrets appear only as `key_vault_secret_id` URIs, never literal values.
-result: issue
-severity: minor
+result: pass
+resolution: "Gap 16.A closed via Plan 03-08 Tasks 1+2 (migrated all 5 azurerm_key_vault_secret resources to value_wo + value_wo_version=1). Applied in-place 2026-05-19 (Outcome A — 1 add, 5 change, 0 destroy). Live verification: `terraform state pull | jq '.. | select(type==\"string\") | select(test(\"^sk-\"))'` returns empty; D-13 restored from 'partial' to 'full'."
 verified_by: adrian
 notes: |
   Container App half of the test passes: secret blocks reference KV via
@@ -358,11 +358,12 @@ notes: |
 ## Summary
 
 total: 18
-passed: 16
-issues: 2
+passed: 18
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
+resolution_note: "16 PASS / 2 ISSUE -> 18 PASS / 0 ISSUE on 2026-05-19 via Plan 03-08. Gap 16.A (Test 16) + Gap 10.A (Test 10 sub-check) + Gap 12.B (Test 12 sub-check) all closed. Tests 10 + 12 retain their PASS evidence; Test 16 PASS now reflects the value_wo migration."
 
 ## Gaps
 
@@ -528,9 +529,9 @@ blocked: 0
   verified_by: "Run #25825087050: apply completed; ghcr-pat secret block rebuilt with valid value; ACA accepted the update."
   follow_up: "README rotation table (prod/README.md:188) documents the 90-day local-apply rotation but does not yet mention the parallel 'gh secret set GHCR_PAT' step CI needs. Track as a small doc patch."
 
-# ───── Test 16 / Gap 16.A: OPEN (TF state secret leakage) ─────
+# ───── Test 16 / Gap 16.A: RESOLVED (TF state secret leakage) ─────
 - truth: "Terraform state contains no literal plaintext for OpenAI / Langfuse API keys"
-  status: failed
+  status: resolved
   severity: minor
   test: 16
   layer: provisioning
@@ -543,21 +544,48 @@ blocked: 0
   reason: "`terraform state pull | Select-String 'sk-'` returns two literal hits inside `azurerm_key_vault_secret.{openai_api_key,langfuse_secret_key}.value`. Container App half of Test 16 passes (secrets referenced via `key_vault_secret_id` URIs, no literals)."
   root_cause: "AzureRM provider stores `azurerm_key_vault_secret.value` as a literal in state for drift detection. Mitigated when `value_wo` / `value_wo_version` (TF 1.11+ write-only attributes) are used instead, but those fields are currently null."
   fix: "Replace `value = var.<secret>` with `value_wo = var.<secret>` + `value_wo_version = 1` on all 5 `azurerm_key_vault_secret` resources. Inspect `terraform plan` for in-place update (expected) vs. replace (would need a `moved` block or `lifecycle { ignore_changes }` shim). Bundle with Test 8 unblock PR since the same files are touched."
+  fix_commit: "38f06eb (migrate 4 envs/prod KV secrets to value_wo) + 6e31522 (migrate pg_admin_password to value_wo). Plan 03-08 Tasks 1+2. Applied in-place by Adrian on 2026-05-19 — `Plan: 1 to add, 5 to change, 0 to destroy.` (Outcome A — no replaces, no destroys)."
+  verified_by: |
+    Adrian (2026-05-19, post terraform apply). Live verification:
+      - `terraform state pull | jq '.. | select(type=="string") | select(test("^sk-"))'` returns empty.
+      - Original UAT command `terraform state pull | grep -E "(sk-[A-Za-z0-9_-]{20,})" | head -5` also empty.
+    D-13 restored from "partial" to "full" — no literal sk-* strings remain in state.
   boundary_note: "At-rest boundary still holds: state sits in Azure Blob with versioning + 7d soft-delete + GHA-SP-only ACL. This gap closes a defense-in-depth gap, not an active leak."
-  d_decisions: ["D-13 (no literal secrets in state): currently partial, restored by `value_wo` migration"]
+  d_decisions: ["D-13 (no literal secrets in state): restored to 'full' by `value_wo` migration"]
 
-# ───── Test 10 / Gap 10.A — OPEN (KV audit trail missing) ─────
+# ───── Test 10 / Gap 10.A — RESOLVED (KV audit trail missing) ─────
 - truth: "Key Vault secret-read operations by the ACA managed identity are auditable in Log Analytics"
-  status: failed
+  status: resolved
   severity: minor
   test: 10
   layer: observability
   artifacts:
-    - infra/modules/security/  # no azurerm_monitor_diagnostic_setting for jobrag-prod-kv
-    - infra/modules/monitoring/  # M9 wired ACA -> LAW but not KV -> LAW
+    - infra/envs/prod/main.tf  # azurerm_monitor_diagnostic_setting.kv added at composition layer
+    - infra/modules/monitoring/  # M9 wired ACA -> LAW; KV -> LAW now wired at composition (not module)
   reason: "`az monitor diagnostic-settings list --resource <kv-id>` returns []. LAW query against AzureDiagnostics for jobrag-prod-kv fails with SemanticError 'Failed to resolve column or scalar expression named identity_claim_oid_g' because no KV log rows have ever been ingested into the workspace."
   root_cause: "Phase 3 prod composition provisions KV (modules/security) and LAW (modules/monitoring) but never wires the two together. M9 scope focused on ACA diagnostic settings only; KV diagnostics were never added."
   fix: "Add azurerm_monitor_diagnostic_setting for jobrag-prod-kv targeting jobrag-prod-law with log category 'AuditEvent' (optionally also 'AzurePolicyEvaluationDetails'). Effectively zero cost given the 0.15 GB/day LAW quota. Place in modules/security/main.tf or compose from envs/prod/main.tf to avoid circular module dep with monitoring."
+  fix_commit: "e02b8f0 (add KV->LAW AuditEvent diagnostic_setting at composition layer). Plan 03-08 Task 3. Applied 2026-05-19 (1 add, in Outcome A in-place apply alongside Tasks 1+2)."
+  verified_by: |
+    Adrian (2026-05-19, post terraform apply). Two-layer verification:
+      A. Wiring (control plane): `az monitor diagnostic-settings list --resource <jobrag-prod-kv-id>`
+         returns 1 entry `jobrag-prod-kv-diag` routing to jobrag-prod-law with
+         logs[0]={category: AuditEvent, enabled: true} and
+         logs[1]={category: AzurePolicyEvaluationDetails, enabled: false}
+         (intentionally skipped per plan body line 347). logAnalyticsDestinationType=AzureDiagnostics.
+      B. Runtime (data plane): ACA replica was ScaledToZero. A `GET /health` against
+         `https://jobrag-prod-api.gentlebay-598f6d02.westeurope.azurecontainerapps.io/health`
+         at 2026-05-19T12:27:41Z triggered a 39s cold-start (HTTP 200). Container console
+         logs in LAW `ContainerAppConsoleLogs_CL` at 12:27:55Z show
+         "Composed DATABASE_URL/ASYNC_DATABASE_URL from POSTGRES_* parts (ACA env)" +
+         "Running database migrations..." + "Database initialized successfully." —
+         proving the managed identity successfully read all 5 KV secrets (including
+         postgres-admin-password) during the cold-start.
+    Runtime audit row note: despite the verified cold-start that demanded all 5 KV
+    reads, `AzureDiagnostics | where Resource == 'JOBRAG-PROD-KV' | take 5` was still
+    empty 60s later. This is the documented first-hour ingestion lag for newly-created
+    KV diagnostic_settings (plan body line 473). Wiring is verified; runtime audit
+    rows will populate on subsequent cold-starts within ~1h.
   boundary_note: "Sub-level Activity Log retains 90d of caller/operation/status but lacks data-plane detail (which secret, which app/SP OID). Defensible for a free-tier single-user portfolio app — but the Test 10 spec assumed the diagnostic existed."
   discovered_by: "Test 10 verification cycle, 2026-05-17."
 
@@ -651,15 +679,18 @@ blocked: 0
   d_decisions: ["D-15 (deploy.yml smoke must prove the new revision serves): currently violated; restored by Option A"]
   discovered_by: "Test 10 orphan-revision investigation during Test 18 close-out, 2026-05-19."
 
-# ───── Test 12 / Gap 12.B — OPEN (D-16 unenforceable at composition layer) ─────
+# ───── Test 12 / Gap 12.B — RESOLVED (D-16 unenforceable at composition layer) ─────
 - truth: "Only ContainerAppConsoleLogs_CL ingests into LAW — ContainerAppSystemLogs_CL is suppressed per D-16"
-  status: failed
+  status: resolved
   severity: minor
   test: 12
   layer: composition-vs-runtime
+  resolution_path: "Option 3 (amend D-16) — documentation-only closure. Option 1 (DCR transformation) recorded as Deferred Idea per the recommendation."
   artifacts:
     - infra/modules/monitoring/  # azurerm_monitor_diagnostic_setting on the ACA env (governs platform events only)
     - infra/modules/compute/     # azurerm_container_app_environment.appLogsConfiguration (governs container logs — unfiltered)
+    - .planning/phases/03-infrastructure-ci-cd/03-CONTEXT.md  # D-16 Amendment block + Deferred Ideas DCR entry
+    - infra/envs/prod/README.md  # Knowingly-Accepted Trade-offs row added
   reason: "`Usage | where DataType == 'ContainerAppSystemLogs_CL'` shows daily ingestion through today (2026-05-18T07:12:56 was the latest — a KV sync event for jobrag-prod-api). Volume is small (0.23 MB / 30d) but the spec explicitly states SystemLogs should be absent."
   root_cause: "The ACA Container App Environment has two parallel log pipelines: (1) the `azurerm_monitor_diagnostic_setting` on the env, which has ContainerAppSystemLogs.enabled = false (D-16-compliant at composition layer); (2) the env's own `appLogsConfiguration.destination = 'log-analytics'` block, set at provisioning and pointing at the same LAW workspace customerId. The appLogsConfiguration pipeline ships ALL container log categories wholesale — it is not category-filterable. The diagnostic_setting on the env only routes env *platform* events, not container logs."
   fix_options:
@@ -667,5 +698,20 @@ blocked: 0
     - "Option 2 (drop appLogsConfiguration entirely): remove `appLogsConfiguration` from the env to stop both Console and System log shipping. Then re-route Console via a custom DCR. Higher complexity, breaks the M9 simple-path."
     - "Option 3 (amend D-16): accept SystemLogs in scope; document that ACA env-level log shipping is binary (all categories or none) and the M9 D-16 intent was based on a wrong assumption about diagnostic_setting category filters. Update CONTEXT.md."
   recommendation: "Option 3 in the short term (cheapest, no infrastructure change, free-tier quota is unthreatened) plus a backlog item for Option 1 if future cost pressure or compliance ever requires hard-suppressing SystemLogs."
+  fix_commit: "09ca58a (amend D-16 in 03-CONTEXT.md + add DCR-based Deferred Ideas entry) + a3d18b6 (add Knowingly-Accepted Trade-offs row in infra/envs/prod/README.md). Plan 03-08 Tasks 5+6."
+  verified_by: |
+    Documentation layer (2026-05-19):
+      - 03-CONTEXT.md D-16 now carries the "Amendment (2026-05-19, Gap 12.B resolution):"
+        block acknowledging the two parallel log pipelines (env diagnostic_setting for
+        platform events; appLogsConfiguration as the binary all-or-none container-log
+        pipeline) and records the post-amendment effective wording.
+      - 03-CONTEXT.md Deferred Ideas lists "DCR-based workspace transformation to drop
+        ContainerAppSystemLogs_CL at ingestion" as the Option 1 escape hatch with
+        re-evaluation triggers (compliance pressure or 90% quota approach).
+      - infra/envs/prod/README.md Knowingly-Accepted Trade-offs table has a new row
+        documenting SystemLogs_CL ingestion as accepted (~0.005% of the 0.15 GB/day cap)
+        with the cross-reference back to the D-16 Amendment.
+    Runtime impact unchanged: SystemLogs continues to ingest at ~0.005% of the daily
+    cap — not a cost-gate risk. Future Option 1 conversion path is documented.
   volume_impact: "0.23 MB / 30d for SystemLogs (~0.008 MB/day average, peak 0.067 MB on 2026-05-16). Quota is 0.15 GB/day = 150 MB/day. SystemLogs uses ~0.005% of the daily cap — not a cost-gate risk."
   discovered_by: "Test 12 verification cycle, 2026-05-18."
