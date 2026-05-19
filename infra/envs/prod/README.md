@@ -178,6 +178,7 @@ Per CONTEXT.md Plan-Locking Addendum A1 (Path A) and Plan 04 module READMEs:
 | GHCR PAT lives in TF state | Chicken-and-egg: ACA needs to pull image before MI can resolve KV refs. | PAT is fine-grained read-only on the package; `var.ghcr_pat` is `sensitive = true`; rotate per below. (Or set package public per B3 to skip the PAT path entirely.) |
 | SWA `api_key` flows through TF state | SWA does not yet support OIDC GA. | `sensitive = true`; rotated per below; only consumed by deploy-spa.yml; B2: synced manually, no `GH_PAT_FOR_SECRETS` in the system. |
 | `min_replicas = 0` causes cold-start latency | Free-tier vCPU-sec budget would be blown by `min_replicas = 1` (~€15-20/mo). | Phase 6 ships UX states (`connecting` / `warming` / `streaming`) per CONTEXT.md D-17. |
+| `ContainerAppSystemLogs_CL` ingests into LAW alongside Console | ACA env's `appLogsConfiguration.destination = "log-analytics"` is a binary all-or-none pipeline; the `azurerm_monitor_diagnostic_setting` on the env governs only platform events, not container logs. See 03-CONTEXT.md D-16 Amendment (Gap 12.B). | Volume is ~0.005% of the 0.15 GB/day LAW cap (~0.008 MB/day average, peak 0.067 MB). Cost gate remains the daily quota. DCR-based filtering is documented as a Deferred backlog item if compliance ever requires hard-suppression. |
 
 ## Token rotation cadence
 
