@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: new-york (planned — initialized during plan execution per D-20)
 created: 2026-05-19
+revised: 2026-05-19 (rev 1 — typography + spacing blockers, tightened CTAs, account-menu aria-label)
 ---
 
 # Phase 4 — UI Design Contract
@@ -68,50 +69,49 @@ Every value below traces to a locked upstream decision. The checker should cross
 
 ## 2. Spacing Scale
 
-Linear-dense aesthetic = tight spacing, low chrome. The scale below is the **prescriptive set** for Phase 4 surfaces; only these values may appear in production class names without justification.
+Linear-dense aesthetic = tight spacing, low chrome. The scale below is the **prescriptive set** for Phase 4 surfaces; only these values may appear in production class names without justification. All values are multiples of 4 from the standard 8-point set {4, 8, 16, 24, 32, 48, 64}.
 
 | Token | Tailwind v4 utility | px | Usage in Phase 4 |
 |-------|---------------------|----|------------------|
 | 2xs | `p-1` / `gap-1` | 4 | Icon-to-label gap inside buttons; chip internal padding |
-| xs | `p-2` / `gap-2` | 8 | Compact spacing inside nav-item, inside form-field; gap between sibling buttons |
-| sm | `p-3` / `gap-3` | 12 | Card internal padding (top-nav items, EmptyState body offset) |
+| xs | `p-2` / `gap-2` | 8 | Compact spacing inside nav-item, inside form-field; gap between sibling buttons; card internal padding for top-nav items; EmptyState body-to-heading offset |
 | md | `p-4` / `gap-4` | 16 | Default container padding; gap between AppShell sections; card internal sections |
 | lg | `p-6` / `gap-6` | 24 | Page-content padding; vertical rhythm between distinct UI blocks |
 | xl | `p-8` / `gap-8` | 32 | Section break inside ErrorBoundary fallback and AccessDenied page |
 | 2xl | `p-12` | 48 | AccessDenied page top margin / hero spacing |
 | 3xl | `p-16` | 64 | (Not used in Phase 4; reserved for Phase 5/6/7 dashboard hero) |
 
-**Exceptions:**
+**Exceptions** (documented and justified — not part of the prescriptive token set):
 
-- **Top-nav row height:** fixed `h-12` (48px) per Linear-dense convention — overrides "no in-between values" because it's the canonical top-nav height for Linear/shadcn dense headers.
-- **Touch targets:** sign-out, theme toggle, and copy-to-clipboard buttons are minimum `h-9 w-9` (36×36px) for icon-only variants, or `h-9` with horizontal padding `px-3` for labeled variants. WCAG 2.5.5 enhanced (44px) is **NOT** met for icon-only controls — accepted because v1 is single-user desktop-first; revisit when mobile becomes a real surface.
+- **Top-nav row height:** fixed `h-12` (48px) per Linear-dense convention — canonical top-nav height for Linear/shadcn dense headers; height/width architecture, not a spacing token.
+- **Touch targets:** sign-out, theme toggle, and copy-to-clipboard buttons are minimum `h-9 w-9` (36×36px) for icon-only variants, or `h-9` with horizontal padding `px-3` for labeled variants. WCAG 2.5.5 enhanced (44px) is **NOT** met for icon-only controls — accepted because v1 is single-user desktop-first; revisit when mobile becomes a real surface. Height/width architecture, not a spacing token.
 - **OID copy-block:** `p-4` interior plus `font-mono` text content; the `<pre>` itself has no extra margin beyond what its parent card supplies.
 
-All other values not in the table above are **disallowed** without explicit override note in the PR (e.g., `p-5`, `p-7`, `gap-10`).
+All other values not in the table above (e.g., `p-3`, `p-5`, `p-7`, `gap-3`, `gap-10`) are **disallowed** without explicit override note in the PR.
 
 ---
 
 ## 3. Typography
 
-Exactly 4 sizes, exactly 2 weights. Linear-dense profile.
+Exactly 4 sizes, exactly 2 weights (400 regular + 600 semibold). Linear-dense profile.
 
 | Role | Size (px) | Tailwind utility | Weight | Line height | Usage |
 |------|-----------|------------------|--------|-------------|-------|
-| Body | 14 | `text-sm` | 400 (regular) | 1.5 (`leading-normal`) | Default body text, nav labels, dropdown items, EmptyState body, error message body |
-| Label | 12 | `text-xs` | 500 (medium) | 1.4 (`leading-snug`) | Form field labels, badge text, "Phase 5 coming soon" tag, dev-only banner on `/debug/agent-stream` |
+| Body | 14 | `text-sm` | 400 (normal) | 1.5 (`leading-normal`) | Default body text, nav labels, dropdown items, EmptyState body, error message body |
+| Label | 12 | `text-xs` | 400 (normal) | 1.4 (`leading-snug`) | Form field labels, badge text, "Phase 5 coming soon" tag, dev-only banner on `/debug/agent-stream` |
 | Heading | 18 | `text-lg` | 600 (semibold) | 1.3 (`leading-snug`) | Page headings (`<h1>` on each route), AccessDenied "Access denied" heading, ErrorBoundary "Something went wrong" heading |
 | Display | 24 | `text-2xl` | 600 (semibold) | 1.2 (`leading-tight`) | Reserved for empty-state hero headlines and the OID code-block label "Your account ID:" (only place Display fires in Phase 4) |
 
 **Mono usage** (Geist Mono):
 
-- OID value in the AccessDenied copy-block: `text-sm font-mono` (14px, regular).
-- `/debug/agent-stream` event log: `text-xs font-mono` (12px, regular, line-height `leading-snug`).
+- OID value in the AccessDenied copy-block: `text-sm font-mono` (14px, normal).
+- `/debug/agent-stream` event log: `text-xs font-mono` (12px, normal, line-height `leading-snug`).
 - Technical-details disclosure inside the ErrorBoundary fallback: `text-xs font-mono` in a collapsible `<details>` block.
 
 **Anti-choices:**
 
 - No `text-base` (16px) — would break the 4-size cap; body is `text-sm` in Linear-dense.
-- No font-weight 700/800 — would break the 2-weight cap and add visual noise.
+- No `font-medium` (500) and no font-weight 700/800 — would break the 2-weight cap. Label uses `font-normal` (400), matching Linear's own labels at 12px (the visual delta between 400 and 500 Geist Sans at 12px is marginal).
 - No italic except inside the technical-details JSON (which is mono and may show stringified errors as-is).
 
 ---
@@ -148,7 +148,7 @@ Exactly 4 sizes, exactly 2 weights. Linear-dense profile.
 
 The accent (`--primary`) is **reserved for the following four element categories only** in Phase 4. Any other use is a contract violation.
 
-1. **Primary CTA buttons** — exactly one per surface: "Copy account ID" on `/access-denied`; "Sign in" if rendered (the AuthGate auto-redirects so this is rarely visible); "Reload" on the ErrorBoundary fallback; "Open in new tab" on the dev-page warning banner.
+1. **Primary CTA buttons** — exactly one per surface: "Copy ID" on `/access-denied`; "Sign in" if rendered (the AuthGate auto-redirects so this is rarely visible); "Back to dashboard" on the ErrorBoundary fallback (Reload page is the secondary outline variant); "Open in new tab" on the dev-page warning banner.
 2. **Active nav-tab indicator** — a 2px-tall underline below the currently-active tab in the top-nav (Dashboard / Chat / Profile). Only ONE tab is accented at a time.
 3. **Focus rings** (`--ring`) — every interactive element gets a `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` treatment. This is a11y-required, not decorative.
 4. **Theme toggle "active state" dot** — a 4px accent dot inside the theme-toggle icon button when hovered (sub-pixel detail; optional in v1).
@@ -160,7 +160,7 @@ The accent (`--primary`) is **reserved for the following four element categories
 Destructive (`--destructive`) is reserved for:
 
 1. **Sign-out menu item** — in the dropdown menu, rendered with the shadcn `dropdown-menu` destructive variant (red text, no background until hover, then `bg-destructive/10`).
-2. **(Pre-allocated, not rendered in Phase 4)** ErrorBoundary "Reload" button if/when retry strategies fail repeatedly — kept neutral in v1.
+2. **(Pre-allocated, not rendered in Phase 4)** ErrorBoundary "Reload page" button if/when retry strategies fail repeatedly — kept neutral in v1.
 
 ---
 
@@ -229,7 +229,7 @@ The top-nav is the only persistent chrome in Phase 4. Locked shape:
 ```
 
 - **Left cluster (px-6 from left edge):** logo wordmark "job-rag" (`text-sm font-semibold`, foreground color) + horizontal nav tabs (Dashboard / Chat / Profile) with 24px (`gap-6`) between items.
-- **Right cluster (px-6 from right edge):** theme toggle icon button + account dropdown trigger (icon button with `User` lucide icon).
+- **Right cluster (px-6 from right edge):** theme toggle icon button + account dropdown trigger (icon button with `User` lucide icon, `aria-label="Open account menu"`).
 - **Active tab indicator:** 2px tall accent underline (`border-b-2 border-primary`) on the active tab; inactive tabs have no underline; hover shows `border-b-2 border-muted-foreground/50`.
 - **Account dropdown content:** single menu item "Sign out" (destructive variant). v1 has no "Profile" or "Settings" item — those land in Phase 7.
 - **Logo behavior:** clicking the wordmark navigates to `/dashboard`. Not an `<a>` to an external URL — uses React Router `<Link>`.
@@ -252,11 +252,11 @@ The OID bootstrap surface — the most copy-heavy surface in Phase 4. Locked by 
 │   to the administrator to request access.                        │
 │                                                                  │
 │   ┌──────────────────────────────────────────────────────────┐   │
-│   │ Your account ID                                          │   │  ← Label, 12px medium
+│   │ Your account ID                                          │   │  ← Label, 12px normal
 │   │ ┌────────────────────────────────────────────────────┐   │   │
 │   │ │  abc12345-6789-0abc-def0-123456789abc              │   │   │  ← Mono, 14px, in <pre>
 │   │ └────────────────────────────────────────────────────┘   │   │
-│   │                                            [Copy]        │   │  ← Primary CTA, accent
+│   │                                          [Copy ID]       │   │  ← Primary CTA, accent
 │   └──────────────────────────────────────────────────────────┘   │
 │                                                                  │
 │   Administrator runbook                                          │  ← Heading, 18px semibold
@@ -277,7 +277,7 @@ The OID bootstrap surface — the most copy-heavy surface in Phase 4. Locked by 
 
 - **Container:** Card at `max-w-2xl mx-auto mt-12 p-8` — vertically positioned so it sits at first-fold on a 1080p display.
 - **Empty-OID edge case:** if `msalInstance.getActiveAccount()?.idTokenClaims?.oid` returns undefined (user landed here without logging in), show a fallback EmptyState card with copy "Sign in first to see your account ID" and a "Sign in" Button. Do NOT show an empty `<pre>` block.
-- **Copy button behavior:** clicking copies the OID to clipboard via `navigator.clipboard.writeText(oid)`. On success: Sonner toast `Copied to clipboard` (bottom-right, success variant, 2s duration). On failure (e.g., insecure context): toast `Couldn't copy — please select and copy manually` (error variant).
+- **Copy button behavior:** label is `Copy ID`; clicking copies the OID to clipboard via `navigator.clipboard.writeText(oid)`. On success: Sonner toast `Copied to clipboard` (bottom-right, success variant, 2s duration). On failure (e.g., insecure context): toast `Couldn't copy — please select and copy manually` (error variant).
 - **Runbook code block:** rendered as `<pre class="font-mono text-xs">` inside a Card with muted background (`bg-muted`). NOT a copy button per command — Adrian's a power user; one-click-each is friction without value.
 - **No "Try again" button** — the page is reached via redirect from a 403 response; the user must complete the runbook out-of-band before returning.
 
@@ -295,7 +295,7 @@ D-19a. Layered as the outermost render-error catcher.
 │   The app hit an unexpected error. You can try going back to     │  ← Body, 14px regular, muted
 │   the dashboard, or reload the page.                             │
 │                                                                  │
-│   [ Back to dashboard ]  [ Reload ]                              │  ← Two buttons: outline + ghost
+│   [ Back to dashboard ]  [ Reload page ]                         │  ← Two buttons: accent + outline
 │                                                                  │
 │   ▶ Technical details                                            │  ← <details> toggle
 │                                                                  │
@@ -305,7 +305,7 @@ D-19a. Layered as the outermost render-error catcher.
 - **Container:** Card at `max-w-2xl mx-auto mt-12 p-8`.
 - **CTAs:**
   - "Back to dashboard" — primary action; uses `<Button variant="default">` (accent); calls `navigate('/dashboard')` and resets the error boundary.
-  - "Reload" — secondary action; uses `<Button variant="outline">` (border, no fill); calls `window.location.reload()`.
+  - "Reload page" — secondary action; uses `<Button variant="outline">` (border, no fill); calls `window.location.reload()`.
 - **Technical details:** Inside a native `<details>` element. When expanded, shows `error.message` and `error.stack` in a `<pre class="font-mono text-xs">` block on a muted background. Truncated to first 1000 chars to avoid overflowing the card.
 - **No retry button** in v1 — retry semantics are domain-specific and live in per-feature error states; ErrorBoundary is the absolute floor.
 
@@ -390,7 +390,7 @@ D-16 + dev-only gate per `<specifics>`. Minimal-chrome interactive surface for p
 │ [DEV] Agent stream probe                                         │  ← Badge "DEV" + Heading
 │                                                                  │
 │ ┌────────────────────────────────────────────┐  ┌─────────────┐  │
-│ │ Ask the agent something…                   │  │ Send        │  │  ← Input + Button
+│ │ Ask the agent something…                   │  │ Send query  │  │  ← Input + Button
 │ └────────────────────────────────────────────┘  └─────────────┘  │
 │                                                                  │
 │ ┌──────────────────────────────────────────────────────────────┐ │
@@ -407,9 +407,9 @@ D-16 + dev-only gate per `<specifics>`. Minimal-chrome interactive surface for p
 - **Gate:** route only mounts if `import.meta.env.DEV === true \|\| import.meta.env.VITE_DEBUG_PAGES === 'true'`. In prod build without the flag, navigating to `/debug/agent-stream` falls through to `*` (NotFound).
 - **DEV badge:** `<Badge variant="outline">DEV</Badge>` placed inline with the heading. Tone: "this is intentional, not leaked".
 - **Input:** standard shadcn `<Input>`, `placeholder="Ask the agent something…"`.
-- **Send button:** standard shadcn `<Button>`, default (accent) variant. Disabled while a stream is active.
+- **Send button:** label is `Send query`; standard shadcn `<Button>`, default (accent) variant. Disabled while a stream is active.
 - **Log container:** scrollable `<pre>` with `max-h-96 overflow-y-auto bg-muted p-4 font-mono text-xs leading-snug`. Each event is one line; long `data` payloads wrap with CSS `word-break: break-all`.
-- **Clear-on-resubmit:** clicking Send clears the log first, then re-streams.
+- **Clear-on-resubmit:** clicking Send query clears the log first, then re-streams.
 - **Stream lifecycle copy:** while connecting (waiting for first byte), show `… connecting` in muted-foreground at the top of the log. While streaming, no extra label. On `final`, append a separator line `--- end of stream ---`. On error, append a destructive-colored line `--- error: {reason} ---`.
 
 ---
@@ -420,13 +420,13 @@ D-16 + dev-only gate per `<specifics>`. Minimal-chrome interactive surface for p
 |---------|------|
 | **Top-nav logo wordmark** | `job-rag` (lowercase, matches repo + Docker image naming) |
 | **Top-nav tabs** | `Dashboard`, `Chat`, `Profile` (literal SHEL-04 + D-17 wording, title case) |
-| **Account dropdown trigger** | (icon only, `User` icon — no label) |
+| **Account dropdown trigger** | (icon only, `User` icon — no visible label; `aria-label="Open account menu"`) |
 | **Sign-out menu item** | `Sign out` (Microsoft canonical phrasing; renders red via destructive variant) |
 | **Theme toggle aria-label** | `Toggle theme (currently {light/dark})` — dynamic |
 | **AccessDenied heading** | `Access denied` |
 | **AccessDenied body** | `Your account is not on the allowlist. Send the ID below to the administrator to request access.` |
 | **AccessDenied OID label** | `Your account ID` |
-| **AccessDenied Copy button** | `Copy` |
+| **AccessDenied Copy button** | `Copy ID` |
 | **AccessDenied copy-success toast** | `Copied to clipboard` |
 | **AccessDenied copy-failure toast** | `Couldn't copy — please select and copy manually` |
 | **AccessDenied runbook heading** | `Administrator runbook` |
@@ -444,11 +444,11 @@ D-16 + dev-only gate per `<specifics>`. Minimal-chrome interactive surface for p
 | **ErrorBoundary heading** | `Something went wrong` |
 | **ErrorBoundary body** | `The app hit an unexpected error. You can try going back to the dashboard, or reload the page.` |
 | **ErrorBoundary primary CTA** | `Back to dashboard` |
-| **ErrorBoundary secondary CTA** | `Reload` |
+| **ErrorBoundary secondary CTA** | `Reload page` |
 | **ErrorBoundary details disclosure** | `Technical details` |
 | **DebugAgentStream heading** | `Agent stream probe` |
 | **DebugAgentStream input placeholder** | `Ask the agent something…` |
-| **DebugAgentStream send button** | `Send` |
+| **DebugAgentStream send button** | `Send query` |
 | **DebugAgentStream connecting label** | `… connecting` |
 | **DebugAgentStream end-of-stream separator** | `--- end of stream ---` |
 | **DebugAgentStream error separator template** | `--- error: {reason} ---` |
@@ -461,6 +461,7 @@ D-16 + dev-only gate per `<specifics>`. Minimal-chrome interactive surface for p
 - **No oxford commas** — Linear-style brevity.
 - **Phase reference is canonical:** every "coming soon" copy names the phase number. This is portfolio-friendly (visitors understand the roadmap) and accurate (no hand-wave "soon").
 - **Capitalize "Sign out" as imperative**, but "Sign in" inside running text stays lowercase. Title-case in buttons; sentence-case in body copy.
+- **CTAs are verb + noun**, never bare verbs: "Copy ID" not "Copy"; "Reload page" not "Reload"; "Send query" not "Send". The noun makes the affordance unambiguous even when the surrounding context is lost (e.g., screen reader linear scan).
 
 ### Destructive action confirmations
 
@@ -512,8 +513,9 @@ WCAG 2.1 AA baseline. Specific Phase 4 obligations:
 | Keyboard reachability | All controls (tabs, theme toggle, account menu, sign out, copy button) reachable in Tab order. No keyboard traps. |
 | Sign-out is a `<button>` | Rendered as DropdownMenuItem (which is a button under the hood), never an `<a href>` |
 | Theme toggle aria | `aria-label="Toggle theme (currently {light/dark})"` — dynamic with current state |
+| Account dropdown trigger aria | `aria-label="Open account menu"` — icon-only button (`User` lucide icon) needs an accessible name |
 | AccessDenied OID `<pre>` | Wrapped in a labeled region: `<div role="region" aria-label="Your account ID">` |
-| Copy button | Has visible label "Copy" — not icon-only. After copy, Sonner toast announces (Sonner uses `role="status"` by default). |
+| Copy button | Has visible label "Copy ID" — not icon-only. After copy, Sonner toast announces (Sonner uses `role="status"` by default). |
 | Errors announced | ErrorBoundary heading rendered inside `role="alert"` region so screen readers announce on appear |
 | Skeleton fallbacks | Wrapped in `role="status" aria-label="Loading"` |
 | Top-nav active tab | `aria-current="page"` on the active `<Link>` |
@@ -574,3 +576,5 @@ Each future phase's UI-SPEC MUST reference this Phase 4 contract as its inherite
 ---
 
 *Generated by gsd-ui-researcher in --auto mode. Pre-populated from 20 locked CONTEXT.md decisions + PROJECT.md "Linear-dense aesthetic" + STACK.md §1. No user input requested per --auto flag.*
+
+*Revision 1 (2026-05-19): typography collapsed to 2 weights (Label 500 → 400); spacing 12px row removed (top-nav items → `p-2`, EmptyState body offset already `mb-2`); CTAs tightened to verb+noun ("Copy" → "Copy ID", "Reload" → "Reload page", "Send" → "Send query"); account dropdown trigger gained `aria-label="Open account menu"`. No other decisions changed.*
