@@ -104,7 +104,14 @@ Plans:
   4. An Entra token minted for any `oid` other than Adrian's seeded `SEEDED_USER_ENTRA_OID` is rejected with a 403 before any business logic runs; Adrian's token reaches the endpoint with `user_id` resolved application-side (AUTH-06)
   5. Every page under the shell renders distinct loading skeletons / empty states / error boundaries — there is no blank-screen-during-fetch state and no unhandled error can propagate past the root `<ErrorBoundary>` (SHEL-03, SHEL-06)
 **Cost delta**: €0/mo (runtime only; Entra External ID free up to 50k MAU)
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 04-01-PLAN.md — Wave 0 foundation: D-07 amendment, Phase 3 apps/web correction, config.py 4 new Settings fields, fastapi-azure-auth dep, test_entra_jwt.py stubs, frontend/openapi.snapshot.json, infra/external/ scaffold (no apply), scripts/refresh-external-outputs.sh, root .gitignore
+- [ ] 04-02-PLAN.md — Wave 1 backend: B2CMultiTenantAuthorizationCodeBearer azure_scheme + get_current_user_id body rewrite + structlog rejected-oid warning + alembic 0005 migration (entra_oid column + idempotent UPDATE + partial unique index) + activated test stubs + 0005 smoke tests
+- [ ] 04-03-PLAN.md — Wave 2 CI + infra wiring: ci.yml frontend-ci sibling job + deploy-spa.yml apps/web→frontend rename + 5 VITE_* env injection + compute module env-block extension (BACKEND_AUDIENCE/ENTRA_TENANT_ID/ENTRA_TENANT_SUBDOMAIN plain + SEEDED_USER_ENTRA_OID secretRef) + prod env composition + tfvars placeholders
+- [ ] 04-04-PLAN.md — Wave 3a frontend scaffold + auth/data plumbing: Vite 8 + React 19 + TS + Tailwind v4 + shadcn (zinc/new-york) init + 17 deps pinned + main.tsx literal AUTH-07 race fix + msal singleton (sessionStorage + knownAuthorities) + authedFetch + readSSEStream + queryClient + openapi-typescript codegen + 4 service modules + 5 vitest stubs (2 active, 3 skip-on-missing)
+- [ ] 04-05-PLAN.md — Wave 3b components + routes: 8 shadcn primitives (button/card/skeleton/dropdown-menu/dialog/sonner/input/badge) + AuthGate (loginRedirect) + AppShell (top-nav per UI-SPEC §7) + ThemeToggle (localStorage + matchMedia) + ErrorBoundary + RouteSkeleton + EmptyState + PhasePlaceholder + AccessDenied (D-09 OID UX) + NotFound + Dashboard/Chat/Profile placeholders + DebugAgentStream (dev-only gate) + App.tsx routes tree + activated 3 stub tests
+- [ ] 04-06-PLAN.md — Wave 5 phase-close: Adrian-driven runbook (5 checkpoints) — terraform apply infra/external/ + 5 gh secret set + prod re-apply with new env vars + first login → AccessDenied with oid → az keyvault secret set + ACA restart + 0005 UPDATE bridges seeded row → second login success path + AUTH-04/AUTH-07 manual verifications + optional DebugAgentStream live SSE test
 **UI hint**: yes
 
 ### Phase 5: Dashboard
@@ -181,7 +188,7 @@ Plans:
 | 1. Backend Prep | 6/6 | ✓ Complete | 2026-04-27 |
 | 2. Corpus Cleanup | 4/4 | Complete   | 2026-04-28 |
 | 3. Infrastructure & CI/CD | 3/8 | In Progress|  |
-| 4. Frontend Shell + Auth | 0/? | Not started | - |
+| 4. Frontend Shell + Auth | 0/6 | Planned | - |
 | 5. Dashboard | 0/? | Not started | - |
 | 6. Chat | 0/? | Not started | - |
 | 7. Profile & Resume Upload | 0/? | Not started | - |
