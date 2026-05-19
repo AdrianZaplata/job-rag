@@ -151,8 +151,9 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260519-ids | fix Gap 10.C — deploy-api.yml smoke check uses per-revision FQDN | 2026-05-19 | 07817d8 | [260519-ids-fix-gap-10-c-deploy-api-yml-smoke-check-](./quick/260519-ids-fix-gap-10-c-deploy-api-yml-smoke-check-/) |
+| 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 
-Last activity: 2026-05-19
+Last activity: 2026-05-19 - Completed quick task 260519-kr7: synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence
 
 ### Open Questions (from research, to resolve during planning)
 
