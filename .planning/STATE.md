@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-30T16:47:07.127Z"
+last_updated: "2026-05-19T11:15:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 2
@@ -144,6 +144,14 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 ### Blockers
 
 - **Phase 2 follow-up (small, non-blocking):** 10 of 108 postings persistently fail Instructor extraction across 2 runs (`RetryError[InstructorRetryException]`). See `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md` for the full posting_id + company/title inventory and the recommended remediation path (raw_text inspection → prompt tweak / model upgrade / manual fixture + add `httpx.Timeout` belt-and-suspenders). Does NOT block Phase 3 (Infrastructure & CI/CD) or Phase 5 (Dashboard, which can filter `WHERE prompt_version='2.0'` to exclude residuals).
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260519-ids | fix Gap 10.C — deploy-api.yml smoke check uses per-revision FQDN | 2026-05-19 | 07817d8 | [260519-ids-fix-gap-10-c-deploy-api-yml-smoke-check-](./quick/260519-ids-fix-gap-10-c-deploy-api-yml-smoke-check-/) |
+
+Last activity: 2026-05-19 - Completed quick task 260519-ids: fix Gap 10.C — deploy-api.yml smoke check uses per-revision FQDN
 
 ### Open Questions (from research, to resolve during planning)
 
