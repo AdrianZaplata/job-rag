@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>job-rag</title>
+    <!-- Pitfall 10: FOUC-prevention — set theme class on <html> BEFORE React mounts.
+         Reads localStorage.theme (set by ThemeToggle); falls back to OS preference.
+         Default = dark (Linear convention per CONTEXT.md D-20). -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme')
+          var preferDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          var useDark = stored === 'dark' || (stored == null && (preferDark || true))
+          if (useDark) document.documentElement.classList.add('dark')
+        } catch (e) {
+          // localStorage unavailable (private mode); fall back to dark.
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
