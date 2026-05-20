@@ -61,8 +61,8 @@ All four ship as a single pair to amortize the re-extraction cost.
 ### Frontend shell and UI baseline (SHEL)
 
 - [x] **SHEL-01**: Vite + React 19 + TypeScript project scaffolded in `frontend/`
-- [ ] **SHEL-02**: Tailwind CSS v4 + shadcn/ui installed and themed to a Linear-style dense aesthetic (grayscale palette + one accent; small type; information-dense layouts)
-- [ ] **SHEL-03**: TanStack Query installed; all server state flows through `useQuery`/`useMutation` (no ad-hoc `useEffect` fetching)
+- [x] **SHEL-02**: Tailwind CSS v4 + shadcn/ui installed and themed to a Linear-style dense aesthetic (grayscale palette + one accent; small type; information-dense layouts)
+- [x] **SHEL-03**: TanStack Query installed; all server state flows through `useQuery`/`useMutation` (no ad-hoc `useEffect` fetching)
 - [x] **SHEL-04**: App shell provides a top-nav with Dashboard / Chat routes, logged-in user indicator, and sign-out
 - [x] **SHEL-05**: API client attaches the MSAL-issued access token as `Authorization: Bearer <jwt>` on every request
 - [ ] **SHEL-06**: Error boundary + empty/error/loading states for every page; Suspense fallbacks for async boundaries
@@ -75,7 +75,7 @@ All four ship as a single pair to amortize the re-extraction cost.
 - [x] **AUTH-04**: MSAL React integrated in the frontend; protected routes redirect unauthenticated users to Entra login
 - [x] **AUTH-05**: FastAPI validates the Entra JWT on every protected request via `fastapi-azure-auth` 5.x (issuer, audience, signature, expiry, JWKS caching)
 - [x] **AUTH-06**: Adrian's Entra `oid` is stored in the `user_profile` row; an app-layer guard rejects any other `oid` in v1 (single-user enforcement)
-- [ ] **AUTH-07**: MSAL initialization race prevented — `initialize()` and `handleRedirectPromise()` resolved before `ReactDOM.createRoot().render()`
+- [x] **AUTH-07**: MSAL initialization race prevented — `initialize()` and `handleRedirectPromise()` resolved before `ReactDOM.createRoot().render()`
 
 ### Deploy — IaC, CI/CD, Azure infra (DEPL)
 
@@ -189,8 +189,8 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | CHAT-05 | Phase 6 | Pending |
 | CHAT-06 | Phase 6 | Pending |
 | SHEL-01 | Phase 4 | Complete |
-| SHEL-02 | Phase 4 | Pending |
-| SHEL-03 | Phase 4 | Pending |
+| SHEL-02 | Phase 4 | Complete |
+| SHEL-03 | Phase 4 | Complete |
 | SHEL-04 | Phase 4 | Complete |
 | SHEL-05 | Phase 4 | Complete |
 | SHEL-06 | Phase 4 | Pending |
@@ -200,7 +200,7 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | AUTH-04 | Phase 4 | Complete |
 | AUTH-05 | Phase 4 | Complete |
 | AUTH-06 | Phase 4 | Complete |
-| AUTH-07 | Phase 4 | Pending |
+| AUTH-07 | Phase 4 | Complete |
 | DEPL-01 | Phase 3 | Complete |
 | DEPL-02 | Phase 3 | Complete |
 | DEPL-03 | Phase 3 | Complete |
