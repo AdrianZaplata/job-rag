@@ -63,3 +63,104 @@ jobs:
 
       - name: Audit dependencies
         run: uv run pip-audit --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-6587  # CVE-2025-69872 diskcache 5.6.3 (no fix, transitive via ragas) + CVE-2026-6587 ragas 0.4.3 (no fix yet)
+
+  # ─── Frontend CI (Phase 4 Plan 04-03) ─────────────────────────────────────────
+  # Sibling job to lint-and-test. Runs in parallel (no `needs:`). Skips cleanly
+  # when frontend/package.json is absent (Wave 0 / pre-Plan-04 state) via the
+  # hashFiles guard. Codegen drift-check (Phase 4 D-14) boots a temporary FastAPI
+  # against an ephemeral postgres service, fetches /openapi.json, then asserts
+  # `git diff --exit-code src/api/types.ts` after re-running openapi-typescript.
+  frontend-ci:
+    runs-on: ubuntu-latest
+    if: hashFiles('frontend/package.json') != ''
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Vitest
+        run: npm run test -- --run
+        working-directory: frontend
+
+      # ─── Codegen drift-check (Phase 4 D-14) ──────────────────────────────────
+      # Boot the FastAPI backend, fetch /openapi.json, compare against the
+      # committed snapshot, then re-run openapi-typescript codegen against the
+      # live spec and `git diff --exit-code` src/api/types.ts. Any drift =
+      # backend schema changed without frontend types update → CI fails.
+      - name: Install uv (for codegen-drift-check)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python (for codegen-drift-check)
+        run: uv python install 3.12
+
+      - name: Install backend dependencies (for codegen-drift-check)
+        run: uv sync --frozen
+
+      - name: Start FastAPI in background
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+          ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test
+          ALLOWED_ORIGINS: http://localhost:5173
+          SEEDED_USER_ENTRA_OID: ""
+          ENTRA_TENANT_ID: "00000000-0000-0000-0000-000000000000"
+          ENTRA_TENANT_SUBDOMAIN: "jobrag"
+          BACKEND_AUDIENCE: "api://00000000-0000-0000-0000-000000000000"
+        run: |
+          uv run alembic upgrade head
+          uv run uvicorn job_rag.api.app:app --host 127.0.0.1 --port 8000 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:8000/openapi.json >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/openapi.json > /tmp/openapi.live.json
+          # Sanity: live OpenAPI must parse and contain components.
+          python3 -c "import json; d=json.load(open('/tmp/openapi.live.json')); assert 'components' in d, 'OpenAPI missing components'"
+
+      - name: Codegen drift-check (frontend/openapi.snapshot.json vs live)
+        run: |
+          # Compare ignoring formatting differences via canonical JSON dump.
+          python3 -c "
+          import json, sys
+          live = json.load(open('/tmp/openapi.live.json'))
+          snap = json.load(open('frontend/openapi.snapshot.json'))
+          if json.dumps(live, sort_keys=True) != json.dumps(snap, sort_keys=True):
+              print('::error::OpenAPI snapshot drift — update frontend/openapi.snapshot.json AND re-run codegen')
+              sys.exit(1)
+          print('OpenAPI snapshot matches live')
+          "
+
+      - name: Run openapi-typescript codegen + diff
+        run: npm run codegen && git diff --exit-code src/api/types.ts
+        working-directory: frontend

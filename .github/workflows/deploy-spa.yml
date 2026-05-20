@@ -4,11 +4,26 @@ on:
   push:
     branches: [master]
     paths:
-      - 'apps/web/**'
+      - 'frontend/**'
       - '.github/workflows/deploy-spa.yml'
 
 permissions:
   contents: read
+
+# Phase 4 (D-03 / D-04) note: the 5 VITE_* secrets below MUST be set on the
+# GitHub repo before the first SPA build can succeed. Adrian sets them
+# out-of-band after `terraform apply` in infra/external/ produces the
+# SPA + API client IDs and the API audience URI:
+#
+#   gh secret set VITE_TENANT_SUBDOMAIN --body "$(terraform -chdir=infra/bootstrap output -raw tenant_subdomain)"
+#   gh secret set VITE_TENANT_ID        --body "$(terraform -chdir=infra/bootstrap output -raw tenant_id_external)"
+#   gh secret set VITE_SPA_CLIENT_ID    --body "$(terraform -chdir=infra/external output -raw spa_client_id)"
+#   gh secret set VITE_API_AUDIENCE     --body "$(terraform -chdir=infra/external output -raw api_audience_uri)"
+#   gh secret set VITE_API_BASE_URL     --body "https://$(terraform -chdir=infra/envs/prod output -raw aca_fqdn)"
+#
+# All 5 values are public-by-design (visible in JWT iss/aud claims and the
+# browser's network tab); they are kept as GitHub secrets only as a
+# convenience grouping, not a security boundary.
 
 jobs:
   build-and-deploy:
@@ -27,18 +42,23 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: apps/web
+        working-directory: frontend
 
       - name: Build
         run: npm run build
-        working-directory: apps/web
-        # Phase 4 fills the Vite env vars (VITE_API_BASE_URL, VITE_MSAL_CLIENT_ID, etc.).
-        # Phase 3 ships only the workflow harness; first apply happens after Phase 4
-        # produces apps/web/dist/.
+        working-directory: frontend
+        env:
+          VITE_TENANT_SUBDOMAIN: ${{ secrets.VITE_TENANT_SUBDOMAIN }}
+          VITE_TENANT_ID:        ${{ secrets.VITE_TENANT_ID }}
+          VITE_SPA_CLIENT_ID:    ${{ secrets.VITE_SPA_CLIENT_ID }}
+          VITE_API_AUDIENCE:     ${{ secrets.VITE_API_AUDIENCE }}
+          VITE_API_BASE_URL:     ${{ secrets.VITE_API_BASE_URL }}
+          # Optional debug-page flag — set to 'true' to ship /debug/agent-stream in prod.
+          VITE_DEBUG_PAGES:      ${{ secrets.VITE_DEBUG_PAGES }}
 
       - name: Deploy to Static Web App
         uses: Azure/static-web-apps-deploy@v1
@@ -46,6 +66,6 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROD }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'apps/web/dist'
+          app_location: 'frontend/dist'
           skip_app_build: true
           skip_api_build: true
