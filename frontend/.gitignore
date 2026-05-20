@@ -1,0 +1,6 @@
+# Plan 04 (Wave 0 placeholder — extended by Plan 04 frontend scaffold)
+node_modules/
+dist/
+.env.local
+*.local
+.DS_Store

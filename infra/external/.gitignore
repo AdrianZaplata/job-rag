@@ -1,0 +1,8 @@
+# Local state and secrets — Gap D: this dir runs only from Adrian's local az-login.
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+*.tfvars.local
+terraform.tfvars.local
+*.tfplan

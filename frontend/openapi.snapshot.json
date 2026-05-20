@@ -1,0 +1,672 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Job RAG API",
+    "description": "RAG system for AI Engineer job postings \u2014 search, matching, and gap analysis",
+    "version": "0.3.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "description": "Check API and database connectivity.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "summary": "Search",
+        "description": "Semantic search over job postings with optional RAG generation.\n\nWhen generate=True (default), returns an LLM-generated answer with sources.\nWhen generate=False, returns just the ranked search results.",
+        "operationId": "search_search_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "seniority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Seniority"
+            }
+          },
+          {
+            "name": "remote",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Remote"
+            }
+          },
+          {
+            "name": "min_salary",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Salary"
+            }
+          },
+          {
+            "name": "generate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Generate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Search Search Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/match/{posting_id}": {
+      "get": {
+        "summary": "Match",
+        "description": "Match a specific posting against the user profile.",
+        "operationId": "match_match__posting_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "posting_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Posting Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Match Match  Posting Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gaps": {
+      "get": {
+        "summary": "Gaps",
+        "description": "Aggregate skill gaps across all (or filtered) postings.",
+        "operationId": "gaps_gaps_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "seniority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Seniority"
+            }
+          },
+          {
+            "name": "remote",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Remote"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Gaps Gaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent": {
+      "post": {
+        "summary": "Agent Query",
+        "description": "Run the LangGraph agent to completion on a single query.",
+        "operationId": "agent_query_agent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Agent Query Agent Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/agent/stream": {
+      "get": {
+        "summary": "Agent Stream",
+        "description": "Stream agent execution as SSE: typed events + heartbeat + 60s timeout + drain.\n\nThe handler wraps the Plan 04 ``stream_agent`` async iterator in\n``asyncio.timeout(settings.agent_timeout_seconds)`` (D-25) so a runaway\nLangGraph reasoning loop cannot block forever. Three exception branches\neach emit a typed ``ErrorEvent`` (D-19) before closing:\n\n- ``TimeoutError`` \u2192 ``reason=\"agent_timeout\"``\n- ``CancelledError`` \u2192 ``reason=\"shutdown\"`` (then re-raises so sse-starlette\n  can complete the cancellation handshake)\n- any other ``Exception`` \u2192 ``reason=\"internal\"`` with sanitized message\n\nThe current task is registered in ``app.state.active_streams`` on entry\nand discarded in ``finally`` \u2014 Plan 05's lifespan shutdown drains this set\nvia ``asyncio.gather(*active_streams)`` with a 30s grace period (D-17).\n\nsse-starlette's ``ping_message_factory`` is overridden so the keep-alive\nis a real ``event: heartbeat`` rather than a comment-only ``:ping`` (D-15).\nDefensive headers (``X-Accel-Buffering: no`` + ``Content-Encoding: identity``)\nprevent reverse-proxy/CDN buffering and accidental compression that would\nbreak EventSource parsing (D-18 / Pitfall 6).",
+        "operationId": "agent_stream_agent_stream_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream of AgentEvent variants (token, tool_start, tool_end, heartbeat, error, final)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/event-stream": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "error": "#/components/schemas/ErrorEvent",
+                      "final": "#/components/schemas/FinalEvent",
+                      "heartbeat": "#/components/schemas/HeartbeatEvent",
+                      "token": "#/components/schemas/TokenEvent",
+                      "tool_end": "#/components/schemas/ToolEndEvent",
+                      "tool_start": "#/components/schemas/ToolStartEvent"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/TokenEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ToolStartEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ToolEndEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HeartbeatEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEvent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FinalEvent"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingest": {
+      "post": {
+        "summary": "Ingest",
+        "description": "Ingest a single job posting markdown file via the async pipeline.\n\nPre-Plan-06, this route called ``ingest_file(SessionLocal(), tmp_path)`` \u2014\nPlan 03's rewrap of ``ingest_file`` uses ``asyncio.run`` internally, which\nraises ``RuntimeError`` when called from an already-running event loop\n(i.e. inside any ``async def`` route). Plan 06 closes the latent crash by\ncalling the async ``ingest_from_source`` directly with the request's\nAsyncSession dependency (D-24).\n\nError strings in ``error_details`` are sanitized via ``_sanitize`` (T-06-06)\nso per-source extraction failures cannot leak stack traces to the API\nboundary \u2014 same helper used by the ``/agent/stream`` error event path.\n\nThe ``user_id`` dep is wired so future plans (Phase 7 PROF-01 onward) can\nscope ingestion writes to a user without a signature change. Today the\nvalue is the single seeded user; the dep itself is the multi-tenancy hook.",
+        "operationId": "ingest_ingest_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_ingest_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Ingest Ingest Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentQuery": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "AgentQuery"
+      },
+      "Body_ingest_ingest_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_ingest_post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ErrorEvent": {
+        "description": "Typed error event (D-16, D-17, D-19).\n\nWire shape: ``{\"type\": \"error\", \"reason\": \"<literal>\", \"message\": \"<str>\"}`` \u2014\nemitted by the route handler's except blocks (Plan 06), NOT by ``stream_agent``.\nThe ``reason`` field is a closed ``Literal`` set so frontends can branch\ndeterministically on retry-vs-fatal classification.\n\n``message`` MUST be a sanitized human-readable string \u2014 NEVER a stack trace\n(T-04-01). The route handler runs ``_sanitize(exc)`` before constructing this\nevent.",
+        "properties": {
+          "type": {
+            "const": "error",
+            "title": "Type",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Machine-readable error kind (closed Literal set per D-19)",
+            "enum": [
+              "agent_timeout",
+              "shutdown",
+              "llm_error",
+              "internal"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "message": {
+            "description": "Sanitized human-readable message \u2014 NEVER a stack trace",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "reason",
+          "message"
+        ],
+        "title": "ErrorEvent",
+        "type": "object"
+      },
+      "FinalEvent": {
+        "description": "Stream-complete marker.\n\nWire shape: ``{\"type\": \"final\", \"content\": \"<full-message>\"}`` \u2014 matches the\ndict yielded by ``agent/stream.py`` line 62. ``content`` is the concatenation\nof all token chunks emitted during the stream.",
+        "properties": {
+          "type": {
+            "const": "final",
+            "title": "Type",
+            "type": "string"
+          },
+          "content": {
+            "description": "Synthesized final assistant message",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "content"
+        ],
+        "title": "FinalEvent",
+        "type": "object"
+      },
+      "HeartbeatEvent": {
+        "description": "15s liveness ping (D-15).\n\nWire shape: ``{\"type\": \"heartbeat\", \"ts\": \"<ISO-8601>\"}`` \u2014 emitted by the\nroute handler's sse-starlette ``ping_message_factory`` (Plan 06), NOT by\n``stream_agent``. The frontend may surface this as a liveness indicator or\nsilently consume it.",
+        "properties": {
+          "type": {
+            "const": "heartbeat",
+            "title": "Type",
+            "type": "string"
+          },
+          "ts": {
+            "description": "ISO-8601 timestamp at emit time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "ts"
+        ],
+        "title": "HeartbeatEvent",
+        "type": "object"
+      },
+      "TokenEvent": {
+        "description": "Incremental assistant text chunk.\n\nWire shape: ``{\"type\": \"token\", \"content\": \"<chunk>\"}`` \u2014 matches the dict\nyielded by ``agent/stream.py`` line 42.",
+        "properties": {
+          "type": {
+            "const": "token",
+            "title": "Type",
+            "type": "string"
+          },
+          "content": {
+            "description": "Assistant text chunk",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "content"
+        ],
+        "title": "TokenEvent",
+        "type": "object"
+      },
+      "ToolEndEvent": {
+        "description": "Tool invocation has completed.\n\nWire shape: ``{\"type\": \"tool_end\", \"name\": \"<tool>\", \"output\": \"<str>\"}`` \u2014\nmatches the dict yielded by ``agent/stream.py`` lines 56-60. ``output`` is\nstringified at the source; structured outputs lose fidelity through ``str()``\n(T-04-03 accepted tradeoff).",
+        "properties": {
+          "type": {
+            "const": "tool_end",
+            "title": "Type",
+            "type": "string"
+          },
+          "name": {
+            "description": "Tool function name",
+            "title": "Name",
+            "type": "string"
+          },
+          "output": {
+            "description": "Tool return value (stringified)",
+            "title": "Output",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "output"
+        ],
+        "title": "ToolEndEvent",
+        "type": "object"
+      },
+      "ToolStartEvent": {
+        "description": "Tool invocation has begun.\n\nWire shape: ``{\"type\": \"tool_start\", \"name\": \"<tool>\", \"args\": {...}|null}`` \u2014\nmatches the dict yielded by ``agent/stream.py`` lines 45-49. ``args`` is\noptional because LangGraph may not always supply tool inputs.",
+        "properties": {
+          "type": {
+            "const": "tool_start",
+            "title": "Type",
+            "type": "string"
+          },
+          "name": {
+            "description": "Tool function name",
+            "title": "Name",
+            "type": "string"
+          },
+          "args": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tool arguments (JSON)",
+            "title": "Args"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "ToolStartEvent",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

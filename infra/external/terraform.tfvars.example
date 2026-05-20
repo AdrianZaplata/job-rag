@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars.local (gitignored) and fill in values.
+# NEVER commit terraform.tfvars.local — it carries the External tenant GUID.
+
+tenant_id_external = "00000000-0000-0000-0000-000000000000" # from infra/bootstrap/outputs.tf tenant_id_external output
+environment        = "prod"
+spa_redirect_uris = [
+  "http://localhost:5173/",
+  "https://YOUR-SWA-DEFAULT-HOSTNAME.azurestaticapps.net/", # from infra/envs/prod/outputs.tf swa_default_origin output
+]
+logout_redirect_uri = "https://YOUR-SWA-DEFAULT-HOSTNAME.azurestaticapps.net"
