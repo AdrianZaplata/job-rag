@@ -57,6 +57,13 @@ resource "azuread_application" "spa" {
   display_name     = "jobrag-spa-${var.environment}"
   sign_in_audience = "AzureADMyOrg"
 
+  # External (CIAM) tenants reject v1 tokens — AccessTokenAcceptedVersion
+  # may not be 1 or null. Default on azuread_application is 1, so set
+  # explicitly on the SPA too (the API app already sets this on line 27).
+  api {
+    requested_access_token_version = 2
+  }
+
   single_page_application {
     # Pitfall 2: MUST be single_page_application, NOT `web`. Wrong type =
     # AADSTS9002326 "Cross-origin token redemption is permitted only for
