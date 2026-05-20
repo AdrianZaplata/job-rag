@@ -65,7 +65,7 @@ All four ship as a single pair to amortize the re-extraction cost.
 - [x] **SHEL-03**: TanStack Query installed; all server state flows through `useQuery`/`useMutation` (no ad-hoc `useEffect` fetching)
 - [x] **SHEL-04**: App shell provides a top-nav with Dashboard / Chat routes, logged-in user indicator, and sign-out
 - [x] **SHEL-05**: API client attaches the MSAL-issued access token as `Authorization: Bearer <jwt>` on every request
-- [ ] **SHEL-06**: Error boundary + empty/error/loading states for every page; Suspense fallbacks for async boundaries
+- [x] **SHEL-06**: Error boundary + empty/error/loading states for every page; Suspense fallbacks for async boundaries
 
 ### Auth — Entra ID External Identities (AUTH)
 
@@ -193,7 +193,7 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | SHEL-03 | Phase 4 | Complete |
 | SHEL-04 | Phase 4 | Complete |
 | SHEL-05 | Phase 4 | Complete |
-| SHEL-06 | Phase 4 | Pending |
+| SHEL-06 | Phase 4 | Complete |
 | AUTH-01 | Phase 4 | Complete |
 | AUTH-02 | Phase 4 | Complete |
 | AUTH-03 | Phase 4 | Complete |

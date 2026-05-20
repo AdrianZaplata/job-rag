@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-20T06:57:20.931Z"
+last_updated: "2026-05-20T07:14:25.890Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 25
-  completed_plans: 23
-  percent: 92
+  completed_plans: 24
+  percent: 96
 ---
 
 # State: job-rag web-app milestone
@@ -34,7 +34,7 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 ## Current Position
 
 Phase: 04 (frontend-shell-auth) — EXECUTING
-Plan: 5 of 6 (Plans 04-01 + 04-02 + 04-03 + 04-04 COMPLETE — Wave 0 backend setup + Wave 1 backend auth + Wave 2 CI/deploy/ACA wiring + Wave 3a frontend scaffold + auth/data plumbing all landed)
+Plan: 6 of 6 (Plans 04-01 + 04-02 + 04-03 + 04-04 COMPLETE — Wave 0 backend setup + Wave 1 backend auth + Wave 2 CI/deploy/ACA wiring + Wave 3a frontend scaffold + auth/data plumbing all landed)
 Next: Plan 04-05 (Wave 3b — frontend components + routes + App.tsx — activates 3 skip-on-missing vitest stubs from Plan 04-04)
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
@@ -76,6 +76,7 @@ Next: Plan 04-05 (Wave 3b — frontend components + routes + App.tsx — activat
 | Phase 04 P02 | 18m | 2 tasks | 5 files |
 | Phase 04 P03 | 5m | 2 tasks | 7 files |
 | Phase 04 P04 | 14m | 2 tasks | 38 files |
+| Phase 04-frontend-shell-auth P05 | 12m | 2 tasks | 33 files |
 
 ### Per-Plan Execution
 
