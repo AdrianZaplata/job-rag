@@ -52,6 +52,20 @@ class Settings(BaseSettings):
     agent_timeout_seconds: int = Field(default=60, ge=1)
     heartbeat_interval_seconds: int = Field(default=15, ge=1)
 
+    # Entra External ID tenant identifiers (Phase 4 D-04 — plain env vars,
+    # public-by-design per Phase 3 D-13).
+    entra_tenant_id: str = ""
+    entra_tenant_subdomain: str = ""
+
+    # Backend audience for fastapi-azure-auth (Phase 4 D-04). Format: api://{api_client_id}.
+    # Compared against the JWT aud claim by the library; rejected on mismatch.
+    backend_audience: str = ""
+
+    # Adrian's Entra oid for AUTH-06 single-user guard (Phase 4 D-04 / D-08 / D-09).
+    # Empty string = bootstrap-pending state — D-08 guard treats empty as "deny all";
+    # D-10 migration skips on empty.
+    seeded_user_entra_oid: str = ""
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, v: str | list[str]) -> list[str]:

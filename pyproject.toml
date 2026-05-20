@@ -32,6 +32,7 @@ dependencies = [
     "langfuse",
     "langgraph",
     "sse-starlette",
+    "fastapi-azure-auth>=5.2,<6.0",
 ]
 
 [project.scripts]

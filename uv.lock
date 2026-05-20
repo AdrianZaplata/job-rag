@@ -669,6 +669,21 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi-azure-auth"
+version = "5.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6b/ee/b71456094ea84cbbf7079800b3933b9211cd6f1b70b89c3ce075ba785437/fastapi_azure_auth-5.2.0.tar.gz", hash = "sha256:8f86ef2c6d38cea12f343a0b18533026e6143c9df928ac8529a32cdbbdfe3991", size = 14620, upload-time = "2025-07-25T06:58:14.533Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/0a/1c087af39d72bb2a47e8617cf2dc6e525adfc372aaf80749d6c911eaedbb/fastapi_azure_auth-5.2.0-py3-none-any.whl", hash = "sha256:f2353ce005987b95c2f1ab82e77d44e3be6d419cb5e63b98ac4e17fdf2355b77", size = 14977, upload-time = "2025-07-25T06:58:13.175Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.25.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1102,6 +1117,7 @@ dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "fastapi" },
+    { name = "fastapi-azure-auth" },
     { name = "instructor" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
@@ -1141,6 +1157,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18,<1.19" },
     { name = "asyncpg" },
     { name = "fastapi" },
+    { name = "fastapi-azure-auth", specifier = ">=5.2,<6.0" },
     { name = "instructor" },
     { name = "langchain-core", specifier = ">=1.2.28" },
     { name = "langchain-openai" },
