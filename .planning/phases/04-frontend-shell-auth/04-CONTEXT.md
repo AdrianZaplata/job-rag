@@ -35,7 +35,7 @@ Out of scope here (later phases): Dashboard widgets / filter bar (Phase 5), Chat
 
 - **D-05:** AUTH-07 race-fix pattern = **top of `main.tsx`**. Literal AUTH-07 wording — `await msalInstance.initialize(); await msalInstance.handleRedirectPromise();` runs BEFORE `ReactDOM.createRoot(rootEl).render(<App/>)`. No wrapping component, no Suspense + `use()` overengineering, no flash-of-null. Accepts ~50-150ms of blank first paint on cold load (PROJECT.md doesn't budget LCP).
 - **D-06:** MSAL cache type = **sessionStorage**. Tab-scoped: tokens are gone when the tab closes. Lower XSS blast radius (no token survives between sessions). Adrian re-logs once per session; acceptable for a single-user portfolio app where per-session dwell time is short. Configured via `cacheLocation: 'sessionStorage'` in `PublicClientApplication` config.
-- **D-07:** Backend JWT validation = **`fastapi-azure-auth` 5.x `SingleTenantAzureAuthorizationCodeBearer` + chained Depends**. Library handles JWKS caching (LRU), issuer verification (interpolates `tenant_subdomain` + `tenant_id` into the `ciamlogin.com/${tenant_id}/v2.0` issuer URL), audience check (`api://${api_client_id}`), signature, expiry. Wired as a module-level instance in `src/job_rag/api/auth.py`. Add `fastapi-azure-auth ^5.0` + its peer `cryptography` (already present transitively) to `pyproject.toml`. STACK.md AUTH-05 calls out this library by name.
+- **D-07:** Backend JWT validation = **`fastapi-azure-auth` 5.x `B2CMultiTenantAuthorizationCodeBearer` + chained Depends**. Library handles JWKS caching (LRU), issuer verification (interpolates `tenant_subdomain` + `tenant_id` into the `ciamlogin.com/${tenant_id}/v2.0` issuer URL), audience check (`api://${api_client_id}`), signature, expiry. Wired as a module-level instance in `src/job_rag/api/auth.py`. Add `fastapi-azure-auth ^5.0` + its peer `cryptography` (already present transitively) to `pyproject.toml`. STACK.md AUTH-05 calls out this library by name.
 - **D-08:** AUTH-06 single-user `oid` guard placement = **inside `get_current_user_id()` function body** (Phase 1 D-10 function-body rewrite pattern). Every consumer is already wired via `Depends(get_current_user_id)`. New body:
   ```
   async def get_current_user_id(
@@ -82,7 +82,7 @@ Out of scope here (later phases): Dashboard widgets / filter bar (Phase 5), Chat
 - Route table (preliminary): `/` (redirect to `/dashboard`), `/dashboard` (Phase 5 placeholder), `/chat` (Phase 6 placeholder), `/profile` (Phase 7 placeholder), `/access-denied` (D-09 OID-display, outside AuthGate), `/debug/agent-stream` (D-16 SSE proof, AuthGate'd, dev-only env flag), `*` (404 page).
 - Scope request shape: `loginRequest.scopes = [API_SCOPE]` configured once at the SDK init; `acquireTokenSilent` calls use the same array.
 - Settings additions in `src/job_rag/config.py`: `entra_tenant_id: str`, `entra_tenant_subdomain: str`, `backend_audience: str` (the `api://${api_client_id}` URI), `seeded_user_entra_oid: str = ""` (empty default = bootstrap-pending state; D-08 guard treats empty as "deny all"; D-10 migration skips on empty).
-- fastapi-azure-auth issuer URL builder: `f"https://{settings.entra_tenant_subdomain}.ciamlogin.com/{settings.entra_tenant_id}/v2.0"`. Audience: `settings.backend_audience`. Pass to `SingleTenantAzureAuthorizationCodeBearer(app_client_id=..., openid_config_url=...)`.
+- fastapi-azure-auth issuer URL builder: `f"https://{settings.entra_tenant_subdomain}.ciamlogin.com/{settings.entra_tenant_id}/v2.0"`. Audience: `settings.backend_audience`. Pass to `B2CMultiTenantAuthorizationCodeBearer(app_client_id=..., openid_config_url=...)`.
 - Token-refresh-on-tab-focus behaviour: MSAL default + TanStack Query `refetchOnWindowFocus: false` ⇒ no spurious refetches; MSAL only refreshes silently before expiry. Acceptable.
 - `/health` endpoint allowlist exception: leave as-is (unauthenticated, returns 200 — needed for ACA's liveness probe). All OTHER routes require `get_current_user_id` Depends.
 - Resource scaffolding for `infra/external/`: own `main.tf`, `variables.tf`, `outputs.tf`, `provider.tf` (only `azuread.external` provider, NO `azurerm`), `terraform.tfvars` template, `README.md` runbook (mirrors `infra/bootstrap/README.md` shape — bootstrap step-by-step + drift-recovery + apply-and-paste-outputs flow).
@@ -91,6 +91,10 @@ Out of scope here (later phases): Dashboard widgets / filter bar (Phase 5), Chat
 ### Folded Todos
 
 None — `gsd-tools todo match-phase 4` returned `todo_count: 0`.
+
+### Amendments (post-Discussion)
+
+- **D-07 amendment (2026-05-19, per RESEARCH.md §Open Question Q1 / §Pitfall 1):** Use `B2CMultiTenantAuthorizationCodeBearer` (NOT the deprecated single-tenant class originally named in D-07). Rationale: the deprecated single-tenant class hard-codes the discovery URL to `login.microsoftonline.com` (workforce), but Entra External ID (CIAM) lives on `*.ciamlogin.com` and requires the `openid_config_url` override that only `B2CMultiTenantAuthorizationCodeBearer` accepts (verified at https://github.com/Intility/fastapi-azure-auth/blob/main/fastapi_azure_auth/auth.py). Wave 1 backend Plan 02 implements the corrected class; Wave 1 smoke test triangulates by minting a real MSAL token and asserting the 200/403 boundary.
 
 </decisions>
 
@@ -139,7 +143,7 @@ None — `gsd-tools todo match-phase 4` returned `todo_count: 0`.
 ### Codebase audit (Phase 4 must not break)
 - `.planning/codebase/ARCHITECTURE.md` — three-tier layering; Phase 4 adds a Frontend tier alongside existing Ingestion/Retrieval/Intelligence tiers
 - `.planning/codebase/STACK.md` — backend frozen; Phase 4 only adds `fastapi-azure-auth ^5.0` + its peer
-- `src/job_rag/api/auth.py` §`get_current_user_id` (lines 64-83 approx) — function body rewrite target (D-08); module-level `azure_scheme = SingleTenantAzureAuthorizationCodeBearer(...)` instance added above it
+- `src/job_rag/api/auth.py` §`get_current_user_id` (lines 64-83 approx) — function body rewrite target (D-08); module-level `azure_scheme = B2CMultiTenantAuthorizationCodeBearer(...)` instance added above it
 - `src/job_rag/api/app.py` §lifespan — already wires CORS via `settings.allowed_origins`; Phase 4 adds NOTHING to lifespan
 - `src/job_rag/config.py` §Settings — new fields: `entra_tenant_id`, `entra_tenant_subdomain`, `backend_audience`, `seeded_user_entra_oid` (D-04 + D-08)
 - `src/job_rag/api/sse.py` (Phase 1 D-04) — AgentEvent discriminated union; Phase 4 D-14 codegen consumes this via `/openapi.json`
@@ -187,7 +191,7 @@ None — `gsd-tools todo match-phase 4` returned `todo_count: 0`.
 - **Phase 2 D-22 PROMPT_VERSION bump pattern for schema-relevant changes** — Phase 4 doesn't change extraction prompts, but the same discipline applies if a future phase needs `entra_oid` shaping in skill extraction (it doesn't).
 
 ### Integration Points
-- **`src/job_rag/api/auth.py`** — Phase 4 D-08 rewrites `get_current_user_id()` body; adds module-level `azure_scheme = SingleTenantAzureAuthorizationCodeBearer(...)` instance.
+- **`src/job_rag/api/auth.py`** — Phase 4 D-08 rewrites `get_current_user_id()` body; adds module-level `azure_scheme = B2CMultiTenantAuthorizationCodeBearer(...)` instance.
 - **`src/job_rag/config.py`** — Phase 4 D-04 adds 4 Settings fields (`entra_tenant_id`, `entra_tenant_subdomain`, `backend_audience`, `seeded_user_entra_oid`).
 - **`alembic/versions/0005_adopt_entra_oid.py`** — Phase 4 D-10 new migration: adds `entra_oid` column to `user_db` + idempotent UPDATE of seeded row.
 - **`pyproject.toml`** — Phase 4 adds `fastapi-azure-auth>=5.0,<6.0` to project deps; `uv.lock` bumps.

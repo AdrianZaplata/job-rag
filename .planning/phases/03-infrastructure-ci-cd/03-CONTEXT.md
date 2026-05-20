@@ -183,7 +183,7 @@ None — `gsd-tools todo match-phase 3` returned `todo_count: 0`.
 
 ### Integration Points
 - **`Dockerfile`** — Phase 3's `deploy-api.yml` builds + pushes to GHCR; tag pattern `ghcr.io/<owner>/job-rag:${{ github.sha }}` + `:latest`.
-- **`apps/web/dist/`** — Phase 4 produces this via `npm run build`; Phase 3's `deploy-spa.yml` consumes it via `azure/static-web-apps-deploy@v1`. Phase 3 doesn't ship the SPA itself, just the workflow + SWA resource.
+- **`apps/web/dist/`** (superseded by Phase 4 D-01: project location is `frontend/`) — Phase 4 produces this via `npm run build`; Phase 3's `deploy-spa.yml` consumes it via `azure/static-web-apps-deploy@v1`. Phase 3 doesn't ship the SPA itself, just the workflow + SWA resource.
 - **GitHub repository settings** — Phase 3 adds protected environment `production` with required reviewer = Adrian; secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` populated from bootstrap outputs; secret `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` from SWA deployment token.
 - **Adrian's Azure subscription** — bootstrap requires Owner-level access on the subscription for first run; subsequent operations run under the github-actions service principal at RG-scope.
 - **Phase 1's `init_db()` startup** — runs Alembic against the `ASYNC_DATABASE_URL` injected from KV via managed identity at ACA startup; Phase 3's TF-created `jobrag` DB must be reachable + the managed identity must have the password secret available before the container starts (TF dependency ordering: KV secret + access role assignment created BEFORE Container App resource).

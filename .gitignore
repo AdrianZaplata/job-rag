@@ -30,6 +30,14 @@ infra/envs/*/.terraform.lock.hcl
 *.tfplan
 *.tfvars.local
 
+# Phase 4 D-02 — infra/external/ local-state-only (mirrors infra/bootstrap/)
+infra/external/terraform.tfstate
+infra/external/terraform.tfstate.backup
+infra/external/.terraform/
+infra/external/.terraform.lock.hcl
+infra/external/*.tfvars.local
+infra/external/*.tfplan
+
 # Local-only TF runtime artifacts (crash dumps + apply logs)
 infra/envs/*/errored.tfstate
 infra/envs/*/*-apply.log
