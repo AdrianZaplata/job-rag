@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-19T22:51:12.137Z"
-last_activity: 2026-05-19
+last_updated: "2026-05-20T06:10:44.011Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 25
-  completed_plans: 19
-  percent: 76
+  completed_plans: 20
+  percent: 80
 ---
 
 # State: job-rag web-app milestone
@@ -33,9 +33,9 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
-Next: Phase 03 (Infrastructure & CI/CD) — unblocked
+Phase: 04 (frontend-shell-auth) — EXECUTING
+Plan: 2 of 6 (Plan 04-01 COMPLETE — Wave 0 foundation landed)
+Next: Plan 04-02 (backend auth — fastapi-azure-auth B2C class wiring + get_current_user_id rewrite)
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
 - **Phase 2**: Corpus Cleanup — 4/4 plans complete with SUMMARY.md files; **documented data-quality residual** (10 of 108 postings persistently fail Instructor extraction; 98/108 = 90.7% reextracted to PROMPT_VERSION='2.0'). All 4 CORP-* requirements marked complete in REQUIREMENTS.md but only CORP-02 is a clean PASS in 02-04 sanity checks; CORP-01 has a small (11-row, 0.56%) leak; CORP-03/04 are PARTIAL PASS due to the failure coverage gap. Phase 2 closes with explicit deferred follow-up plan recommendation in 02-04-SUMMARY.md.
@@ -72,6 +72,7 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 | Phase 03 P05a | 12m | 2 tasks | 8 files |
 | Phase 03-infrastructure-ci-cd P05b | 8m | 3 tasks | 10 files |
 | Phase 03-infrastructure-ci-cd P06 | 6m | 2 tasks | 3 files |
+| Phase 04 P01 | 10m | 3 tasks | 18 files |
 
 ### Per-Plan Execution
 
@@ -83,6 +84,7 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 | 01-04 (SSE Pydantic event contract)    | 11m 24s | 2 | 6  | 6ba420d, 35f2bbe |
 | 01-05 (lifespan + CORS + auth dep)     | 8m 6s   | 2 | 5  | e968969, ab0657e |
 | 02-01 (schema evolution: SkillType + Location) | 4m | 3 | 4 | a0876fc, dc773af, 959cbf1 |
+| 04-01 (Wave 0 foundation: Settings + dep + infra/external + snapshot) | ~10m | 3 | 18 | 7a03169, 23faea3, 36f00de, 2c24762 |
 
 ## Accumulated Context
 
@@ -115,6 +117,13 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 - **Plan 02-04:** Resume-instead-of-restart pattern for long LLM-driven corpus operations — when `job-rag reextract` hangs or is killed, simply re-run the same default command. The WHERE clause in `reextract_stale` automatically selects only stale rows; no `--all` flag needed and no risk of double-extraction. Documented two-log audit trail convention: keep the original log untouched as forensic record, tee resume to a sibling `*-resume.log`. Both gitignored via `.planning/phases/**/*.log`.
 - **Plan 02-04:** GPT-4o-mini + the new structured-output schema (Location submodel + skill_category + REJECTION RULES) has a ~10% persistent-failure rate on the existing 108-posting corpus. 98/108 succeeded across 2 runs ($0.22 total LLM cost); 10 hit `RetryError[InstructorRetryException]` and exhausted tenacity's 3-attempt window. Recommended follow-up: inspect raw_text of the 10 failures, decide between prompt tweak / model upgrade (gpt-4o for those 10) / manual fixture; add `httpx.Timeout` or `asyncio.wait_for` at the extraction-call boundary to prevent the silent-stall failure mode that caused the original-run 47-min hang.
 - **Plan 02-04:** Lifespan drift surface (`prompt_version_drift` structlog warning with `current` / `stale_by_version` / `stale_count` / `remediation` fields) verified working under partial-failure conditions. With 10 stale rows present, lifespan emits the drift warning correctly; will auto-flip to `prompt_version_check_clean` once the residual is reextracted — no code change needed. Confirms D-17's two-surface drift detection design.
+
+### Decisions (from execution — Phase 4)
+
+- **Plan 04-01:** Resolved must-have-vs-plan-contradiction by applying full bare-class-name sweep of `SingleTenantAzureAuthorizationCodeBearer`→`B2CMultiTenantAuthorizationCodeBearer` in 04-CONTEXT.md (4 occurrences across D-07, Claude's Discretion, canonical_refs, code_context). The plan's Edit 1 instruction "Do NOT rewrite the original D-07 line itself" conflicted with the must-have truth "zero bare-class-name occurrences"; resolved per Rule 2 (correctness for T-04-01-03 threat mitigation) with traceability preserved via amendment footer naming D-07 as source. Pattern: when a plan's must-have truth contradicts a literal plan instruction, satisfy the must-have and document the resolution in an amendment footer.
+- **Plan 04-01:** Generated openapi.snapshot.json via in-process `app.openapi()` (no uvicorn boot, no curl, no port binding). Pattern: when a CI-drift baseline needs OpenAPI bytes, use `python -c "from {pkg}.app import app; json.dump(app.openapi(), f)"` — deterministic schema bytes with zero subprocess complexity. Reusable for any future OpenAPI snapshot capture in the project.
+- **Plan 04-01:** Wave 0 test scaffolding pattern continued — `TestSettingsHasNewFields` (4 tests) active this wave; `TestEntraJwtValidation` + `TestOidGuard` (3 tests) guarded by a three-condition skip-gate (module importable + `azure_scheme` symbol + `get_current_user_id` symbol present), auto-activates the moment Plan 02 lands any of the three. No test edits required when Plan 02 ships. Mirror of `tests/test_auth.py::TestGetCurrentUserId` skip-on-missing pattern.
+- **Plan 04-01:** Cross-tenant Terraform scaffold pattern (`infra/external/` mirrors `infra/bootstrap/` shape) — same terraform block sans backend, same azuread.external aliased provider, same README runbook anatomy (Prerequisites → Steps → Knowingly-accepted trade-offs → When to re-apply). Keeps Adrian's operational muscle memory unified across the two local-state directories. Applies whenever a future phase needs Adrian-local-only Terraform operation (e.g., a second External tenant for staging, or any other cross-tenant resource that the workforce GHA SP can't auth into).
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -154,7 +163,7 @@ Next: Phase 03 (Infrastructure & CI/CD) — unblocked
 | 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 
-Last activity: 2026-05-19
+Last activity: 2026-05-20
 
 ### Open Questions (from research, to resolve during planning)
 
@@ -188,13 +197,15 @@ Last activity: 2026-05-19
 
 - 2026-04-29: Plan 03-01 executed (Wave 0 — static-TF lint + scaffolding). 2 atomic commits (a07b2cb feat tflint+tfsec+gitignore Terraform block + 49dabeb feat runbook skeletons + refresh-swa-origin.sh + static-tf.yml workflow). Created infra/.tflint.hcl (azurerm ruleset 0.27.0 + recommended preset + 3 explicit terraform rules), infra/.tfsec/config.yml (allowlist azure-database-no-public-access + azure-database-no-public-firewall-rules per D-10/A1 Path A €0-budget trade-off, minimum_severity: HIGH), infra/README.md (top-level layout + bootstrap → first-apply runbook), infra/bootstrap/README.md (4 step headings, filled by Plan 02), infra/envs/prod/README.md (6 section headings incl. Two-Pass CORS Bootstrap heading anchor), infra/envs/dev/README.md (scaffold-only per D-04), scripts/refresh-swa-origin.sh (DEPL-12 two-pass CORS helper, mode 100755 set via `git update-index --chmod=+x`, set -euo pipefail, idempotent sed-with-backup), .github/workflows/static-tf.yml (PR-only on `infra/**` + .github/workflows/static-tf.yml, permissions: contents: read for T-3-02, fmt + tflint + tfsec + per-env validate with `if [ -f infra/{env}/main.tf ]` guards so Wave 0 PR stays green BEFORE Plan 02 lands real .tf files). .gitignore extended with Terraform block at tail (bootstrap state, .terraform/, *.tfplan, *.tfvars.local) — T-3-01 mitigation lands BEFORE Plan 02 runs locally. All 9 files verified on disk; bash -n script clean; section-heading greps pass. **Adrian explicitly chose Wave 0 only — execution stops here, Plans 02-07 deferred to next session.** DEPL-01, DEPL-02, DEPL-12 requirements marked complete (DEPL-12 wired but not yet exercised — script exists, will be invoked from Plan 04's prod runbook). Stopped at: Completed 03-01-PLAN.md.
 
+- 2026-05-20: Plan 04-01 executed (Wave 0 foundation — Settings + dep + D-07 correction + infra/external scaffold + openapi.snapshot.json + refresh-external-outputs.sh). 4 atomic commits (7a03169 docs CONTEXT.md + .gitignore + 23faea3 test test_entra_jwt.py RED + 36f00de feat config.py + fastapi-azure-auth dep GREEN + 2c24762 feat infra/external + openapi.snapshot.json + refresh script). Added 4 Pydantic Settings fields (entra_tenant_id, entra_tenant_subdomain, backend_audience, seeded_user_entra_oid; all str="" defaults; bare-field shape mirroring langfuse_*/openai_*). Added fastapi-azure-auth>=5.2,<6.0 via `uv add` (5.2.0 installed; uv.lock bumped). Created tests/test_entra_jwt.py: 4 active TestSettingsHasNewFields tests pass; 3 skipped TestEntraJwtValidation+TestOidGuard tests guarded by three-condition skip-gate (module importable + azure_scheme symbol + get_current_user_id symbol) — auto-activates when Plan 02 lands. Applied **full bare-class-name sweep** of `SingleTenantAzureAuthorizationCodeBearer`→`B2CMultiTenantAuthorizationCodeBearer` across all 4 occurrences in 04-CONTEXT.md (D-07 line 38, Claude's Discretion line 85, canonical_refs line 146, code_context line 194) — Rule 2 deviation to satisfy must-have truth "zero bare-class-name occurrences" which contradicted the plan's literal "leave D-07 intact" instruction; traceability preserved via amendment footer naming D-07 as source. Phase 3 03-CONTEXT.md line 186 annotated with "(superseded by Phase 4 D-01: project location is `frontend/`)". Created infra/external/ Terraform scaffold with all 7 files (main.tf with SPA + API app regs + admin consent grant + single_page_application block per Pitfall 2; variables.tf with tenant_id_external required + spa_redirect_uris list default; outputs.tf with 4 outputs each named for downstream consumer; provider.tf with azuread.external alias + unaliased default, NO azurerm; terraform.tfvars.example committed template; .gitignore mirroring infra/bootstrap; README.md full runbook). NO terraform apply — Plan 06 owns first apply. Created scripts/refresh-external-outputs.sh (executable, mirrors refresh-swa-origin.sh idiom; terraform output → sed-rewrite prod.tfvars.local + frontend/.env.production + prints gh secret set commands). Captured frontend/openapi.snapshot.json (7 paths, 10 schemas including AgentEvent Pydantic discriminated union) via in-process app.openapi() — no docker-compose start needed; deterministic schema bytes. Root .gitignore extended with infra/external/ local-state block (T-04-01-01 / T-04-01-02 mitigations land BEFORE Plan 06 first apply). Created frontend/.gitignore minimal placeholder + .planning/phases/04-frontend-shell-auth/deferred-items.md (logs pre-existing test_alembic.py::test_0004_{up,down}grade_smoke KeyError('DATABASE_URL') failures — verified pre-existing via git stash on master HEAD; out of scope for Plan 04-01). Final verification: `pytest -m 'not eval' --ignore=tests/test_alembic.py` → 149 passed / 5 skipped / 0 failed; ruff clean; pyright 0 errors; all 11 plan-level verifications PASS. Requirements SHEL-01 + AUTH-01..03 + AUTH-05..06 wired (full Plan 04 closes them; this plan lays Wave 0 foundation). Stopped at: Completed 04-01-PLAN.md. **Plans 04-02 / 04-03 / 04-04 / 04-05 / 04-06 unblocked.**
+
 ### Next session
 
+- **Phase 4 Wave 0 done** (Plan 01 / 6). Foundation laid: 4 Entra-aware Settings fields, fastapi-azure-auth 5.2.0 dep, D-07 correction (B2CMultiTenantAuthorizationCodeBearer), infra/external/ scaffold (7 files, no apply), OpenAPI drift baseline, refresh-external-outputs.sh helper. Plans 04-02 / 04-03 / 04-04 / 04-05 / 04-06 all unblocked.
+- **Suggested next:** `/gsd-execute-phase 4` to land Plan 02 (backend auth — module-level B2CMultiTenantAuthorizationCodeBearer instance + get_current_user_id() body rewrite + activate 3 skipped test_entra_jwt tests).
 - **Phase 3 Wave 0 done** (Plan 01 / 7). Static-TF validation harness and runbook scaffolding landed. Plans 02-07 still pending.
-- **Suggested next:** `/gsd-execute-phase 3` to land Plan 02 (bootstrap — Azure Storage state + Entra External tenant import), OR `/gsd-verify-work 3.01` to verify Wave 0 before proceeding.
 - **Phase 2 plans complete** (4/4) — ready for `/gsd-verify-work 2`. Verifier should expect to find documented data-quality residual (10/108 persistent failures) and a recommended follow-up plan in `.planning/phases/02-corpus-cleanup/02-04-SUMMARY.md`. CORP-* requirements are marked complete; only CORP-02 is a clean PASS in 02-04 sanity checks; CORP-01/03/04 have explicit PARTIAL/FAIL statuses with documented impact.
 - **Optional follow-up Phase 2 plan** (small, ~30 min) to triage the 10 persistent failures: inspect raw_text → decide remediation (prompt tweak / gpt-4o for those 10 / manual fixture) → add `httpx.Timeout` to the OpenAI client to prevent the silent-stall failure mode that caused the original-run 47-min hang.
-- **Suggested next:** `/gsd-discuss-phase 3` for Infrastructure & CI/CD (DEPL-01..DEPL-12) — Phases 2 and 3 are parallel-eligible per ROADMAP. Phase 5 (Dashboard) can also start; it depends on Phase 2's structural deliverables (which all landed in Plans 02-01..02-03) but tolerates the 10-row residual via `WHERE prompt_version='2.0'`.
 - Target plans per phase (standard granularity): 3-5.
 
 ---

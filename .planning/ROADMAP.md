@@ -106,7 +106,7 @@ Plans:
 **Cost delta**: €0/mo (runtime only; Entra External ID free up to 50k MAU)
 **Plans**: 6 plans
 Plans:
-- [ ] 04-01-PLAN.md — Wave 0 foundation: D-07 amendment, Phase 3 apps/web correction, config.py 4 new Settings fields, fastapi-azure-auth dep, test_entra_jwt.py stubs, frontend/openapi.snapshot.json, infra/external/ scaffold (no apply), scripts/refresh-external-outputs.sh, root .gitignore
+- [x] 04-01-PLAN.md — Wave 0 foundation: D-07 amendment, Phase 3 apps/web correction, config.py 4 new Settings fields, fastapi-azure-auth dep, test_entra_jwt.py stubs, frontend/openapi.snapshot.json, infra/external/ scaffold (no apply), scripts/refresh-external-outputs.sh, root .gitignore
 - [ ] 04-02-PLAN.md — Wave 1 backend: B2CMultiTenantAuthorizationCodeBearer azure_scheme + get_current_user_id body rewrite + structlog rejected-oid warning + alembic 0005 migration (entra_oid column + idempotent UPDATE + partial unique index) + activated test stubs + 0005 smoke tests
 - [ ] 04-03-PLAN.md — Wave 2 CI + infra wiring: ci.yml frontend-ci sibling job + deploy-spa.yml apps/web→frontend rename + 5 VITE_* env injection + compute module env-block extension (BACKEND_AUDIENCE/ENTRA_TENANT_ID/ENTRA_TENANT_SUBDOMAIN plain + SEEDED_USER_ENTRA_OID secretRef) + prod env composition + tfvars placeholders
 - [ ] 04-04-PLAN.md — Wave 3a frontend scaffold + auth/data plumbing: Vite 8 + React 19 + TS + Tailwind v4 + shadcn (zinc/new-york) init + 17 deps pinned + main.tsx literal AUTH-07 race fix + msal singleton (sessionStorage + knownAuthorities) + authedFetch + readSSEStream + queryClient + openapi-typescript codegen + 4 service modules + 5 vitest stubs (2 active, 3 skip-on-missing)
