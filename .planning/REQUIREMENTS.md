@@ -63,8 +63,8 @@ All four ship as a single pair to amortize the re-extraction cost.
 - [x] **SHEL-01**: Vite + React 19 + TypeScript project scaffolded in `frontend/`
 - [ ] **SHEL-02**: Tailwind CSS v4 + shadcn/ui installed and themed to a Linear-style dense aesthetic (grayscale palette + one accent; small type; information-dense layouts)
 - [ ] **SHEL-03**: TanStack Query installed; all server state flows through `useQuery`/`useMutation` (no ad-hoc `useEffect` fetching)
-- [ ] **SHEL-04**: App shell provides a top-nav with Dashboard / Chat routes, logged-in user indicator, and sign-out
-- [ ] **SHEL-05**: API client attaches the MSAL-issued access token as `Authorization: Bearer <jwt>` on every request
+- [x] **SHEL-04**: App shell provides a top-nav with Dashboard / Chat routes, logged-in user indicator, and sign-out
+- [x] **SHEL-05**: API client attaches the MSAL-issued access token as `Authorization: Bearer <jwt>` on every request
 - [ ] **SHEL-06**: Error boundary + empty/error/loading states for every page; Suspense fallbacks for async boundaries
 
 ### Auth — Entra ID External Identities (AUTH)
@@ -72,7 +72,7 @@ All four ship as a single pair to amortize the re-extraction cost.
 - [x] **AUTH-01**: Entra External ID tenant provisioned via Terraform (external SKU — not B2C legacy, not workforce)
 - [x] **AUTH-02**: SPA app registration created as a public client using PKCE authorization-code flow
 - [x] **AUTH-03**: API app registration created as a resource with a single `access_as_user` scope
-- [ ] **AUTH-04**: MSAL React integrated in the frontend; protected routes redirect unauthenticated users to Entra login
+- [x] **AUTH-04**: MSAL React integrated in the frontend; protected routes redirect unauthenticated users to Entra login
 - [x] **AUTH-05**: FastAPI validates the Entra JWT on every protected request via `fastapi-azure-auth` 5.x (issuer, audience, signature, expiry, JWKS caching)
 - [x] **AUTH-06**: Adrian's Entra `oid` is stored in the `user_profile` row; an app-layer guard rejects any other `oid` in v1 (single-user enforcement)
 - [ ] **AUTH-07**: MSAL initialization race prevented — `initialize()` and `handleRedirectPromise()` resolved before `ReactDOM.createRoot().render()`
@@ -191,13 +191,13 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | SHEL-01 | Phase 4 | Complete |
 | SHEL-02 | Phase 4 | Pending |
 | SHEL-03 | Phase 4 | Pending |
-| SHEL-04 | Phase 4 | Pending |
-| SHEL-05 | Phase 4 | Pending |
+| SHEL-04 | Phase 4 | Complete |
+| SHEL-05 | Phase 4 | Complete |
 | SHEL-06 | Phase 4 | Pending |
 | AUTH-01 | Phase 4 | Complete |
 | AUTH-02 | Phase 4 | Complete |
 | AUTH-03 | Phase 4 | Complete |
-| AUTH-04 | Phase 4 | Pending |
+| AUTH-04 | Phase 4 | Complete |
 | AUTH-05 | Phase 4 | Complete |
 | AUTH-06 | Phase 4 | Complete |
 | AUTH-07 | Phase 4 | Pending |
