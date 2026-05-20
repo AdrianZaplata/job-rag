@@ -129,3 +129,27 @@ variable "deployer_object_id" {
   type        = string
   description = "AAD object ID of the human deployer who runs `terraform apply` locally (Adrian's user OID). Pinned via variable so CI plan does not try to swap principal_id to the GHA SP OID when refreshing the deployer_kv_secrets_officer role assignment (Gap H fix). The SP has its own KV access via gha_kv_secrets_officer (Gap 8.B), so this resource is exclusively for the human deployer's KV data-plane access during local apply."
 }
+
+# ─── Phase 4 D-04 — auth-related plain ACA env vars ───────────────────────────
+# Sourced from infra/external/ + infra/bootstrap/ outputs (Adrian's local-only
+# Terraform per Gap D). All three are public-by-design (visible in JWT iss/aud
+# claims). The 4th of the four (SEEDED_USER_ENTRA_OID) is sourced via the
+# already-existing seeded_user_entra_oid var + KV secretRef.
+
+variable "backend_audience" {
+  type        = string
+  description = "Phase 4 D-04 — JWT aud claim (api://{api_client_id}). Source: infra/external/ output api_audience_uri. Bootstrap-pending default = empty; fill in prod.tfvars.local after infra/external/ apply."
+  default     = ""
+}
+
+variable "entra_tenant_id" {
+  type        = string
+  description = "Phase 4 D-04 — Entra External ID (CIAM) tenant GUID. Source: infra/bootstrap/ output tenant_id_external (same value as existing tenant_id_external var; declared separately so the module input wiring + Pydantic Settings field name (ENTRA_TENANT_ID) stay name-aligned across the stack)."
+  default     = ""
+}
+
+variable "entra_tenant_subdomain" {
+  type        = string
+  description = "Phase 4 D-04 — Entra External ID subdomain (e.g. 'jobrag'). Source: infra/bootstrap/ output tenant_subdomain (same value as existing tenant_subdomain var; declared separately so the module input wiring + Pydantic Settings field name (ENTRA_TENANT_SUBDOMAIN) stay name-aligned across the stack)."
+  default     = ""
+}

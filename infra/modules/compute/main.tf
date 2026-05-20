@@ -164,6 +164,24 @@ resource "azurerm_container_app" "api" {
         name  = "SEEDED_USER_ID"
         value = var.seeded_user_id # Adrian's UUID per Phase 1 D-08
       }
+
+      # ─── Phase 4 D-04 — auth-related plain env vars ──────────────────────
+      # Public-by-design per Phase 3 D-13 (KV reserved for genuine secrets).
+      # SEEDED_USER_ENTRA_OID (the secret of the four) is wired ABOVE via
+      # secret_name = "seeded-user-entra-oid" (KV secretRef from existing
+      # Phase 3 D-09 placeholder slot).
+      env {
+        name  = "BACKEND_AUDIENCE"
+        value = var.backend_audience
+      }
+      env {
+        name  = "ENTRA_TENANT_ID"
+        value = var.entra_tenant_id
+      }
+      env {
+        name  = "ENTRA_TENANT_SUBDOMAIN"
+        value = var.entra_tenant_subdomain
+      }
     }
 
     http_scale_rule {

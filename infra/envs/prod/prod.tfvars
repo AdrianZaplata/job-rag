@@ -53,3 +53,10 @@ deployer_object_id = "58ad20b2-0cba-4d5b-81cd-84d29f64daa2"
 #   az keyvault secret set --vault-name <kv-name> --name langfuse-secret-key --value "<sk-...>"
 # See README "Out-of-band secret seeding". Subsequent `terraform apply` runs will NOT
 # overwrite these (lifecycle.ignore_changes = [value] on the *_key_vault_secret resources).
+
+# Phase 4 D-04 — auth env vars. Empty by default (bootstrap-pending state).
+# Fill in prod.tfvars.local (gitignored) AFTER infra/external/ apply produces outputs.
+# Plan 06 OID-bootstrap runbook executes the fill-and-reapply step.
+backend_audience       = "" # set to infra/external/ output api_audience_uri
+entra_tenant_id        = "" # set to infra/bootstrap/ output tenant_id_external
+entra_tenant_subdomain = "" # set to infra/bootstrap/ output tenant_subdomain

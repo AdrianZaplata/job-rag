@@ -200,6 +200,11 @@ module "compute" {
   seeded_user_id       = var.seeded_user_id
   tags                 = local.tags
 
+  # Phase 4 D-04 — auth-related env vars wired into the container
+  backend_audience       = var.backend_audience
+  entra_tenant_id        = var.entra_tenant_id
+  entra_tenant_subdomain = var.entra_tenant_subdomain
+
   kv_secret_uris = {
     "openai-api-key"          = azurerm_key_vault_secret.openai_api_key.versionless_id
     "postgres-admin-password" = module.database.admin_password_secret_uri

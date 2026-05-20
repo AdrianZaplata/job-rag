@@ -74,3 +74,27 @@ variable "tags" {
   description = "Tags applied to the Container App."
   default     = {}
 }
+
+# ─── Phase 4 D-04 — auth-related env vars (plain ACA env) ─────────────────────
+# All three are public-by-design (visible in JWT iss/aud claims) per Phase 3 D-13
+# KV-vs-plain-env distinction. The fourth (SEEDED_USER_ENTRA_OID) is NOT a module
+# variable — it's already wired via kv_secret_uris["seeded-user-entra-oid"] (Phase
+# 3 D-09 placeholder slot, Phase 4 D-04 surfaces it via secretRef env entry).
+
+variable "backend_audience" {
+  type        = string
+  description = "Phase 4 D-04 — JWT aud claim value (api://{api_client_id}). Wired as BACKEND_AUDIENCE plain env on ACA container. Public-by-design per Phase 3 D-13."
+  default     = ""
+}
+
+variable "entra_tenant_id" {
+  type        = string
+  description = "Phase 4 D-04 — Entra External ID (CIAM) tenant GUID. Wired as ENTRA_TENANT_ID plain env. Public-by-design."
+  default     = ""
+}
+
+variable "entra_tenant_subdomain" {
+  type        = string
+  description = "Phase 4 D-04 — Entra External ID subdomain (e.g. 'jobrag' for jobrag.ciamlogin.com). Wired as ENTRA_TENANT_SUBDOMAIN plain env. Public-by-design."
+  default     = ""
+}
