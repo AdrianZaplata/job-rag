@@ -116,7 +116,9 @@ class TestSearchEndpoint:
 @pytest.mark.asyncio
 class TestMatchEndpoint:
     async def test_match_not_found(self):
+        from job_rag.api.auth import get_current_user_id
         from job_rag.api.deps import get_session
+        from job_rag.config import settings
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -126,7 +128,11 @@ class TestMatchEndpoint:
         async def override_session():
             yield mock_session
 
+        async def override_user():
+            return settings.seeded_user_id
+
         app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -189,7 +195,9 @@ class TestAgentEndpoint:
 @pytest.mark.asyncio
 class TestGapsEndpoint:
     async def test_gaps_no_postings(self):
+        from job_rag.api.auth import get_current_user_id
         from job_rag.api.deps import get_session
+        from job_rag.config import settings
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -199,7 +207,11 @@ class TestGapsEndpoint:
         async def override_session():
             yield mock_session
 
+        async def override_user():
+            return settings.seeded_user_id
+
         app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
