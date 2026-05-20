@@ -15,6 +15,15 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: {
+        // Non-opaque origin so jsdom's localStorage is actually available.
+        // Without this, Node's experimental global localStorage takes over and
+        // is missing .clear() / .getItem() under the `--localstorage-file`
+        // warning (Node 22+ ships a different impl).
+        url: 'http://localhost/',
+      },
+    },
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
     css: false,

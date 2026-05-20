@@ -9,7 +9,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import { msalInstance } from '@/auth/msal'
 import { queryClient } from '@/api/queryClient'
 import App from '@/App'
-import GlobalErrorFallback from '@/components/GlobalErrorFallback'
+import { ErrorBoundaryFallback } from '@/components/ErrorBoundaryFallback'
 import '@/app.css'
 
 // D-05 literal AUTH-07 race fix — both promises resolve BEFORE first render.
@@ -26,7 +26,7 @@ createRoot(rootEl).render(
     <MsalProvider instance={msalInstance}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <ErrorBoundary FallbackComponent={GlobalErrorFallback}>
+          <ErrorBoundary FallbackComponent={ErrorBoundaryFallback}>
             <App />
           </ErrorBoundary>
         </BrowserRouter>

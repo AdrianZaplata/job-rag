@@ -1,24 +1,37 @@
-import { describe, it } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import { render } from '@testing-library/react'
+import { MemoryRouter, Routes, Route } from 'react-router'
+
+// Mock the MSAL React hooks BEFORE importing AuthGate.
+vi.mock('@azure/msal-react', () => ({
+  useIsAuthenticated: () => false,
+  useMsal: () => ({ inProgress: 'none' }),
+}))
+
+const loginRedirectMock = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/auth/msal', () => ({
+  msalInstance: {
+    loginRedirect: loginRedirectMock,
+  },
+}))
+vi.mock('@/auth/scopes', () => ({
+  loginRequest: { scopes: ['api://test/access_as_user'] },
+}))
 
 describe('AuthGate', () => {
-  it('redirects unauthenticated users to loginRedirect (activates with Plan 04-05)', async () => {
-    // Mirror of tests/test_entra_jwt.py skip-on-missing pattern (Plan 04-01):
-    // three-guard fallthrough — ImportError on module, AttributeError on import target,
-    // hasattr check on referenced symbol — ensures the test skips cleanly the moment
-    // any of the conditions is met, and ACTIVATES the moment Plan 04-05 lands AuthGate.
-    let mod: Record<string, unknown>
-    try {
-      // String-concat the specifier so tsc doesn't try to resolve the path at type-check
-      // time (mirrors the import-erasure side of the Python skip-on-missing pattern).
-      const spec = '@/components/' + 'AuthGate'
-      mod = (await import(/* @vite-ignore */ spec)) as Record<string, unknown>
-    } catch {
-      return // module not yet shipped
-    }
-    if (!('AuthGate' in mod) || typeof mod.AuthGate !== 'function') {
-      return // export missing or wrong shape
-    }
-    // When Plan 04-05 lands AuthGate, this test should be extended with
-    // useIsAuthenticated() → false branch assertions. The 3-guard skip stays.
+  it('calls loginRedirect when unauthenticated and inProgress=none', async () => {
+    const { AuthGate } = await import('@/components/AuthGate')
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<AuthGate />}>
+            <Route path="/" element={<div>protected</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+    // useEffect dispatch is async; flush a tick.
+    await new Promise((r) => setTimeout(r, 0))
+    expect(loginRedirectMock).toHaveBeenCalledTimes(1)
   })
 })

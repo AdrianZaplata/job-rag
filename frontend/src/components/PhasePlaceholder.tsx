@@ -34,7 +34,9 @@ const COPY: Record<
   },
 }
 
-export function PhasePlaceholder({ phase: _phase, feature }: PhasePlaceholderProps) {
+export function PhasePlaceholder({ feature }: PhasePlaceholderProps) {
+  // `phase` is part of the typed contract for future per-phase customization;
+  // unused in render today (UI-SPEC §10 copy is feature-keyed, not phase-keyed).
   const copy = COPY[feature]
   return <EmptyState icon={copy.icon} heading={copy.heading} body={copy.body} />
 }

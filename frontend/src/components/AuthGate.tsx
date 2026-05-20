@@ -28,7 +28,6 @@ export function AuthGate() {
   useEffect(() => {
     if (!isAuthenticated && inProgress === 'none') {
       msalInstance.loginRedirect(loginRequest).catch((err) => {
-        // eslint-disable-next-line no-console
         console.error('loginRedirect failed', err)
       })
     }
