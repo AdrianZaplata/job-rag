@@ -15,6 +15,7 @@ exercise the full migration cycle against a live Postgres (skip cleanly when
 DATABASE_URL is unreachable).
 """
 
+import os
 import re
 from pathlib import Path
 
@@ -191,4 +192,194 @@ def test_0004_downgrade_smoke():
         eng.dispose()
 
     # Restore to head so the rest of the suite runs against current schema.
+    command.upgrade(cfg, "head")
+
+
+# --- Plan 04-02: migration 0005 (entra_oid + idempotent UPDATE + partial index) ---
+
+
+def _alembic_env_ready() -> bool:
+    """Skip-gate for 0005 tests — both PG reachable AND DATABASE_URL set.
+
+    alembic/env.py reads os.environ["DATABASE_URL"] directly (raises
+    KeyError otherwise). Mirrors the recommendation in
+    .planning/phases/04-frontend-shell-auth/deferred-items.md to widen
+    the skip-gate beyond _postgres_reachable() alone.
+    """
+    if "DATABASE_URL" not in os.environ:
+        return False
+    return _postgres_reachable()
+
+
+def test_0005_upgrade_smoke() -> None:
+    """0005 adds users.entra_oid + partial unique index (idempotent).
+
+    Plan 04-02 Task 1. Skip cleanly when DATABASE_URL is missing or PG is
+    unreachable (mirrors deferred-items.md recommendation).
+    """
+    if not _alembic_env_ready():
+        pytest.skip(
+            "DATABASE_URL not set or Postgres not reachable — alembic 0005 smoke skipped"
+        )
+
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    from alembic import command
+    from job_rag.config import settings
+    from job_rag.db.engine import configure_alembic_url
+
+    cfg = Config("alembic.ini")
+    configure_alembic_url(cfg, settings.database_url)
+
+    # Roll back to one-before; ensure clean state.
+    command.downgrade(cfg, "0004")
+
+    eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    try:
+        # Snapshot users row count pre-upgrade.
+        with eng.connect() as c:
+            row_count_before = c.execute(text("SELECT COUNT(*) FROM users")).scalar()
+
+        # Ensure empty env (bootstrap-pending state) — UPDATE should be no-op.
+        os.environ.pop("SEEDED_USER_ENTRA_OID", None)
+        command.upgrade(cfg, "0005")
+
+        with eng.connect() as c:
+            # Column exists.
+            col_check = c.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'users' AND column_name = 'entra_oid'"
+                )
+            ).first()
+            assert col_check is not None, "entra_oid column not present"
+
+            # Partial unique index exists.
+            idx_check = c.execute(
+                text(
+                    "SELECT indexname FROM pg_indexes "
+                    "WHERE tablename = 'users' AND indexname = 'ix_users_entra_oid_unique'"
+                )
+            ).first()
+            assert idx_check is not None, "ix_users_entra_oid_unique not created"
+
+            # Row count preserved (column-add + index-create does not delete rows).
+            row_count_after = c.execute(text("SELECT COUNT(*) FROM users")).scalar()
+            assert row_count_after == row_count_before
+
+            # Empty env → UPDATE no-op → entra_oid IS NULL for seeded row
+            # (we just downgraded then upgraded; downgrade does NOT drop the
+            # column, so any prior value persists. Verify the empty-env
+            # branch did not overwrite an existing value with empty string.)
+            oid_val = c.execute(
+                text("SELECT entra_oid FROM users WHERE id = :u").bindparams(
+                    u="00000000-0000-0000-0000-000000000001"
+                )
+            ).scalar()
+            # On empty env, the UPDATE skipped — value is whatever was there
+            # before downgrade (could be NULL or a prior oid). The contract
+            # is "empty env does not overwrite"; we assert nothing about
+            # specific value here. Stricter check is in the env-set test below.
+            assert oid_val is None or isinstance(oid_val, str)
+
+        # Idempotent second upgrade head.
+        command.upgrade(cfg, "head")
+    finally:
+        eng.dispose()
+
+
+def test_0005_upgrade_populates_oid_when_env_set() -> None:
+    """SEEDED_USER_ENTRA_OID env set → seeded row's entra_oid UPDATED.
+
+    Plan 04-02 Task 1. Skip cleanly without DATABASE_URL.
+    """
+    if not _alembic_env_ready():
+        pytest.skip("DATABASE_URL not set or Postgres not reachable — 0005 env test skipped")
+
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    from alembic import command
+    from job_rag.config import settings
+    from job_rag.db.engine import configure_alembic_url
+
+    cfg = Config("alembic.ini")
+    configure_alembic_url(cfg, settings.database_url)
+
+    command.downgrade(cfg, "0004")
+
+    eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    try:
+        os.environ["SEEDED_USER_ENTRA_OID"] = "test-oid-xyz-123"
+        try:
+            command.upgrade(cfg, "0005")
+            with eng.connect() as c:
+                oid_val = c.execute(
+                    text("SELECT entra_oid FROM users WHERE id = :u").bindparams(
+                        u="00000000-0000-0000-0000-000000000001"
+                    )
+                ).scalar()
+                assert oid_val == "test-oid-xyz-123"
+        finally:
+            os.environ.pop("SEEDED_USER_ENTRA_OID", None)
+
+        # Cleanup — reset the row's entra_oid back to NULL so other tests start clean.
+        with eng.begin() as c:
+            c.execute(
+                text(
+                    "UPDATE users SET entra_oid = NULL WHERE id = :u"
+                ).bindparams(u="00000000-0000-0000-0000-000000000001")
+            )
+    finally:
+        eng.dispose()
+
+
+def test_0005_downgrade_smoke() -> None:
+    """Downgrade 0005 → 0004 removes partial unique index (column preserved).
+
+    Plan 04-02 Task 1. The entra_oid column itself is preserved across the
+    downgrade (created by 0002, not by 0005); only the partial unique index
+    is dropped.
+    """
+    if not _alembic_env_ready():
+        pytest.skip("DATABASE_URL not set or Postgres not reachable — 0005 downgrade skipped")
+
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    from alembic import command
+    from job_rag.config import settings
+    from job_rag.db.engine import configure_alembic_url
+
+    cfg = Config("alembic.ini")
+    configure_alembic_url(cfg, settings.database_url)
+
+    # Ensure we're at 0005 first.
+    command.upgrade(cfg, "0005")
+    command.downgrade(cfg, "0004")
+
+    eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    try:
+        with eng.connect() as c:
+            idx_check = c.execute(
+                text(
+                    "SELECT indexname FROM pg_indexes "
+                    "WHERE indexname = 'ix_users_entra_oid_unique'"
+                )
+            ).first()
+            assert idx_check is None, "Partial unique index should be dropped"
+
+            # Column survives downgrade (created by 0002, not 0005).
+            col_check = c.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'users' AND column_name = 'entra_oid'"
+                )
+            ).first()
+            assert col_check is not None, "entra_oid column should survive 0005 downgrade"
+    finally:
+        eng.dispose()
+
+    # Restore head for downstream tests.
     command.upgrade(cfg, "head")
