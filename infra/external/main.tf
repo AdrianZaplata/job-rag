@@ -23,6 +23,14 @@ resource "azuread_application" "api" {
   display_name     = "jobrag-api-${var.environment}"
   sign_in_audience = "AzureADMyOrg"
 
+  # Phase 04.1 fix 5 — set identifier_uris inline (azuread provider ~> 3.x
+  # supports this attribute directly on azuread_application). The dedicated
+  # azuread_application_identifier_uri resource was removed because it could
+  # report Created in state while the live identifierUris list stayed empty,
+  # producing AADSTS500011 at sign-in. See SUMMARY deviation #7 + memory
+  # terraform-azuread-identifier-uri-unreliable.md.
+  identifier_uris = ["api://${azuread_application.api.client_id}"]
+
   api {
     requested_access_token_version = 2
     oauth2_permission_scope {
@@ -36,14 +44,6 @@ resource "azuread_application" "api" {
       value                      = "access_as_user"
     }
   }
-}
-
-# Application ID URI must be set AFTER application exists (chicken-and-egg
-# avoidance — client_id only exists post-create). Per RESEARCH line 1950-1952.
-resource "azuread_application_identifier_uri" "api" {
-  provider       = azuread.external
-  application_id = azuread_application.api.id
-  identifier_uri = "api://${azuread_application.api.client_id}"
 }
 
 resource "azuread_service_principal" "api" {
