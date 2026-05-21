@@ -220,7 +220,7 @@ enforces single-user. Full post-mortem + verbatim runbook live at
 | `frontend/public/staticwebapp.config.json` needed for SPA deep-link routing | `733920f` | `frontend/public/` |
 | Plan template typo: actual ACA app name is `jobrag-prod-api` (env-first), NOT `jobrag-api-prod` | n/a (doc) | every `az containerapp` command |
 
-**B2B-guest-vs-customer namespace** — the CIAM user flow only resolves customer-namespace identities. The Entra-portal "Invite external user" flow creates B2B guests that CANNOT sign in via the user flow even though they show up in `az ad user list`. Create a local Member via `az ad user create --user-principal-name <name>@jobrag.onmicrosoft.com --password '...' --force-change-password-next-sign-in false` against the External tenant.
+**B2B-guest-vs-customer namespace** — the CIAM user flow only resolves customer-namespace identities. The Entra-portal "Invite external user" flow creates B2B guests that CANNOT sign in via the user flow even though they show up in `az ad user list`. The canonical customer/Member bootstrap step is now documented in `infra/bootstrap/README.md` → "Step 5 — Bootstrap a first-login customer/Member account" (Phase 04.1 fix 4). Run that step BEFORE attempting first sign-in.
 
 **Pre-existing CI failures** inherited from Phase 3 (unrelated to Phase 4): `ci.yml` lint-and-test alembic smoke step has been failing since 2026-05-19; `deploy-infrastructure.yml` is missing `TF_VAR_home_ip` / `TF_VAR_ghcr_pat` in workflow env. Both are Phase 3 follow-ups; documented in 04-06-SUMMARY.md.
 
