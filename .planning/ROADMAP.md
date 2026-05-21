@@ -119,13 +119,13 @@ Plans:
 **Goal:** Close the 5 outstanding structural follow-ups recorded in Phase 4's close-out SUMMARY ("Outstanding follow-ups" table). One PLAN per fix, executed in priority order Fix 1 → Fix 5. No remote push, no cloud touches — every plan ends with a local atomic commit (D-01..D-03).
 **Requirements**: None (follow-ups, not new requirements — 04-* requirements stay as-is in REQUIREMENTS.md)
 **Depends on:** Phase 04
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [x] 04.1-01-PLAN.md — Move 0005's `UPDATE users SET entra_oid` into `init_db()::_seed_entra_oid()` (every-boot idempotent; ACA-restart-only rotation, no manual `az containerapp exec`)
 - [x] 04.1-02-PLAN.md — Widen `.github/workflows/deploy-api.yml` smoke check to accept both `Running` AND `RunningAtMaxScale` as healthy terminal states + interpolate `$STATE` in success log
 - [x] 04.1-03-PLAN.md — Wrap MSAL bootstrap chain in `frontend/src/main.tsx` with try/catch + `BootErrorFallback` so top-level rejection doesn't leave a blank `<div id="root">`
-- [ ] 04.1-04-PLAN.md — Document customer-vs-B2B-guest namespace + `az ad user create` bootstrap in `infra/bootstrap/README.md` (the Phase 3 tenant-creation runbook)
+- [x] 04.1-04-PLAN.md — Document customer-vs-B2B-guest namespace + `az ad user create` bootstrap in `infra/bootstrap/README.md` (the Phase 3 tenant-creation runbook)
 - [ ] 04.1-05-PLAN.md — Refactor `infra/external/main.tf` to drop the dedicated `azuread_application_identifier_uri.api` resource and set `identifier_uris` inline on `azuread_application.api`
 
 ### Phase 5: Dashboard
