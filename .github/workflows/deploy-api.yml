@@ -146,10 +146,13 @@ jobs:
             fi
 
             # 4b) Health probe against per-revision FQDN. Both HTTP 200 AND
-            #     runningState=Running must hold before we declare success.
+            #     runningState in {Running, RunningAtMaxScale} must hold before we declare
+            #     success. RunningAtMaxScale is the steady state when the revision is
+            #     scaled to its replica ceiling; both are healthy per ACA revision
+            #     lifecycle. Phase 04.1 fix 2 — see SUMMARY deviation #4.
             if curl -fs --max-time 5 "https://${REV_FQDN}/health" >/dev/null; then
-              if [ "$STATE" = "Running" ]; then
-                echo "Smoke passed after $((i*5))s — revision $NEW_REVISION is Running and serving /health 200"
+              if [ "$STATE" = "Running" ] || [ "$STATE" = "RunningAtMaxScale" ]; then
+                echo "Smoke passed after $((i*5))s — revision $NEW_REVISION is $STATE and serving /health 200"
                 exit 0
               fi
               echo "Iteration $i: /health 200 but runningState='$STATE' — continuing to poll"
