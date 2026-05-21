@@ -1,16 +1,15 @@
-"""adopt entra oid: ensure users.entra_oid + idempotent UPDATE of seeded row
+"""adopt entra oid: ensure users.entra_oid + partial unique index
 
 Revision ID: 0005
 Revises: 0004
 Create Date: 2026-05-20
 
-D-10 (Phase 4): Bridges Phase 1's seeded_user_id to Adrian's real Entra oid
-(captured out-of-band via D-09 AccessDenied UX → az keyvault secret set).
-
-Runs blocking on container startup per Phase 1 D-04 (init_db() wraps
-alembic upgrade head). On empty SEEDED_USER_ENTRA_OID env (bootstrap-pending
-state), the UPDATE is a no-op — migration completes cleanly so container
-starts; AUTH-06 guard then rejects every token until KV secret is filled.
+D-10 (Phase 4): Originally bridged Phase 1's seeded_user_id to Adrian's real
+Entra oid (captured out-of-band via D-09 AccessDenied UX → az keyvault secret
+set). The UPDATE block was moved to src/job_rag/db/engine.py::_seed_entra_oid()
+in Phase 04.1 fix 1 — see .planning/phases/04-frontend-shell-auth/04-06-SUMMARY.md
+deviation #3. This migration now only handles the schema bits (idempotent column
+add + partial unique index).
 
 NOTE (executor Rule 1 fix): the canonical table name in this codebase is
 `users` (not `user_db` — the plan/RESEARCH skeleton was written without
@@ -25,15 +24,10 @@ constraint — required by Plan 04-02 must-have truth #9. PG allows multiple
 indexes on the same column; both filter to the same uniqueness semantics
 (both allow multiple NULLs).
 
-Pitfall 14: oid value is bound via :oid placeholder (parameterized SQL).
-No string interpolation — even though the source is os.environ controlled by
-Adrian, the bindparam discipline keeps the SQL surface clean.
-
 Pgvector caveat per Phase 1 plan 01-02 D-02: env.py already registers
 pgvector.sqlalchemy.Vector on connection.dialect.ischema_names BEFORE
 context.configure(). No change here.
 """
-import os
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -50,6 +44,7 @@ depends_on: str | Sequence[str] | None = None
 # settings.seeded_user_id and the row inserted by 0002_add_user_profile.py.
 # Migrations do NOT import from job_rag.config (avoid full app import order
 # at migration runtime) — keep as a literal constant here.
+# Retained for historical reference — UPDATE moved to engine.py::_seed_entra_oid()
 SEEDED_USER_UUID = "00000000-0000-0000-0000-000000000001"
 
 
@@ -90,19 +85,7 @@ def upgrade() -> None:
             sa.Column("entra_oid", sa.String(255), nullable=True),
         )
 
-    # 2. Idempotent UPDATE — bridge Phase 1's seeded UUID to Adrian's real oid
-    #    when SEEDED_USER_ENTRA_OID is set. On empty env (bootstrap-pending),
-    #    this is a no-op; migration still completes.
-    oid = os.environ.get("SEEDED_USER_ENTRA_OID", "").strip()
-    if oid:
-        op.execute(
-            sa.text(
-                "UPDATE users SET entra_oid = :oid "
-                "WHERE id = :seeded_uuid AND (entra_oid IS NULL OR entra_oid != :oid)"
-            ).bindparams(oid=oid, seeded_uuid=SEEDED_USER_UUID)
-        )
-
-    # 3. Create partial unique index on entra_oid (when populated) — structural
+    # 2. Create partial unique index on entra_oid (when populated) — structural
     #    prep for future multi-user where oid is the authoritative lookup. Partial
     #    index excludes NULLs so existing rows without an oid don't violate.
     #    Idempotent: skip if already present (re-run safety on container restart).
