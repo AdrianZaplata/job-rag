@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-21T20:51:18.967Z"
+last_updated: "2026-05-21T21:09:58.434Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 30
-  completed_plans: 25
-  percent: 83
+  completed_plans: 26
+  percent: 87
 ---
 
 # State: job-rag web-app milestone
@@ -33,8 +33,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 04 (frontend-shell-auth) — **COMPLETE** (live verified 2026-05-21)
-Plan: 6 of 6 complete. All 13 Phase 4 requirements (SHEL-01..06 + AUTH-01..07) closed end-to-end with live JWT round-trip.
+Phase: 04.1 (phase-4-follow-ups-runbook-deviation-cleanup) — EXECUTING
+Plan: 2 of 5
 Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/6/7 are parallel-eligible.
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
@@ -79,6 +79,7 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 | Phase 04 P03 | 5m | 2 tasks | 7 files |
 | Phase 04 P04 | 14m | 2 tasks | 38 files |
 | Phase 04-frontend-shell-auth P05 | 12m | 2 tasks | 33 files |
+| Phase 04.1 P01 | 3m 15s | 6 tasks | 3 files |
 
 ### Per-Plan Execution
 
@@ -144,6 +145,12 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 - **Plan 04-04:** Vite 8 vs vitest plugin-type collision workaround — split vitest config into sibling vitest.config.ts using `from 'vitest/config'` while vite.config.ts stays on `from 'vite'` with no test: field. Vitest auto-detects the sibling config. Caused by Vite 8 swapping to rolldown while vitest still bundles rollup-based vite — type chains don't merge. Revisit when vitest releases vite@8-rolldown-aware peer support.
 - **Plan 04-04:** MSAL 5.x Configuration field removals — `navigateToLoginRequestUrl` moved from BrowserAuthOptions to per-request HandleRedirectPromiseOptions; `storeAuthStateInCookie` removed from CacheOptions (modern browsers don't need cookie fallback). Library defaults already match plan invariants (AUTH-02, AUTH-04, D-06). Pattern: when copying an MSAL config skeleton from older RESEARCH docs, run typecheck early — config shape evolves between minor versions.
 - **Plan 04-04:** Skip-on-missing vitest stub (TS-safe variant) — string-concat the import specifier (`const spec = '@/components/' + 'Foo'; await import(spec)`) so tsc doesn't try to resolve the path at type-check time. Mirror of Plan 04-01's Python 3-guard skip pattern (ImportError + AttributeError + hasattr). Test exits silently when target component module + symbol aren't yet shipped; activates the moment Plan 04-05 lands the components.
+
+### Decisions (from execution — Phase 04.1)
+
+- **Plan 04.1-01:** Moved 0005's UPDATE block into `src/job_rag/db/engine.py::_seed_entra_oid()` called from `init_db()` AFTER `command.upgrade(cfg, "head")`. Env-gated (`os.environ.get("SEEDED_USER_ENTRA_OID", "").strip()` — empty/unset = no-op), idempotent (`WHERE id = :seeded_uuid AND (entra_oid IS NULL OR entra_oid != :oid)`), uses the sync engine with `engine.begin() as conn: conn.execute(text(...).bindparams(...))`. Pattern: any "every-boot idempotent DB sync against env-derived values" lives in `init_db()` (or FastAPI lifespan) — NOT inside Alembic's `upgrade()`, which only fires once per revision-marker. Direct fix for memory `alembic-update-runs-once.md` + Phase 4 SUMMARY deviation #3; SEEDED_USER_ENTRA_OID rotation no longer needs manual `az containerapp exec`.
+- **Plan 04.1-01:** SEEDED_USER_UUID is duplicated (NOT imported) between `alembic/versions/0005_adopt_entra_oid.py` and `src/job_rag/db/engine.py`. Migrations do not import from `job_rag.config` (Phase 1 D-08 — avoids full app import order at migration runtime), so the constant lives as a literal in both files. Labelled with a `# Retained for historical reference — UPDATE moved to engine.py::_seed_entra_oid()` comment in the migration to document the original intent for any future operator grepping the UUID in `alembic/`.
+- **Plan 04.1-01:** Existing `test_init_db_invokes_alembic_upgrade` gained a defensive nested `patch("job_rag.db.engine.engine")` so the new `_seed_entra_oid()` call inside `init_db()` stays SQL-free even when `SEEDED_USER_ENTRA_OID` happens to be set in the runner's env. Belt-and-suspenders Rule 2 measure — not strictly required by plan text but keeps the test deterministic under the rewritten body.
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -229,8 +236,11 @@ Last activity: 2026-05-21
 
 - 2026-05-20: Plan 04-02 executed (Wave 1 backend auth — B2C JWT validation + AUTH-06 oid allowlist guard + Alembic 0005 migration). 2 atomic commits (22a90c7 feat 0005 migration + 3 0005 smoke tests + 42e814a feat auth.py rewrite + activated test_entra_jwt scaffolds + test_api cascade fix). Rewrote `src/job_rag/api/auth.py` (81 → 153 LOC): module-level `azure_scheme = B2CMultiTenantAuthorizationCodeBearer(...)` pinned to `https://{subdomain}.ciamlogin.com/{tenant_id}/v2.0/.well-known/openid-configuration`; rewrote `get_current_user_id(user: User = Depends(azure_scheme))` body to enforce AUTH-06 (oid mismatch OR empty seeded_user_entra_oid ⇒ 403 with literal `user_not_allowlisted` detail; structlog `log.warning("user_not_allowlisted", rejected_oid=..., seeded_configured=bool(...))` for LAW audit; rejected oid NOT echoed in response body). Created `alembic/versions/0005_adopt_entra_oid.py` (126 LOC): idempotent `op.add_column` guarded by information_schema check (column already present from 0002 as Text/unique — preserved); idempotent UPDATE bridging seeded UUID to `os.environ['SEEDED_USER_ENTRA_OID']` (no-op on empty env, bootstrap-pending state); partial unique index `ix_users_entra_oid_unique` on `(entra_oid) WHERE entra_oid IS NOT NULL`. Verified live on dev DB: `alembic upgrade head` 0004→0005 succeeded; second run is no-op (idempotent); downgrade drops only the partial index (column preserved per 0002). Activated 3 previously-skipped tests in tests/test_entra_jwt.py (TestEntraJwtValidation::test_rejects_mismatched_oid_with_403 + TestOidGuard::test_empty_seeded_oid_rejects_everything + TestOidGuard::test_matching_oid_returns_seeded_user_id) — skip-gate satisfied (module importable + azure_scheme symbol + rewritten get_current_user_id). Added 3 new 0005 smoke tests in tests/test_alembic.py (test_0005_upgrade_smoke + test_0005_upgrade_populates_oid_when_env_set + test_0005_downgrade_smoke) gated on `_alembic_env_ready()` helper combining `DATABASE_URL` env + `_postgres_reachable()` (mirrors deferred-items.md recommendation, sidesteps the pre-existing 0004 KeyError failure mode). Updated tests/test_auth.py::TestGetCurrentUserId to pass mock User with matching oid (new signature requires Depends user arg; happy-path contract `result == settings.seeded_user_id` preserved). Auto-fixed [Rule 1 cascade] tests/test_api.py::TestMatchEndpoint::test_match_not_found + TestGapsEndpoint::test_gaps_no_postings — added `app.dependency_overrides[get_current_user_id] = override_user` so the rewritten auth contract doesn't break unrelated handler-level test assertions (was returning 401 instead of 404 because new dep requires JWT). Auto-fixed [Rule 1] migration table name `user_db` → `users` (actual `__tablename__` per src/job_rag/db/models.py::UserDB) and partial unique index name `ix_user_db_entra_oid_unique` → `ix_users_entra_oid_unique`; plan was written without verifying actual table name. Auto-fixed [Rule 1] idempotent column-add — 0002 already created `users.entra_oid` as Text/unique, so the unconditional `op.add_column` would have failed with DuplicateColumn. Auto-fixed [Rule 3] `B2CMultiTenantAuthorizationCodeBearer(validate_iss=True)` requires `iss_callable` — added `async def _iss_callable(tid) -> str` returning the pinned External ID issuer URL (preserves T-04-02-01 wrong-tenant rejection). Final verification: `pytest -m 'not eval' -q` → 158 passed / 2 skipped / 0 failed; ruff clean; pyright 0 errors; live API lifespan smoke (LifespanManager) starts cleanly; all 9 plan-level verifications PASS. Phase 1 D-10 promise held: zero call-site changes to routes.py (3 existing `Depends(get_current_user_id)` calls work as-is). Requirements AUTH-05 + AUTH-06 closed. Stopped at: Completed 04-02-PLAN.md. **Plans 04-03 / 04-04 / 04-05 / 04-06 unblocked.**
 
+- 2026-05-21: Plan 04.1-01 executed (Phase 4 follow-up #1 — UPDATE moved from 0005 to init_db for every-boot idempotency). One atomic commit b81a53e covering exactly src/job_rag/db/engine.py + alembic/versions/0005_adopt_entra_oid.py + tests/test_cli.py per CONTEXT D-01/D-03 constraints. engine.py gained `import os`, `from sqlalchemy import text`, `SEEDED_USER_UUID` constant, `_seed_entra_oid()` helper (env-gated `engine.begin()` + `conn.execute(text(UPDATE...).bindparams(oid=, seeded_uuid=))`), and the call site at the tail of `init_db()` after `command.upgrade(cfg, "head")`. 0005's UPDATE block + `import os` removed; surviving "Create partial unique index" comment renumbered step 3→2; docstring rewritten to cross-reference the move + clarify schema-only intent; `SEEDED_USER_UUID` retained with a labelled historical-reference comment. tests/test_cli.py gained `MagicMock` import + 2 new tests (`test_seed_entra_oid_no_op_when_env_unset` proves engine.begin not called on unset env; `test_seed_entra_oid_executes_update_when_env_set` proves UPDATE SQL + `oid`/`seeded_uuid` bind params via `TextClause.compile().params`); the existing `test_init_db_invokes_alembic_upgrade` was wrapped in a defensive nested `patch("job_rag.db.engine.engine")` so the rewritten init_db body stays SQL-free under any runner env. Verification: `ruff check src/ tests/` clean; `pyright src/job_rag/db/engine.py` 0 errors; `pytest tests/test_cli.py -q` 4 passed. Memory file `~/.claude/projects/.../memory/alembic-update-runs-once.md` got a 2026-05-21 addendum noting the structural fix landed (file is outside the repo, intentionally not in the commit). NO push, NO cloud touch, NO `terraform apply`, NO `gh workflow run` per CONTEXT D-01/D-02. Live verification of the rotation flow is deferred (forbidden by D-02); unit tests are the in-phase proof. Stopped at: Completed 04.1-01-PLAN.md (UPDATE moved from 0005 to init_db; 3 files; commit b81a53e). **Plan 04.1-02 (deploy-api.yml RunningAtMaxScale fix) unblocked.**
+
 ### Next session
 
+- **Phase 04.1 Plan 01 done** (1 / 5). UPDATE moved from 0005 to init_db; rotating SEEDED_USER_ENTRA_OID now requires only an ACA restart. Commit b81a53e local-only per D-01. **Suggested next:** `/gsd-execute-phase 04.1` to land Plan 04.1-02 (`deploy-api.yml` smoke poll — accept `RunningAtMaxScale` as terminal-healthy alongside `Running`).
 - **Phase 4 Wave 3a done** (Plan 04 / 6). `frontend/` greenfield scaffold ships: Vite 8 + React 19.2 + TS 5.9 + Tailwind v4 + shadcn radix-nova/neutral; MSAL singleton with AUTH-07 race fix; authedFetch (Bearer + 401 retry); readSSEStream (typed AgentEvent async generator); QueryClient singleton; openapi-typescript codegen output (598 LOC, drift-clean against snapshot); 4 service modules (health active; jobs/profile/agent stubs); 6 vitest files (9 tests, all pass — 3 active modules + 3 skip-on-missing for Plan 05 components). frontend-ci sibling job (Plan 03) auto-activates on this commit's master push because `frontend/package.json` now exists. Plan 04-05 (components + routes + App.tsx) unblocked; Plan 04-06 (runbook) unblocked.
 - **Suggested next:** `/gsd-execute-phase 4` to land Plan 04-05 (frontend components + routes — first shadcn primitives, App.tsx routes tree, AuthGate, AppShell, ThemeToggle, ErrorBoundary, EmptyState, AccessDenied, DebugAgentStream — activates the 3 skip-on-missing vitest stubs Plan 04 just shipped).
 - **Phase 4 Wave 2 done** (Plan 03 / 6). CI workflow gained `frontend-ci` sibling job (dormant until `frontend/package.json` lands); `deploy-spa.yml` rewired to `frontend/` paths + VITE_* env block; ACA compute module surfaces 4 Phase 4 auth env vars (3 plain + 1 KV secretRef inherited from Phase 3); prod env composition + tfvars placeholders ready for Plan 06 fill-and-reapply.
