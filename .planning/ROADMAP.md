@@ -136,7 +136,14 @@ Plans:
   4. The CV-vs-market widget shows an aggregate match score (mean of per-posting scores across the filtered set) plus the top 3 missing must-have skills, updating as filters change (DASH-03)
   5. Flipping the country filter between Poland / Germany / EU / Worldwide produces genuinely different numbers on all three widgets (proves the filter actually flows through to SQL, not just the URL) (DASH-01, DASH-02, DASH-03, DASH-04)
 **Cost delta**: €0/mo (runtime only; analytical queries against existing B1ms)
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 05-01-PLAN.md — Wave 0 foundation: tests/test_analytics.py skip-guarded skeleton (6 classes) + tests/conftest.py dashboard_postings_factory fixture + tests/test_api.py TestDashboardEndpoints stub + 4 frontend widget vitest stubs + useDashboardFilters.test.ts stub + shadcn primitives install (alert/chart/toggle-group; bare invocation - no --style flags per Pitfall 8)
+- [ ] 05-02-PLAN.md — Backend analytics module: src/job_rag/services/analytics.py (top_skills GROUP BY + salary_bands percentile_cont + cv_match hybrid SQL+Python fold + _apply_filters EU-27 expansion + EU_COUNTRY_CODES frozenset) + src/job_rag/api/dashboard.py (5 Pydantic response models + CountryFilter/RemoteFilter StrEnums); Plan 05-01 skip-guards activate (DASH-01/02/03)
+- [ ] 05-03-PLAN.md — Backend routes: 3 @router.get handlers in src/job_rag/api/routes.py (/dashboard/top-skills /salary-bands /cv-vs-market) with tags=['dashboard'] + Depends(get_current_user_id) + standard_limit + Pydantic response_model annotations (D-12 200-not-404 zero-state); regenerate frontend/openapi.snapshot.json via in-process app.openapi() capture; TestDashboardEndpoints activates (DASH-01..04)
+- [ ] 05-04-PLAN.md — Frontend data layer: npm run codegen:snapshot regenerates frontend/src/api/types.ts; frontend/src/api/jobs.ts filled with typed topSkills/salaryBands/cvVsMarket fetchers (authedFetch + default-elision query construction); frontend/src/components/dashboard/useDashboardFilters.ts hook (useSearchParams + default elision + defensive coercion); hook tests activate (DASH-04, DASH-06, SHEL-03)
+- [ ] 05-05-PLAN.md — Frontend widgets: DashboardFilters (country DropdownMenu + seniority DropdownMenu + remote ToggleGroup) + TopSkillsCard (Tailwind bars + Show more) + TopSkillsDialog (50-row scrollable table) + SalaryBandsCard (Recharts BarChart) + CvVsMarketCard (hero number + Badge chips) + errors.ts (describeError) + routes/Dashboard.tsx composition; 4 widget tests activate; all UI-SPEC §16 copy strings verbatim (DASH-01..06, SHEL-03/06)
+- [ ] 05-06-PLAN.md — Live UAT runbook (autonomous: false): 6 M-markers against deployed SWA (M1 initial render + M2 country-flip canary proving SQL flow per success criterion #5 + M3 refresh-state-preserved + M4 Show More dialog scroll + M5 theme-toggle on /dashboard + M6 cold-start documented); produces .planning/phases/05-dashboard/05-UAT.md (DASH-01..06 closure)
 **UI hint**: yes
 
 ### Phase 6: Chat
@@ -199,7 +206,7 @@ Plans:
 | 2. Corpus Cleanup | 4/4 | Complete   | 2026-04-28 |
 | 3. Infrastructure & CI/CD | 3/8 | In Progress|  |
 | 4. Frontend Shell + Auth | 0/6 | Planned | - |
-| 5. Dashboard | 0/? | Not started | - |
+| 5. Dashboard | 0/6 | Planned | - |
 | 6. Chat | 0/? | Not started | - |
 | 7. Profile & Resume Upload | 0/? | Not started | - |
 | 8. Eval & Documentation | 0/? | Not started | - |
@@ -208,3 +215,4 @@ Plans:
 *Roadmap created: 2026-04-23*
 *Granularity: standard*
 *Coverage: 67/67 v1 requirements mapped*
+</content>
