@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
 last_updated: "2026-05-21T20:51:18.967Z"
-last_activity: 2026-05-20
+last_activity: 2026-05-21
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 4
-  total_plans: 25
+  total_plans: 30
   completed_plans: 25
-  percent: 100
+  percent: 83
 ---
 
 # State: job-rag web-app milestone
@@ -167,6 +167,10 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 - `fetch` + `ReadableStream` for authenticated SSE (NOT EventSource — cannot attach Bearer headers; query-param tokens leak to logs).
 - Tool-call chips (`tool_start` / `tool_end`) are the #1 portfolio signal — every competitor hides agent scaffolding.
 
+### Roadmap Evolution
+
+- Phase 04.1 inserted after Phase 04: Phase 4 follow-ups — runbook deviation cleanup (URGENT)
+
 ### Todos
 
 - (none)
@@ -183,7 +187,7 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 | 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 
-Last activity: 2026-05-20
+Last activity: 2026-05-21
 
 ### Open Questions (from research, to resolve during planning)
 

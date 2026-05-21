@@ -114,6 +114,16 @@ Plans:
 - [x] 04-06-PLAN.md — Wave 5 phase-close: Adrian-driven runbook (5 checkpoints) — terraform apply infra/external/ + 5 gh secret set + prod re-apply with new env vars + first login → AccessDenied with oid → az keyvault secret set + ACA restart + 0005 UPDATE bridges seeded row → second login success path + AUTH-04/AUTH-07 manual verifications + optional DebugAgentStream live SSE test
 **UI hint**: yes
 
+### Phase 04.1: Phase 4 follow-ups — runbook deviation cleanup (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 04
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 04.1 to break down)
+
 ### Phase 5: Dashboard
 **Goal**: Phase 5 ships the first shareable surface when the Dashboard page renders three analytical widgets (top skills, salary bands, CV-vs-market score) under a shared filter bar, with state round-tripping through URL search params.
 **Depends on**: Phases 1 (user_id + career_id in queries), 2 (structured Location + SkillCategory enable the filter + clean skills), 4 (auth'd API client)
