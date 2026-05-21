@@ -200,3 +200,28 @@ Adrian's home IP rotates with ISP DHCP. Refresh procedure documented in `infra/m
 ## Drift detection
 
 Run `terraform plan -var-file=prod.tfvars` periodically. A non-empty plan against an unchanged repo means someone portal-edited a resource, OR the live image diverged from `var.image_tag` (expected per B5 — terraform's view of the image is intentionally stale after first deploy-api.yml run).
+
+---
+
+## Phase 4 close (2026-05-21)
+
+Phase 4 (Frontend Shell + Auth) shipped live verified. SPA at the SWA origin signs in via Entra
+External ID, backend validates the JWT via `fastapi-azure-auth`, AUTH-06 oid allowlist gate
+enforces single-user. Full post-mortem + verbatim runbook live at
+`.planning/phases/04-frontend-shell-auth/04-06-SUMMARY.md` and `04-06-RUNBOOK.md`.
+
+**Unblock fixes captured during the runbook — operators replaying this should apply these up front:**
+
+| Fix | Commit | Where |
+|-----|--------|-------|
+| SPA app reg needs `requested_access_token_version = 2` (CIAM rejects v1) | `83c936a` | `infra/external/main.tf` |
+| `azuread_application_identifier_uri.api` Terraform resource may silently fail — run `az ad app update --identifier-uris api://<api_client_id>` to verify | n/a (manual) | External tenant |
+| Migration 0005's UPDATE only runs once; subsequent SEEDED_USER_ENTRA_OID rotations need a manual UPDATE via `az containerapp exec` (or refactor into `init_db()` per follow-up) | manual SQL | live DB |
+| `frontend/public/staticwebapp.config.json` needed for SPA deep-link routing | `733920f` | `frontend/public/` |
+| Plan template typo: actual ACA app name is `jobrag-prod-api` (env-first), NOT `jobrag-api-prod` | n/a (doc) | every `az containerapp` command |
+
+**B2B-guest-vs-customer namespace** — the CIAM user flow only resolves customer-namespace identities. The Entra-portal "Invite external user" flow creates B2B guests that CANNOT sign in via the user flow even though they show up in `az ad user list`. Create a local Member via `az ad user create --user-principal-name <name>@jobrag.onmicrosoft.com --password '...' --force-change-password-next-sign-in false` against the External tenant.
+
+**Pre-existing CI failures** inherited from Phase 3 (unrelated to Phase 4): `ci.yml` lint-and-test alembic smoke step has been failing since 2026-05-19; `deploy-infrastructure.yml` is missing `TF_VAR_home_ip` / `TF_VAR_ghcr_pat` in workflow env. Both are Phase 3 follow-ups; documented in 04-06-SUMMARY.md.
+
+**ACA deploy-api.yml smoke check** rejects `runningState=RunningAtMaxScale` as not-`Running` — cosmetic CI failure even though the new revision IS healthy and serving traffic. Verify deploy succeeded via per-revision FQDN smoke (per `aca-deploy-verifier-trap` memory) regardless of the run status. Fix: extend `Running` predicate to accept both states; see follow-up.

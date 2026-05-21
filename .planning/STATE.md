@@ -33,20 +33,22 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 04 (frontend-shell-auth) — EXECUTING
-Plan: 6 of 6 (Plans 04-01 + 04-02 + 04-03 + 04-04 COMPLETE — Wave 0 backend setup + Wave 1 backend auth + Wave 2 CI/deploy/ACA wiring + Wave 3a frontend scaffold + auth/data plumbing all landed)
-Next: Plan 04-05 (Wave 3b — frontend components + routes + App.tsx — activates 3 skip-on-missing vitest stubs from Plan 04-04)
+Phase: 04 (frontend-shell-auth) — **COMPLETE** (live verified 2026-05-21)
+Plan: 6 of 6 complete. All 13 Phase 4 requirements (SHEL-01..06 + AUTH-01..07) closed end-to-end with live JWT round-trip.
+Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/6/7 are parallel-eligible.
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
-- **Phase 2**: Corpus Cleanup — 4/4 plans complete with SUMMARY.md files; **documented data-quality residual** (10 of 108 postings persistently fail Instructor extraction; 98/108 = 90.7% reextracted to PROMPT_VERSION='2.0'). All 4 CORP-* requirements marked complete in REQUIREMENTS.md but only CORP-02 is a clean PASS in 02-04 sanity checks; CORP-01 has a small (11-row, 0.56%) leak; CORP-03/04 are PARTIAL PASS due to the failure coverage gap. Phase 2 closes with explicit deferred follow-up plan recommendation in 02-04-SUMMARY.md.
-- **Progress**: 2/8 phases complete (Phase 1 verified, Phase 2 plans done — pending verifier)
+- **Phase 2**: Corpus Cleanup — 4/4 plans complete with SUMMARY.md files; documented data-quality residual (10 of 108 postings persistently fail Instructor extraction; 98/108 = 90.7% reextracted to PROMPT_VERSION='2.0').
+- **Phase 3**: Infrastructure & CI/CD — verified 2026-05-19 (12/12 must-haves)
+- **Phase 4**: Frontend Shell + Auth — live verified 2026-05-21 (13/13 requirements; 10 deviations documented). Live SPA at `https://witty-flower-065dac003.7.azurestaticapps.net` hits ACA backend with real Entra JWTs via MSAL → fastapi-azure-auth → AUTH-06 oid allowlist (`18d774c1-62ac-4416-8945-b5eca715e9ed` = local customer `adrian@jobrag.onmicrosoft.com`).
+- **Progress**: 4/8 phases complete
 
 ```
 [x] Phase 1: Backend Prep                    ✓ COMPLETE (verified)
 [x] Phase 2: Corpus Cleanup                  ✓ Plans complete (pending /gsd-verify-work)
-[ ] Phase 3: Infrastructure & CI/CD          <- next
-[ ] Phase 4: Frontend Shell + Auth
-[ ] Phase 5: Dashboard
+[x] Phase 3: Infrastructure & CI/CD          ✓ COMPLETE (verified 2026-05-19, 12/12 must-haves)
+[x] Phase 4: Frontend Shell + Auth           ✓ COMPLETE (live verified 2026-05-21, 13/13 reqs, 10 deviations)
+[ ] Phase 5: Dashboard                       <- next (parallel-eligible with 6/7)
 [ ] Phase 6: Chat
 [ ] Phase 7: Profile & Resume Upload
 [ ] Phase 8: Eval & Documentation

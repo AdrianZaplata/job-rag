@@ -21,7 +21,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 - [x] **Phase 2: Corpus Cleanup** - Amortize one PROMPT_VERSION bump + full re-extraction across SkillCategory + structured Location
  (completed 2026-04-28)
 - [x] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows (verified 2026-05-19, 12/12 must-haves)
-- [ ] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context
+- [x] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context (live verified 2026-05-21; 13/13 requirements closed; 10 deviations documented in 04-06-SUMMARY.md)
 - [ ] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface
 - [ ] **Phase 6: Chat** - Ship the number-one portfolio-signal feature: streaming tokens with inline tool-call chips
 - [ ] **Phase 7: Profile & Resume Upload** - Close the personal-data loop so CV-vs-market scores stay fresh without CLI edits
@@ -111,7 +111,7 @@ Plans:
 - [x] 04-03-PLAN.md — Wave 2 CI + infra wiring: ci.yml frontend-ci sibling job + deploy-spa.yml apps/web→frontend rename + 5 VITE_* env injection + compute module env-block extension (BACKEND_AUDIENCE/ENTRA_TENANT_ID/ENTRA_TENANT_SUBDOMAIN plain + SEEDED_USER_ENTRA_OID secretRef) + prod env composition + tfvars placeholders
 - [x] 04-04-PLAN.md — Wave 3a frontend scaffold + auth/data plumbing: Vite 8 + React 19 + TS + Tailwind v4 + shadcn (zinc/new-york) init + 17 deps pinned + main.tsx literal AUTH-07 race fix + msal singleton (sessionStorage + knownAuthorities) + authedFetch + readSSEStream + queryClient + openapi-typescript codegen + 4 service modules + 5 vitest stubs (2 active, 3 skip-on-missing)
 - [x] 04-05-PLAN.md — Wave 3b components + routes: 8 shadcn primitives (button/card/skeleton/dropdown-menu/dialog/sonner/input/badge) + AuthGate (loginRedirect) + AppShell (top-nav per UI-SPEC §7) + ThemeToggle (localStorage + matchMedia) + ErrorBoundary + RouteSkeleton + EmptyState + PhasePlaceholder + AccessDenied (D-09 OID UX) + NotFound + Dashboard/Chat/Profile placeholders + DebugAgentStream (dev-only gate) + App.tsx routes tree + activated 3 stub tests
-- [ ] 04-06-PLAN.md — Wave 5 phase-close: Adrian-driven runbook (5 checkpoints) — terraform apply infra/external/ + 5 gh secret set + prod re-apply with new env vars + first login → AccessDenied with oid → az keyvault secret set + ACA restart + 0005 UPDATE bridges seeded row → second login success path + AUTH-04/AUTH-07 manual verifications + optional DebugAgentStream live SSE test
+- [x] 04-06-PLAN.md — Wave 5 phase-close: Adrian-driven runbook (5 checkpoints) — terraform apply infra/external/ + 5 gh secret set + prod re-apply with new env vars + first login → AccessDenied with oid → az keyvault secret set + ACA restart + 0005 UPDATE bridges seeded row → second login success path + AUTH-04/AUTH-07 manual verifications + optional DebugAgentStream live SSE test
 **UI hint**: yes
 
 ### Phase 5: Dashboard
