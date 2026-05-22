@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-last_updated: "2026-05-21T21:59:10.714Z"
-last_activity: 2026-05-21
+status: Ready to plan
+last_updated: "2026-05-22T06:46:54.676Z"
+last_activity: 2026-05-22
 progress:
   total_phases: 9
   completed_phases: 5
@@ -33,8 +33,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 04.1 (phase-4-follow-ups-runbook-deviation-cleanup) — PLANS COMPLETE (5/5)
-Plan: 5 of 5 (final)
+Phase: 05
+Plan: Not started
 Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/6/7 are parallel-eligible. Phase 04.1 awaits Adrian's out-of-band batch-push of all 5 fixes + the subsequent `infra/external/` apply that reconciles the identifier_uri state (destroy old resource + update-in-place adding `identifier_uris`).
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
@@ -210,7 +210,7 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 | 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 
-Last activity: 2026-05-21
+Last activity: 2026-05-22
 
 ### Open Questions (from research, to resolve during planning)
 
