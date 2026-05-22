@@ -142,6 +142,9 @@
         "security": [
           {
             "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
           }
         ],
         "parameters": [
@@ -189,6 +192,9 @@
         "security": [
           {
             "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
           }
         ],
         "parameters": [
@@ -234,6 +240,256 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Gaps Gaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/top-skills": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Dashboard Top Skills",
+        "description": "Top-N skills with must-have / nice-to-have split (DASH-01).\n\nSoft skills hidden by default (D-13); pass ``?include_soft=true`` to include.\nReturns ``DashboardTopSkillsResponse`` with named OpenAPI schema (drives\nopenapi-typescript codegen).",
+        "operationId": "dashboard_top_skills_dashboard_top_skills_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CountryFilter",
+              "default": "WW"
+            }
+          },
+          {
+            "name": "seniority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Seniority"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Seniority"
+            }
+          },
+          {
+            "name": "remote",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RemoteFilter",
+              "default": "any"
+            }
+          },
+          {
+            "name": "include_soft",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Soft"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardTopSkillsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/salary-bands": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Dashboard Salary Bands",
+        "description": "Salary percentiles p25/p50/p75 via PostgreSQL ``percentile_cont`` (DASH-02).\n\nReturns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``\n(NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).\nPer-period normalization: ``month`` -> x12; ``hour`` rows excluded (Pitfall 3).",
+        "operationId": "dashboard_salary_bands_dashboard_salary_bands_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CountryFilter",
+              "default": "WW"
+            }
+          },
+          {
+            "name": "seniority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Seniority"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Seniority"
+            }
+          },
+          {
+            "name": "remote",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RemoteFilter",
+              "default": "any"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSalaryBandsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/cv-vs-market": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Dashboard Cv Vs Market",
+        "description": "CV-vs-market aggregate match score (DASH-03).\n\nD-12 zero-postings contract: when the filter matches zero postings, returns\n``{mean_score: null, postings_compared: 0, top_missing_must_have: []}`` with\nHTTP 200 (NOT 404 like ``/gaps``).\n\nUses the existing ``match_posting()`` formula unchanged (D-10).",
+        "operationId": "dashboard_cv_vs_market_dashboard_cv_vs_market_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CountryFilter",
+              "default": "WW"
+            }
+          },
+          {
+            "name": "seniority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Seniority"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Seniority"
+            }
+          },
+          {
+            "name": "remote",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RemoteFilter",
+              "default": "any"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCvMatchResponse"
                 }
               }
             }
@@ -417,6 +673,9 @@
         "security": [
           {
             "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
           }
         ]
       }
@@ -451,6 +710,150 @@
         ],
         "title": "Body_ingest_ingest_post"
       },
+      "CountryFilter": {
+        "type": "string",
+        "enum": [
+          "PL",
+          "DE",
+          "EU",
+          "WW"
+        ],
+        "title": "CountryFilter",
+        "description": "Canonical 4-value country filter (D-07).\n\nPL/DE: exact ISO-3166 alpha-2 match.\nEU:    union of EU-27 ISO codes OR location_region == 'EU' (catches NULL-country\n       \"Remote (EU)\" postings per Phase 2 D-09).\nWW:    no filter (default; matches Worldwide)."
+      },
+      "DashboardCvMatchResponse": {
+        "properties": {
+          "mean_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Score",
+            "description": "Arithmetic mean of per-posting match_posting() scores; None when postings_compared == 0 (D-12)"
+          },
+          "postings_compared": {
+            "type": "integer",
+            "title": "Postings Compared",
+            "description": "Number of filtered postings compared against the profile"
+          },
+          "top_missing_must_have": {
+            "items": {
+              "$ref": "#/components/schemas/MissingSkillItem"
+            },
+            "type": "array",
+            "title": "Top Missing Must Have",
+            "description": "Top 3 missing must-have skills ranked by frequency (Counter.most_common(3))"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mean_score",
+          "postings_compared",
+          "top_missing_must_have"
+        ],
+        "title": "DashboardCvMatchResponse",
+        "description": "GET /dashboard/cv-vs-market response.\n\n`mean_score` is `float | None` because D-12 zero-postings case returns\n`{mean_score: None, postings_compared: 0, top_missing_must_have: []}` with\nHTTP 200 (NOT 404)."
+      },
+      "DashboardSalaryBandsResponse": {
+        "properties": {
+          "p25": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P25",
+            "description": "25th percentile annual salary in EUR"
+          },
+          "p50": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50",
+            "description": "Median (50th percentile) annual salary in EUR"
+          },
+          "p75": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P75",
+            "description": "75th percentile annual salary in EUR"
+          },
+          "postings_with_salary": {
+            "type": "integer",
+            "title": "Postings With Salary",
+            "description": "Number of filtered postings that had salary data (numerator of sample-size footnote)"
+          },
+          "total_postings": {
+            "type": "integer",
+            "title": "Total Postings",
+            "description": "Total filtered postings (denominator of sample-size footnote)"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "ISO 4217 currency code; v1 hardcodes EUR",
+            "default": "EUR"
+          }
+        },
+        "type": "object",
+        "required": [
+          "p25",
+          "p50",
+          "p75",
+          "postings_with_salary",
+          "total_postings"
+        ],
+        "title": "DashboardSalaryBandsResponse",
+        "description": "GET /dashboard/salary-bands response.\n\nPercentile fields are `int | None` because PostgreSQL `percentile_cont` returns\nNULL on empty result sets (RESEARCH Pitfall 2). The frontend reads `p50 is null`\nas the empty-state condition."
+      },
+      "DashboardTopSkillsResponse": {
+        "properties": {
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/TopSkillItem"
+            },
+            "type": "array",
+            "title": "Skills",
+            "description": "Top-N skills (capped at the `limit` query param) ordered by total DESC"
+          },
+          "total_postings": {
+            "type": "integer",
+            "title": "Total Postings",
+            "description": "Total postings matching the filter (footnote denominator)"
+          },
+          "unique_skills": {
+            "type": "integer",
+            "title": "Unique Skills",
+            "description": "Distinct skill count (after soft-skill filter, if applied)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skills",
+          "total_postings",
+          "unique_skills"
+        ],
+        "title": "DashboardTopSkillsResponse",
+        "description": "GET /dashboard/top-skills response."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -463,6 +866,88 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "MissingSkillItem": {
+        "properties": {
+          "skill": {
+            "type": "string",
+            "title": "Skill",
+            "description": "Missing must-have skill identifier"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Number of filtered postings missing this must-have"
+          },
+          "percentage": {
+            "type": "number",
+            "title": "Percentage",
+            "description": "count / total_postings * 100, rounded to 1 decimal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill",
+          "count",
+          "percentage"
+        ],
+        "title": "MissingSkillItem",
+        "description": "One row in the cv-vs-market top-3 missing must-have list."
+      },
+      "RemoteFilter": {
+        "type": "string",
+        "enum": [
+          "any",
+          "remote",
+          "non_remote"
+        ],
+        "title": "RemoteFilter",
+        "description": "3-state remote-policy tri-toggle (D-09).\n\nany:        no filter (default).\nremote:     remote_policy = 'remote'.\nnon_remote: remote_policy IN ('hybrid', 'onsite')."
+      },
+      "Seniority": {
+        "type": "string",
+        "enum": [
+          "junior",
+          "mid",
+          "senior",
+          "staff",
+          "lead",
+          "unknown"
+        ],
+        "title": "Seniority"
+      },
+      "TopSkillItem": {
+        "properties": {
+          "skill": {
+            "type": "string",
+            "title": "Skill",
+            "description": "Skill identifier (technical, mono-font in UI)"
+          },
+          "must_count": {
+            "type": "integer",
+            "title": "Must Count",
+            "description": "Number of postings where this skill is must-have"
+          },
+          "nice_count": {
+            "type": "integer",
+            "title": "Nice Count",
+            "description": "Number of postings where this skill is nice-to-have"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "must_count + nice_count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill",
+          "must_count",
+          "nice_count",
+          "total"
+        ],
+        "title": "TopSkillItem",
+        "description": "One row of the top-skills aggregate."
       },
       "ValidationError": {
         "properties": {
@@ -666,6 +1151,19 @@
       "HTTPBearer": {
         "type": "http",
         "scheme": "bearer"
+      },
+      "AzureAD_PKCE_B2C_multi_tenant": {
+        "type": "oauth2",
+        "description": "`Leave client_secret blank`",
+        "flows": {
+          "authorizationCode": {
+            "scopes": {
+              "/access_as_user": "access_as_user"
+            },
+            "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+          }
+        }
       }
     }
   }
