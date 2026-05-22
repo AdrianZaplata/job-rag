@@ -87,6 +87,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/top-skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard Top Skills
+         * @description Top-N skills with must-have / nice-to-have split (DASH-01).
+         *
+         *     Soft skills hidden by default (D-13); pass ``?include_soft=true`` to include.
+         *     Returns ``DashboardTopSkillsResponse`` with named OpenAPI schema (drives
+         *     openapi-typescript codegen).
+         */
+        get: operations["dashboard_top_skills_dashboard_top_skills_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/salary-bands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard Salary Bands
+         * @description Salary percentiles p25/p50/p75 via PostgreSQL ``percentile_cont`` (DASH-02).
+         *
+         *     Returns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``
+         *     (NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).
+         *     Per-period normalization: ``month`` -> x12; ``hour`` rows excluded (Pitfall 3).
+         */
+        get: operations["dashboard_salary_bands_dashboard_salary_bands_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/cv-vs-market": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard Cv Vs Market
+         * @description CV-vs-market aggregate match score (DASH-03).
+         *
+         *     D-12 zero-postings contract: when the filter matches zero postings, returns
+         *     ``{mean_score: null, postings_compared: 0, top_missing_must_have: []}`` with
+         *     HTTP 200 (NOT 404 like ``/gaps``).
+         *
+         *     Uses the existing ``match_posting()`` formula unchanged (D-10).
+         */
+        get: operations["dashboard_cv_vs_market_dashboard_cv_vs_market_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agent": {
         parameters: {
             query?: never;
@@ -196,10 +270,170 @@ export interface components {
             /** File */
             file: string;
         };
+        /**
+         * CountryFilter
+         * @description Canonical 4-value country filter (D-07).
+         *
+         *     PL/DE: exact ISO-3166 alpha-2 match.
+         *     EU:    union of EU-27 ISO codes OR location_region == 'EU' (catches NULL-country
+         *            "Remote (EU)" postings per Phase 2 D-09).
+         *     WW:    no filter (default; matches Worldwide).
+         * @enum {string}
+         */
+        CountryFilter: "PL" | "DE" | "EU" | "WW";
+        /**
+         * DashboardCvMatchResponse
+         * @description GET /dashboard/cv-vs-market response.
+         *
+         *     `mean_score` is `float | None` because D-12 zero-postings case returns
+         *     `{mean_score: None, postings_compared: 0, top_missing_must_have: []}` with
+         *     HTTP 200 (NOT 404).
+         */
+        DashboardCvMatchResponse: {
+            /**
+             * Mean Score
+             * @description Arithmetic mean of per-posting match_posting() scores; None when postings_compared == 0 (D-12)
+             */
+            mean_score: number | null;
+            /**
+             * Postings Compared
+             * @description Number of filtered postings compared against the profile
+             */
+            postings_compared: number;
+            /**
+             * Top Missing Must Have
+             * @description Top 3 missing must-have skills ranked by frequency (Counter.most_common(3))
+             */
+            top_missing_must_have: components["schemas"]["MissingSkillItem"][];
+        };
+        /**
+         * DashboardSalaryBandsResponse
+         * @description GET /dashboard/salary-bands response.
+         *
+         *     Percentile fields are `int | None` because PostgreSQL `percentile_cont` returns
+         *     NULL on empty result sets (RESEARCH Pitfall 2). The frontend reads `p50 is null`
+         *     as the empty-state condition.
+         */
+        DashboardSalaryBandsResponse: {
+            /**
+             * P25
+             * @description 25th percentile annual salary in EUR
+             */
+            p25: number | null;
+            /**
+             * P50
+             * @description Median (50th percentile) annual salary in EUR
+             */
+            p50: number | null;
+            /**
+             * P75
+             * @description 75th percentile annual salary in EUR
+             */
+            p75: number | null;
+            /**
+             * Postings With Salary
+             * @description Number of filtered postings that had salary data (numerator of sample-size footnote)
+             */
+            postings_with_salary: number;
+            /**
+             * Total Postings
+             * @description Total filtered postings (denominator of sample-size footnote)
+             */
+            total_postings: number;
+            /**
+             * Currency
+             * @description ISO 4217 currency code; v1 hardcodes EUR
+             * @default EUR
+             */
+            currency: string;
+        };
+        /**
+         * DashboardTopSkillsResponse
+         * @description GET /dashboard/top-skills response.
+         */
+        DashboardTopSkillsResponse: {
+            /**
+             * Skills
+             * @description Top-N skills (capped at the `limit` query param) ordered by total DESC
+             */
+            skills: components["schemas"]["TopSkillItem"][];
+            /**
+             * Total Postings
+             * @description Total postings matching the filter (footnote denominator)
+             */
+            total_postings: number;
+            /**
+             * Unique Skills
+             * @description Distinct skill count (after soft-skill filter, if applied)
+             */
+            unique_skills: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * MissingSkillItem
+         * @description One row in the cv-vs-market top-3 missing must-have list.
+         */
+        MissingSkillItem: {
+            /**
+             * Skill
+             * @description Missing must-have skill identifier
+             */
+            skill: string;
+            /**
+             * Count
+             * @description Number of filtered postings missing this must-have
+             */
+            count: number;
+            /**
+             * Percentage
+             * @description count / total_postings * 100, rounded to 1 decimal
+             */
+            percentage: number;
+        };
+        /**
+         * RemoteFilter
+         * @description 3-state remote-policy tri-toggle (D-09).
+         *
+         *     any:        no filter (default).
+         *     remote:     remote_policy = 'remote'.
+         *     non_remote: remote_policy IN ('hybrid', 'onsite').
+         * @enum {string}
+         */
+        RemoteFilter: "any" | "remote" | "non_remote";
+        /**
+         * Seniority
+         * @enum {string}
+         */
+        Seniority: "junior" | "mid" | "senior" | "staff" | "lead" | "unknown";
+        /**
+         * TopSkillItem
+         * @description One row of the top-skills aggregate.
+         */
+        TopSkillItem: {
+            /**
+             * Skill
+             * @description Skill identifier (technical, mono-font in UI)
+             */
+            skill: string;
+            /**
+             * Must Count
+             * @description Number of postings where this skill is must-have
+             */
+            must_count: number;
+            /**
+             * Nice Count
+             * @description Number of postings where this skill is nice-to-have
+             */
+            nice_count: number;
+            /**
+             * Total
+             * @description must_count + nice_count
+             */
+            total: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -480,6 +714,107 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dashboard_top_skills_dashboard_top_skills_get: {
+        parameters: {
+            query?: {
+                country?: components["schemas"]["CountryFilter"];
+                seniority?: components["schemas"]["Seniority"] | null;
+                remote?: components["schemas"]["RemoteFilter"];
+                include_soft?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardTopSkillsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dashboard_salary_bands_dashboard_salary_bands_get: {
+        parameters: {
+            query?: {
+                country?: components["schemas"]["CountryFilter"];
+                seniority?: components["schemas"]["Seniority"] | null;
+                remote?: components["schemas"]["RemoteFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSalaryBandsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dashboard_cv_vs_market_dashboard_cv_vs_market_get: {
+        parameters: {
+            query?: {
+                country?: components["schemas"]["CountryFilter"];
+                seniority?: components["schemas"]["Seniority"] | null;
+                remote?: components["schemas"]["RemoteFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardCvMatchResponse"];
                 };
             };
             /** @description Validation Error */
