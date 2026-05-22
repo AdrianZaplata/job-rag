@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, TypeAdapter
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,13 @@ from job_rag.api.auth import (
     require_api_key,
     standard_limit,
 )
+from job_rag.api.dashboard import (
+    CountryFilter,
+    DashboardCvMatchResponse,
+    DashboardSalaryBandsResponse,
+    DashboardTopSkillsResponse,
+    RemoteFilter,
+)
 from job_rag.api.deps import get_session
 from job_rag.api.sse import (
     AgentEvent,
@@ -48,6 +55,16 @@ from job_rag.api.sse import (
 )
 from job_rag.config import settings
 from job_rag.db.models import JobPostingDB
+from job_rag.models import Seniority
+from job_rag.services.analytics import (
+    cv_match as analytics_cv_match,
+)
+from job_rag.services.analytics import (
+    salary_bands as analytics_salary_bands,
+)
+from job_rag.services.analytics import (
+    top_skills as analytics_top_skills,
+)
 from job_rag.services.ingestion import (
     MarkdownFileSource,
     ingest_from_source,
@@ -197,6 +214,126 @@ async def gaps(
 
     profile = load_profile(user_id=user_id)
     return aggregate_gaps(profile, postings)
+
+
+# ----------------------------------------------------------------------
+# Dashboard routes (Phase 5 - DASH-01/02/03/04)
+#
+# Each handler:
+#   - Tagged ["dashboard"] for OpenAPI grouping (Plan 05-RESEARCH Pitfall 16);
+#     openapi-typescript codegen consumes the tag to group hooks under a
+#     dashboard namespace
+#   - Declares an explicit Pydantic response_model so OpenAPI emits a named
+#     schema ($ref to DashboardTopSkillsResponse, etc.) instead of an inline
+#     dict[str, Any] -- this is what drives openapi-typescript codegen toward
+#     named TS interfaces (Plan 05-04 consumer)
+#   - Wires the full Phase 4 security gate: Depends(require_api_key) +
+#     Depends(standard_limit) + Depends(get_current_user_id) (T-AUTH-06,
+#     T-RATE-LIMIT)
+#   - Uses StrEnum query params (CountryFilter, RemoteFilter, Seniority) so
+#     FastAPI auto-422s invalid strings (T-INPUT-VALIDATION)
+#   - D-12 zero-postings contract: never raises HTTPException(404); the zero
+#     state is a legitimate UI condition. The /gaps handler keeps its 404
+#     contract; only the new /dashboard/* surface adopts D-12.
+#   - Uses standard_limit (30/min) — NOT agent_limit (10/min, reserved for
+#     Phase 6 chat)
+# ----------------------------------------------------------------------
+
+
+@router.get(
+    "/dashboard/top-skills",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    tags=["dashboard"],
+    response_model=DashboardTopSkillsResponse,
+)
+async def dashboard_top_skills(
+    session: Session,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    country: CountryFilter = CountryFilter.WW,
+    seniority: Seniority | None = None,
+    remote: RemoteFilter = RemoteFilter.ANY,
+    include_soft: bool = False,
+    limit: int = Query(default=50, ge=1, le=200),
+) -> DashboardTopSkillsResponse:
+    """Top-N skills with must-have / nice-to-have split (DASH-01).
+
+    Soft skills hidden by default (D-13); pass ``?include_soft=true`` to include.
+    Returns ``DashboardTopSkillsResponse`` with named OpenAPI schema (drives
+    openapi-typescript codegen).
+    """
+    # user_id reserved for future per-user scoping (DASH-PROFILE-XX); the
+    # current global corpus is shared across users in v1.
+    _ = user_id
+    result = await analytics_top_skills(
+        session,
+        country=country.value,
+        seniority=seniority.value if seniority is not None else None,
+        remote=remote.value,
+        include_soft=include_soft,
+        limit=limit,
+    )
+    return DashboardTopSkillsResponse.model_validate(result)
+
+
+@router.get(
+    "/dashboard/salary-bands",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    tags=["dashboard"],
+    response_model=DashboardSalaryBandsResponse,
+)
+async def dashboard_salary_bands(
+    session: Session,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    country: CountryFilter = CountryFilter.WW,
+    seniority: Seniority | None = None,
+    remote: RemoteFilter = RemoteFilter.ANY,
+) -> DashboardSalaryBandsResponse:
+    """Salary percentiles p25/p50/p75 via PostgreSQL ``percentile_cont`` (DASH-02).
+
+    Returns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``
+    (NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).
+    Per-period normalization: ``month`` -> x12; ``hour`` rows excluded (Pitfall 3).
+    """
+    # user_id reserved for future per-user scoping
+    _ = user_id
+    result = await analytics_salary_bands(
+        session,
+        country=country.value,
+        seniority=seniority.value if seniority is not None else None,
+        remote=remote.value,
+    )
+    return DashboardSalaryBandsResponse.model_validate(result)
+
+
+@router.get(
+    "/dashboard/cv-vs-market",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    tags=["dashboard"],
+    response_model=DashboardCvMatchResponse,
+)
+async def dashboard_cv_vs_market(
+    session: Session,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    country: CountryFilter = CountryFilter.WW,
+    seniority: Seniority | None = None,
+    remote: RemoteFilter = RemoteFilter.ANY,
+) -> DashboardCvMatchResponse:
+    """CV-vs-market aggregate match score (DASH-03).
+
+    D-12 zero-postings contract: when the filter matches zero postings, returns
+    ``{mean_score: null, postings_compared: 0, top_missing_must_have: []}`` with
+    HTTP 200 (NOT 404 like ``/gaps``).
+
+    Uses the existing ``match_posting()`` formula unchanged (D-10).
+    """
+    result = await analytics_cv_match(
+        session,
+        user_id,
+        country=country.value,
+        seniority=seniority.value if seniority is not None else None,
+        remote=remote.value,
+    )
+    return DashboardCvMatchResponse.model_validate(result)
 
 
 class AgentQuery(BaseModel):
