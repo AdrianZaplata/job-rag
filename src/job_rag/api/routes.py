@@ -34,6 +34,7 @@ from job_rag.agent.graph import run_agent
 from job_rag.agent.stream import stream_agent
 from job_rag.api.auth import (
     agent_limit,
+    dashboard_limit,
     get_current_user_id,
     ingest_limit,
     require_api_key,
@@ -242,7 +243,7 @@ async def gaps(
 
 @router.get(
     "/dashboard/top-skills",
-    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    dependencies=[Depends(require_api_key), Depends(dashboard_limit)],
     tags=["dashboard"],
     response_model=DashboardTopSkillsResponse,
 )
@@ -277,7 +278,7 @@ async def dashboard_top_skills(
 
 @router.get(
     "/dashboard/salary-bands",
-    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    dependencies=[Depends(require_api_key), Depends(dashboard_limit)],
     tags=["dashboard"],
     response_model=DashboardSalaryBandsResponse,
 )
@@ -307,7 +308,7 @@ async def dashboard_salary_bands(
 
 @router.get(
     "/dashboard/cv-vs-market",
-    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    dependencies=[Depends(require_api_key), Depends(dashboard_limit)],
     tags=["dashboard"],
     response_model=DashboardCvMatchResponse,
 )

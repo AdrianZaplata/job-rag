@@ -123,6 +123,9 @@ class RateLimiter:
 standard_limit = RateLimiter(calls=30, period=60)   # 30 req/min
 agent_limit = RateLimiter(calls=10, period=60)       # 10 req/min
 ingest_limit = RateLimiter(calls=5, period=60)       #  5 req/min
+# Dashboard fires 3 parallel widget fetches per page load; with React Query retries
+# and the proxy-IP collapse behind SWA→ACA, 30/min trips on a couple of reloads.
+dashboard_limit = RateLimiter(calls=120, period=60)  # 120 req/min
 
 
 async def get_current_user_id(
