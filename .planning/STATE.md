@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-22T08:58:26.841Z"
+last_updated: "2026-05-22T09:05:00.760Z"
 last_activity: 2026-05-22
 progress:
   total_phases: 9
@@ -29,7 +29,7 @@ progress:
 
 ## Current Focus
 
-Phase 5 (Dashboard) **WAVE 1 in progress**. Plan 05-02 lands the backend analytics service (`src/job_rag/services/analytics.py` — top_skills SQL GROUP BY, salary_bands percentile_cont, cv_match hybrid SQL+Python fold) + Pydantic response models in `src/job_rag/api/dashboard.py`. All 27 Plan 05-01 skip-guarded tests in `tests/test_analytics.py` now PASSING. Plan 05-03 (FastAPI routes wrapping the service module) next.
+Phase 5 (Dashboard) **WAVE 3 — Plan 05-06 mid-execution at human-verify checkpoint**. Plans 05-01 through 05-05 all complete (backend analytics service + Pydantic response models + 3 `/dashboard/*` FastAPI routes + frontend codegen + typed fetchers + useDashboardFilters hook + 4 widgets + Show More dialog + describeError helper all shipped). Plan 05-06 is the UAT close-out: Adrian executes the 6 M-markers from a browser against the live SWA. Pre-checkpoint setup complete: `git push origin master` fired both deploy-spa.yml (SUCCEEDED, 1m15s, run 26278710888) and deploy-api.yml (IN_PROGRESS, ~19m baseline for ACA revision rollout, run 26278710894). UAT-screenshots folder pre-created at `.planning/phases/05-dashboard/uat-screenshots/`. Awaiting (a) deploy-api.yml to finish so the live ACA backend exposes the new `/dashboard/*` endpoints, then (b) Adrian's M-marker observations against the dashboard.
 
 Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `status: passed (5/5 must-haves)`. The backend now ships CORSMiddleware (env allowlist, never `*`), Pydantic-typed SSE event contract exposed in OpenAPI, FastAPI lifespan with reranker preload + SIGTERM drain (30s budget) + asyncio.to_thread reranker wraps, `/agent/stream` with sse-starlette ping heartbeats + asyncio.timeout(60s) + sanitized error frames + cooperative shutdown drain, `get_current_user_id` Depends() injected on `/match` `/gaps` `/ingest` (returns `settings.seeded_user_id` — Phase 4 rewrites body for Entra JWT), Alembic as the canonical schema path (3 migrations, init_db wraps `alembic upgrade head`, dev DB transitioned losslessly with 108 postings preserved + career_id backfilled + seed user inserted), and IngestionSource Protocol with MarkdownFileSource v1 + ingest_from_source async consumer. CI gained postgres service container + alembic upgrade smoke step + user_id DEFAULT grep guard. All 10 BACK-* requirements closed.
 
