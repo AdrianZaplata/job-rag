@@ -206,4 +206,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-23 after initialization*
+*Last updated: 2026-05-22 after Phase 04.1 (Phase 4 follow-ups — runbook deviation cleanup) completion. No requirements changed (durable-tax cleanup per CONTEXT D-06). Phases 1-4 + 4.1 closed; Phase 5 (Dashboard) next.*
