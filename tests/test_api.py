@@ -503,3 +503,56 @@ class TestAgentStream:
             max_bytes=512,
         )
         assert resp.headers.get("x-accel-buffering") == "no"
+
+
+# ===== Phase 5 Wave 0 - dashboard endpoint scaffold =====
+
+
+def _dashboard_routes_present() -> bool:
+    """Skip-guard for TestDashboardEndpoints.
+
+    Probes the OpenAPI for /dashboard/top-skills registration. Plan 05-03
+    will land the routes; until then the entire TestDashboardEndpoints class
+    skips cleanly without ImportError at collection time.
+    """
+    try:
+        paths = app.openapi().get("paths", {})
+        return "/dashboard/top-skills" in paths
+    except Exception:  # noqa: BLE001 - any failure means routes aren't shipped
+        return False
+
+
+@pytest.mark.skipif(
+    not _dashboard_routes_present(),
+    reason="Phase 5 /dashboard/* routes not yet shipped (Plan 05-03)",
+)
+@pytest.mark.asyncio
+class TestDashboardEndpoints:
+    async def test_top_skills_returns_200_with_pydantic_shape(self):
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/top-skills")
+
+    async def test_salary_bands_returns_200_with_pydantic_shape(self):
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/salary-bands")
+
+    async def test_cv_vs_market_returns_200_with_pydantic_shape(self):
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/cv-vs-market")
+
+    async def test_unauthed_request_returns_401(self):
+        """T-AUTH-06 carry-forward: Depends(get_current_user_id) rejects unauthed."""
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+
+    async def test_invalid_country_returns_422(self):
+        """T-INPUT-VALIDATION: ?country=ZZ -> 422 (Pydantic enum rejects bad strings)."""
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+
+    async def test_country_filter_exercises_4_values(self):
+        """E12 - country filter exercises PL / DE / EU / WW; each returns 200."""
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+
+    async def test_top_skills_openapi_named_schema(self):
+        """PATTERNS B.2: assert components.schemas.DashboardTopSkillsResponse exists."""
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+
+    async def test_d12_zero_postings_returns_200_not_404(self):
+        """D-12 / E1: filters returning zero postings -> HTTP 200 with zero-state body."""
+        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
