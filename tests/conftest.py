@@ -186,8 +186,12 @@ def dashboard_postings_factory():
     ) -> JobPostingDB:
         # skill_type: map "hard" -> "language" (a valid SkillType), keep "soft" / "domain" as-is.
         # JobRequirementDB.skill_type is a non-null string from the 8-value taxonomy.
+        #
+        # Note: JobPostingDB has NO user_id column (v1 corpus is global, keyed by
+        # career_id='ai_engineer'; per-user data lives on UserProfileDB only).
+        # Plan 05-02 deviation Rule 1: removed user_id kwarg the Plan 05-01
+        # fixture mistakenly forwarded — the underlying ORM rejects it.
         posting_id = uuid.uuid4()
-        user_id = uuid.uuid4()
         requirements = [
             JobRequirementDB(
                 id=uuid.uuid4(),
@@ -201,7 +205,6 @@ def dashboard_postings_factory():
         ]
         return JobPostingDB(
             id=posting_id,
-            user_id=user_id,
             title="AI Engineer",
             company="TestCorp",
             location_country=country,

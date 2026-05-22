@@ -446,9 +446,12 @@ class TestApplyFilters:
         from job_rag.services.analytics import _apply_filters
 
         stmt = _apply_filters(select(JobPostingDB), country="PL")
-        sql = self._compiled(stmt)
-        assert "location_country" in sql.lower()
-        assert "'pl'" in sql.lower()
+        # Inspect the WHERE clause specifically so we don't false-positive on
+        # the SELECT column list (which always lists location_country).
+        assert stmt.whereclause is not None
+        where_sql = str(stmt.whereclause.compile(compile_kwargs={"literal_binds": True})).lower()
+        assert "location_country" in where_sql
+        assert "'pl'" in where_sql
 
     async def test_country_eu_includes_eu27_and_region_eu(self, dashboard_postings_factory):
         """D-07 / E2: EU branch checks location_country IN EU-27 OR location_region = 'EU'."""
@@ -458,13 +461,14 @@ class TestApplyFilters:
         from job_rag.services.analytics import _apply_filters
 
         stmt = _apply_filters(select(JobPostingDB), country="EU")
-        sql = self._compiled(stmt).lower()
+        assert stmt.whereclause is not None
+        where_sql = str(stmt.whereclause.compile(compile_kwargs={"literal_binds": True})).lower()
         # Should have IN clause with EU codes AND an OR for location_region.
-        assert " in (" in sql
-        assert "location_region" in sql
-        assert "'eu'" in sql
+        assert " in (" in where_sql
+        assert "location_region" in where_sql
+        assert "'eu'" in where_sql
         # OR connector between the two branches.
-        assert " or " in sql
+        assert " or " in where_sql
 
     async def test_country_ww_no_filter(self, dashboard_postings_factory):
         from sqlalchemy import select
@@ -472,11 +476,11 @@ class TestApplyFilters:
         from job_rag.db.models import JobPostingDB
         from job_rag.services.analytics import _apply_filters
 
-        stmt_before = select(JobPostingDB)
-        stmt_after = _apply_filters(stmt_before, country="WW")
-        # The "WW" branch should add NO country WHERE clause.
-        sql_after = self._compiled(stmt_after).lower()
-        assert "location_country" not in sql_after
+        stmt = _apply_filters(select(JobPostingDB), country="WW")
+        # The "WW" branch should add NO WHERE clause at all (whereclause is None).
+        # We inspect the WHERE clause specifically — the SELECT column list
+        # always names location_country regardless of filter.
+        assert stmt.whereclause is None
 
     async def test_seniority_filter_applied(self, dashboard_postings_factory):
         from sqlalchemy import select
@@ -485,9 +489,10 @@ class TestApplyFilters:
         from job_rag.services.analytics import _apply_filters
 
         stmt = _apply_filters(select(JobPostingDB), seniority="senior")
-        sql = self._compiled(stmt).lower()
-        assert "seniority" in sql
-        assert "'senior'" in sql
+        assert stmt.whereclause is not None
+        where_sql = str(stmt.whereclause.compile(compile_kwargs={"literal_binds": True})).lower()
+        assert "seniority" in where_sql
+        assert "'senior'" in where_sql
 
     async def test_remote_any_no_filter(self, dashboard_postings_factory):
         from sqlalchemy import select
@@ -496,9 +501,8 @@ class TestApplyFilters:
         from job_rag.services.analytics import _apply_filters
 
         stmt = _apply_filters(select(JobPostingDB), remote="any")
-        sql = self._compiled(stmt).lower()
-        # No remote_policy WHERE clause when remote == "any".
-        assert "remote_policy" not in sql
+        # No WHERE clause at all when remote == "any" (and country/seniority defaults).
+        assert stmt.whereclause is None
 
     async def test_remote_remote_filters_to_remote_policy_remote(
         self, dashboard_postings_factory
@@ -509,9 +513,10 @@ class TestApplyFilters:
         from job_rag.services.analytics import _apply_filters
 
         stmt = _apply_filters(select(JobPostingDB), remote="remote")
-        sql = self._compiled(stmt).lower()
-        assert "remote_policy" in sql
-        assert "'remote'" in sql
+        assert stmt.whereclause is not None
+        where_sql = str(stmt.whereclause.compile(compile_kwargs={"literal_binds": True})).lower()
+        assert "remote_policy" in where_sql
+        assert "'remote'" in where_sql
 
     async def test_remote_non_remote_filters_to_hybrid_onsite(
         self, dashboard_postings_factory
@@ -522,10 +527,11 @@ class TestApplyFilters:
         from job_rag.services.analytics import _apply_filters
 
         stmt = _apply_filters(select(JobPostingDB), remote="non_remote")
-        sql = self._compiled(stmt).lower()
-        assert "remote_policy" in sql
-        assert "'hybrid'" in sql
-        assert "'onsite'" in sql
+        assert stmt.whereclause is not None
+        where_sql = str(stmt.whereclause.compile(compile_kwargs={"literal_binds": True})).lower()
+        assert "remote_policy" in where_sql
+        assert "'hybrid'" in where_sql
+        assert "'onsite'" in where_sql
 
 
 @pytest.mark.skipif(
@@ -533,36 +539,39 @@ class TestApplyFilters:
     reason="analytics.EU_COUNTRY_CODES not yet shipped (Plan 05-02)",
 )
 class TestEuCountrySetMembership:
-    def test_27_members(self):
+    # These tests are conceptually sync, but we declare them async so the
+    # module-level `pytestmark = pytest.mark.asyncio` doesn't emit warnings.
+    # The async body is trivially awaitable.
+    async def test_27_members(self):
         from job_rag.services.analytics import EU_COUNTRY_CODES
 
         assert len(EU_COUNTRY_CODES) == 27
 
-    def test_germany_included(self):
+    async def test_germany_included(self):
         from job_rag.services.analytics import EU_COUNTRY_CODES
 
         assert "DE" in EU_COUNTRY_CODES
 
-    def test_poland_included(self):
+    async def test_poland_included(self):
         from job_rag.services.analytics import EU_COUNTRY_CODES
 
         assert "PL" in EU_COUNTRY_CODES
 
-    def test_greece_iso_gr_not_el(self):
+    async def test_greece_iso_gr_not_el(self):
         """RESEARCH EU-27 ISO Snapshot: ISO uses GR; EU protocol uses EL. Corpus uses ISO."""
         from job_rag.services.analytics import EU_COUNTRY_CODES
 
         assert "GR" in EU_COUNTRY_CODES
         assert "EL" not in EU_COUNTRY_CODES
 
-    def test_uk_excluded(self):
+    async def test_uk_excluded(self):
         """UK departed 2020-01-31."""
         from job_rag.services.analytics import EU_COUNTRY_CODES
 
         assert "GB" not in EU_COUNTRY_CODES
         assert "UK" not in EU_COUNTRY_CODES
 
-    def test_is_frozenset(self):
+    async def test_is_frozenset(self):
         from job_rag.services.analytics import EU_COUNTRY_CODES
 
         assert isinstance(EU_COUNTRY_CODES, frozenset)
@@ -584,12 +593,13 @@ class TestFilterEffects:
         from job_rag.services.analytics import top_skills
 
         compiled_sqls = []
+        country_totals = {"PL": 4, "DE": 5, "EU": 10, "WW": 12}
         for country in ("PL", "DE", "EU", "WW"):
             session = _make_top_skills_mock_session(
                 rows=[
                     {"skill": "Python", "must_count": 3, "nice_count": 0, "total": 3},
                 ],
-                total_postings=4 if country == "PL" else (5 if country == "DE" else (10 if country == "EU" else 12)),
+                total_postings=country_totals[country],
             )
             result = await top_skills(session, country=country)
             # Capture the compiled SQL of the GROUP BY stmt for diff comparison.
