@@ -528,31 +528,293 @@ def _dashboard_routes_present() -> bool:
 )
 @pytest.mark.asyncio
 class TestDashboardEndpoints:
+    """Phase 5 Plan 05-03 dashboard endpoint integration tests.
+
+    Pattern (per Plan 05-02 SUMMARY guidance): MagicMock+AsyncMock for the
+    AsyncSession dependency, monkeypatch the analytics callees (bound names in
+    routes.py) so the SQL pipeline never runs. ASGITransport+AsyncClient drives
+    the FastAPI handler end-to-end.
+
+    Each test clears `app.dependency_overrides` at the end (existing pattern
+    from TestMatchEndpoint) to prevent override leak across tests.
+    """
+
     async def test_top_skills_returns_200_with_pydantic_shape(self):
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/top-skills")
+        from job_rag.api.auth import get_current_user_id
+        from job_rag.api.deps import get_session
+        from job_rag.config import settings
+
+        async def override_session():
+            yield AsyncMock()
+
+        async def override_user():
+            return settings.seeded_user_id
+
+        app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
+
+        mock_result = {
+            "skills": [
+                {"skill": "Python", "must_count": 5, "nice_count": 2, "total": 7},
+            ],
+            "total_postings": 10,
+            "unique_skills": 1,
+        }
+
+        with patch(
+            "job_rag.api.routes.analytics_top_skills",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/dashboard/top-skills?country=DE")
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert "skills" in body
+        assert "total_postings" in body
+        assert "unique_skills" in body
+        assert body["total_postings"] == 10
+        assert body["unique_skills"] == 1
+        assert body["skills"][0]["skill"] == "Python"
+        assert body["skills"][0]["must_count"] == 5
+        assert body["skills"][0]["nice_count"] == 2
+        assert body["skills"][0]["total"] == 7
 
     async def test_salary_bands_returns_200_with_pydantic_shape(self):
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/salary-bands")
+        from job_rag.api.auth import get_current_user_id
+        from job_rag.api.deps import get_session
+        from job_rag.config import settings
+
+        async def override_session():
+            yield AsyncMock()
+
+        async def override_user():
+            return settings.seeded_user_id
+
+        app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
+
+        mock_result = {
+            "p25": 60000,
+            "p50": 75000,
+            "p75": 90000,
+            "postings_with_salary": 8,
+            "total_postings": 12,
+            "currency": "EUR",
+        }
+
+        with patch(
+            "job_rag.api.routes.analytics_salary_bands",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/dashboard/salary-bands?country=DE")
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["currency"] == "EUR"
+        assert body["p25"] == 60000
+        assert body["p50"] == 75000
+        assert body["p75"] == 90000
+        assert body["postings_with_salary"] == 8
+        assert body["total_postings"] == 12
 
     async def test_cv_vs_market_returns_200_with_pydantic_shape(self):
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/cv-vs-market")
+        from job_rag.api.auth import get_current_user_id
+        from job_rag.api.deps import get_session
+        from job_rag.config import settings
+
+        async def override_session():
+            yield AsyncMock()
+
+        async def override_user():
+            return settings.seeded_user_id
+
+        app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
+
+        mock_result = {
+            "mean_score": 0.42,
+            "postings_compared": 98,
+            "top_missing_must_have": [
+                {"skill": "AWS", "count": 42, "percentage": 42.9},
+            ],
+        }
+
+        with patch(
+            "job_rag.api.routes.analytics_cv_match",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/dashboard/cv-vs-market?country=DE")
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["mean_score"] == 0.42
+        assert body["postings_compared"] == 98
+        assert len(body["top_missing_must_have"]) == 1
+        assert body["top_missing_must_have"][0]["skill"] == "AWS"
+        assert body["top_missing_must_have"][0]["count"] == 42
+        assert body["top_missing_must_have"][0]["percentage"] == 42.9
 
     async def test_unauthed_request_returns_401(self):
-        """T-AUTH-06 carry-forward: Depends(get_current_user_id) rejects unauthed."""
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+        """T-AUTH-06 carry-forward: Depends(get_current_user_id) rejects unauthed.
+
+        Without overriding get_current_user_id, the real dep delegates to
+        fastapi-azure-auth's azure_scheme which rejects requests lacking a
+        valid Bearer token. Phase 4 D-08 returns 401 (no token) or 403
+        (wrong oid). Assert NOT 200.
+        """
+        # Clear any leaked overrides; do NOT set get_current_user_id override
+        app.dependency_overrides.clear()
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/dashboard/top-skills")
+
+        # 401 (no token) or 403 (wrong oid) -- never 200
+        assert response.status_code in (401, 403), (
+            f"unauthed dashboard request returned {response.status_code}; "
+            f"expected 401 or 403. Body: {response.text}"
+        )
 
     async def test_invalid_country_returns_422(self):
         """T-INPUT-VALIDATION: ?country=ZZ -> 422 (Pydantic enum rejects bad strings)."""
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+        from job_rag.api.auth import get_current_user_id
+        from job_rag.api.deps import get_session
+        from job_rag.config import settings
+
+        async def override_session():
+            yield AsyncMock()
+
+        async def override_user():
+            return settings.seeded_user_id
+
+        app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/dashboard/top-skills?country=ZZ")
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 422, (
+            f"expected 422, got {response.status_code}: {response.text}"
+        )
 
     async def test_country_filter_exercises_4_values(self):
-        """E12 - country filter exercises PL / DE / EU / WW; each returns 200."""
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+        """E12 - country filter exercises PL / DE / EU / WW; each returns 200.
+
+        Plan 05-02's TestFilterEffects already asserts distinct numeric outputs
+        per filter value; this test only confirms the enum accepts all four
+        canonical values without 422.
+        """
+        from job_rag.api.auth import get_current_user_id
+        from job_rag.api.deps import get_session
+        from job_rag.config import settings
+
+        async def override_session():
+            yield AsyncMock()
+
+        async def override_user():
+            return settings.seeded_user_id
+
+        app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
+
+        mock_result = {"skills": [], "total_postings": 0, "unique_skills": 0}
+
+        with patch(
+            "job_rag.api.routes.analytics_top_skills",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                for country in ("PL", "DE", "EU", "WW"):
+                    response = await client.get(f"/dashboard/top-skills?country={country}")
+                    assert response.status_code == 200, (
+                        f"country={country} failed: {response.status_code} {response.text}"
+                    )
+
+        app.dependency_overrides.clear()
 
     async def test_top_skills_openapi_named_schema(self):
-        """PATTERNS B.2: assert components.schemas.DashboardTopSkillsResponse exists."""
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+        """PATTERNS B.2: assert components.schemas.DashboardTopSkillsResponse exists.
+
+        Drives openapi-typescript codegen toward named TS interfaces rather
+        than inline `Record<string, unknown>` types.
+        """
+        schema = app.openapi()
+        assert "DashboardTopSkillsResponse" in schema["components"]["schemas"]
+        assert "DashboardSalaryBandsResponse" in schema["components"]["schemas"]
+        assert "DashboardCvMatchResponse" in schema["components"]["schemas"]
+
+        # The /dashboard/top-skills 200 response references the named schema via $ref
+        top_skills_resp = schema["paths"]["/dashboard/top-skills"]["get"]["responses"]["200"]
+        json_content = top_skills_resp["content"]["application/json"]["schema"]
+        # Pydantic v2 emits either a direct $ref or an allOf wrapping a $ref.
+        ref_value = json_content.get("$ref") or (
+            json_content.get("allOf", [{}])[0].get("$ref") if json_content.get("allOf") else None
+        )
+        assert ref_value == "#/components/schemas/DashboardTopSkillsResponse", (
+            f"expected $ref to DashboardTopSkillsResponse, got: {json_content}"
+        )
 
     async def test_d12_zero_postings_returns_200_not_404(self):
-        """D-12 / E1: filters returning zero postings -> HTTP 200 with zero-state body."""
-        pytest.skip("Activated when Plan 05-03 wires /dashboard/* routes")
+        """D-12 / E1: zero-posting filter -> HTTP 200 with zero-state body, NOT 404.
+
+        Dashboard endpoints have a different contract than /gaps: they DO NOT
+        raise HTTPException(404) when filters match zero postings; the zero
+        state is a legitimate (and frequently observed) UI condition.
+        """
+        from job_rag.api.auth import get_current_user_id
+        from job_rag.api.deps import get_session
+        from job_rag.config import settings
+
+        async def override_session():
+            yield AsyncMock()
+
+        async def override_user():
+            return settings.seeded_user_id
+
+        app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_current_user_id] = override_user
+
+        mock_result = {
+            "mean_score": None,
+            "postings_compared": 0,
+            "top_missing_must_have": [],
+        }
+
+        with patch(
+            "job_rag.api.routes.analytics_cv_match",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get(
+                    "/dashboard/cv-vs-market?country=PL&seniority=lead"
+                )
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200  # NOT 404
+        body = response.json()
+        assert body["mean_score"] is None
+        assert body["postings_compared"] == 0
+        assert body["top_missing_must_have"] == []
