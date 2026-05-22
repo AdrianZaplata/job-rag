@@ -32,11 +32,23 @@ _bearer = HTTPBearer(auto_error=False)
 def _expected_issuer() -> str:
     """Build the Entra External ID issuer URL from Settings.
 
-    Format: https://{subdomain}.ciamlogin.com/{tenant_id}/v2.0
-    Mirrors the openid_config_url minus the /.well-known/... suffix.
+    Format: https://{tenant_id}.ciamlogin.com/{tenant_id}/v2.0
+
+    Entra External ID tokens use the tenant ID as subdomain in the `iss`
+    claim, NOT the friendly subdomain (which is only used in MSAL's
+    authority URL during sign-in). Previously this used
+    `entra_tenant_subdomain`, causing iss validation to fail with 401 for
+    all real tokens — discovered during Phase 5 UAT, where the dashboard is
+    the first prod page to exercise an authenticated backend call.
+
+    The OIDC discovery endpoint at `{subdomain}.ciamlogin.com/.../openid-configuration`
+    and at `{tenant_id}.ciamlogin.com/.../openid-configuration` both return the
+    same metadata document with `issuer` set to the tenant-ID form, which is
+    what real tokens carry — so the `openid_config_url` below can keep using
+    the friendly subdomain without affecting iss validation here.
     """
     return (
-        f"https://{settings.entra_tenant_subdomain}.ciamlogin.com/"
+        f"https://{settings.entra_tenant_id}.ciamlogin.com/"
         f"{settings.entra_tenant_id}/v2.0"
     )
 
