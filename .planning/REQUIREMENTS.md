@@ -42,12 +42,12 @@ All four ship as a single pair to amortize the re-extraction cost.
 
 ### Dashboard — static snapshot (DASH)
 
-- [ ] **DASH-01**: Analytical endpoint returns top-N skills with must-have / nice-to-have split, filterable by country / seniority / remote; server-side SQL aggregation (no Python-side group-by)
-- [ ] **DASH-02**: Analytical endpoint returns salary bands (p25 / p50 / p75) filterable by country / seniority / remote; uses PostgreSQL `percentile_cont`
-- [ ] **DASH-03**: Analytical endpoint returns CV-vs-market aggregate match score (mean of per-posting scores across the filtered set) plus the top 3 missing must-have skills
-- [ ] **DASH-04**: Dashboard React page renders all three widgets under one shared filter bar (country dropdown: Poland / Germany / EU / Worldwide; seniority; remote toggle)
-- [ ] **DASH-05**: Top-skills widget exposes a "show more" drill-down that renders the full ranked list
-- [ ] **DASH-06**: Dashboard filter state syncs to URL search params (deep links + refresh safe)
+- [x] **DASH-01**: Analytical endpoint returns top-N skills with must-have / nice-to-have split, filterable by country / seniority / remote; server-side SQL aggregation (no Python-side group-by)
+- [x] **DASH-02**: Analytical endpoint returns salary bands (p25 / p50 / p75) filterable by country / seniority / remote; uses PostgreSQL `percentile_cont`
+- [x] **DASH-03**: Analytical endpoint returns CV-vs-market aggregate match score (mean of per-posting scores across the filtered set) plus the top 3 missing must-have skills
+- [x] **DASH-04**: Dashboard React page renders all three widgets under one shared filter bar (country dropdown: Poland / Germany / EU / Worldwide; seniority; remote toggle)
+- [x] **DASH-05**: Top-skills widget exposes a "show more" drill-down that renders the full ranked list
+- [x] **DASH-06**: Dashboard filter state syncs to URL search params (deep links + refresh safe)
 
 ### Chat — streaming (CHAT)
 
@@ -176,12 +176,12 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | PROF-04 | Phase 7 | Pending |
 | PROF-05 | Phase 7 | Pending |
 | PROF-06 | Phase 7 | Pending |
-| DASH-01 | Phase 5 | Pending |
-| DASH-02 | Phase 5 | Pending |
-| DASH-03 | Phase 5 | Pending |
-| DASH-04 | Phase 5 | Pending |
-| DASH-05 | Phase 5 | Pending |
-| DASH-06 | Phase 5 | Pending |
+| DASH-01 | Phase 5 | Complete |
+| DASH-02 | Phase 5 | Complete |
+| DASH-03 | Phase 5 | Complete |
+| DASH-04 | Phase 5 | Complete |
+| DASH-05 | Phase 5 | Complete |
+| DASH-06 | Phase 5 | Complete |
 | CHAT-01 | Phase 6 | Pending |
 | CHAT-02 | Phase 6 | Pending |
 | CHAT-03 | Phase 6 | Pending |
