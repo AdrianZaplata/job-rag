@@ -1,8 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Phase 04.1 UAT Test 2 — `terraform plan -var-file=terraform.tfvars.local` halts with `Error: Self-referential block` on `infra/external/main.tf:32` (identifier_uris = [\"api://${azuread_application.api.client_id}\"])"
 created: 2026-05-23T11:00:00Z
-updated: 2026-05-23T11:30:00Z
+updated: 2026-05-23T20:55:00Z
+resolved_by: 04.1-06-PLAN.md (commits 96e7b9f code+docs + b2ee4fe UAT Test 2 pass; operator-verified live sign-in PASS post-apply)
 ---
 
 ## Current Focus

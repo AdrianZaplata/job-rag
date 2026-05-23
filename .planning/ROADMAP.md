@@ -127,6 +127,7 @@ Plans:
 - [x] 04.1-03-PLAN.md — Wrap MSAL bootstrap chain in `frontend/src/main.tsx` with try/catch + `BootErrorFallback` so top-level rejection doesn't leave a blank `<div id="root">`
 - [x] 04.1-04-PLAN.md — Document customer-vs-B2B-guest namespace + `az ad user create` bootstrap in `infra/bootstrap/README.md` (the Phase 3 tenant-creation runbook)
 - [x] 04.1-05-PLAN.md — Refactor `infra/external/main.tf` to drop the dedicated `azuread_application_identifier_uri.api` resource and set `identifier_uris` inline on `azuread_application.api`
+- [x] 04.1-06-PLAN.md — Land working `infra/external/` Terraform via `azuread_application_registration` + `_identifier_uri` + `_permission_scope` split (replaces 04.1-05's broken inline self-reference); script-level `az ad app show` assertion mitigates documented silent-fail mode
 
 ### Phase 5: Dashboard
 **Goal**: Phase 5 ships the first shareable surface when the Dashboard page renders three analytical widgets (top skills, salary bands, CV-vs-market score) under a shared filter bar, with state round-tripping through URL search params.
