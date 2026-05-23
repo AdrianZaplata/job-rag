@@ -162,7 +162,13 @@ Plans:
   4. Refreshing the page clears the transcript entirely — no history reloaded, no localStorage residue (CHAT-06)
   5. A screen recording of one chat turn (question → tool_start chip → tool_end chip → streamed synthesis → final) renders in <30 seconds and is demoable as-is
 **Cost delta**: €0/mo (runtime only; per-query OpenAI cost charged to Adrian's key)
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 06-01-PLAN.md — Wave 0 foundation: 2 shadcn primitives (collapsible + textarea) + chat types module + ERROR copy tables + blink keyframes CSS + sseMockUtils + 4 skip-guarded test scaffolds + DebugAgentStream body-key fix (Pitfall H closure)
+- [ ] 06-02-PLAN.md — Backend GET→POST: /agent/stream decorator + signature + body ref (3-line diff) + tests/test_api.py 3 call-site updates + OpenAPI snapshot regen + types.ts codegen (CHAT-01 contract)
+- [ ] 06-03-PLAN.md — Frontend data layer: streamAgent(query, signal) typed helper + useChatStream hook (reducer + AbortController + cold-start timer + SSE event loop) + activated useChatStream tests (CHAT-01/02/05/06 + Pitfalls A/B/D)
+- [ ] 06-04-PLAN.md — Frontend presentation: 5 components (ChatTranscript/ChatMessage/ToolChip/ChatComposer/ChatEmptyState) per UI-SPEC §6 + Chat.tsx route replacement + 3 activated component tests (CHAT-02/03/04/05 UI)
+- [ ] 06-05-PLAN.md — Live UAT runbook (autonomous: false): 6 M-markers against deployed SWA+ACA (happy path, cold-start, tool chip Dialog, Stop mid-stream, zero residue, ≤30s recording) → 06-UAT.md closure
 **UI hint**: yes
 
 ### Phase 7: Profile & Resume Upload
@@ -211,7 +217,7 @@ Plans:
 | 3. Infrastructure & CI/CD | 3/8 | In Progress|  |
 | 4. Frontend Shell + Auth | 0/6 | Planned | - |
 | 5. Dashboard | 6/6 | ✓ Complete (pending /gsd-verify-work) | 2026-05-23 |
-| 6. Chat | 0/? | Not started | - |
+| 6. Chat | 0/5 | Planned | - |
 | 7. Profile & Resume Upload | 0/? | Not started | - |
 | 8. Eval & Documentation | 0/? | Not started | - |
 
