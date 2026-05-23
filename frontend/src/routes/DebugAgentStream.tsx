@@ -34,7 +34,7 @@ export function DebugAgentStreamPage() {
       const res = await authedFetch('/agent/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: query }),
+        body: JSON.stringify({ query }),
         signal: abortRef.current.signal,
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
