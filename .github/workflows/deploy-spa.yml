@@ -6,6 +6,10 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-spa.yml'
+  # Manual trigger — used when a VITE_* secret rotates without a frontend code change
+  # (e.g. after `infra/external/` apply produces a new api_client_id, gh secret set
+  # VITE_API_AUDIENCE rolls the value, and the SPA bundle needs a rebuild to pick it up).
+  workflow_dispatch:
 
 permissions:
   contents: read
