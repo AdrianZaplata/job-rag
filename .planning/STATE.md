@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-05-23T20:54:39.844Z"
+status: Ready to plan
+last_updated: "2026-05-23T21:23:58.509Z"
 last_activity: 2026-05-23
 progress:
   total_phases: 9
@@ -35,8 +35,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 04.1 (phase-4-follow-ups-runbook-deviation-cleanup) — COMPLETE (6/6 plans landed; UAT Test 2 verified PASS post-operator-action)
-Plan: 6 of 6 COMPLETE. All 10 tasks landed: executor commit `96e7b9f` (Tasks 01–08 atomic code+docs), partial-SUMMARY interim `1277990`, operator-action Task 09 verified live in External (CIAM) tenant (api_client_id rotated `a12dfd07-...`→`f4ced229-...`; admin consent propagated automatically via TF — no portal step needed; SPA sign-in PASS with real dashboard data), unplanned Rule-1 deviation `c28bb13` (added `workflow_dispatch:` to deploy-spa.yml + rolled VITE_API_AUDIENCE — Vite inlines env vars at build time, SPA bundle was stale post-secret-rotation), UAT commit `b2ee4fe` (Test 2 → pass + verified block), final SUMMARY `3959557`.
+Phase: 05
+Plan: Not started
 Next: **Phase 04.1 closed.** Suggested: `/gsd-verify-work 04.1` to formalize phase pass (Tests 1, 3, 4 in HUMAN-UAT remain orthogonally pending per CONTEXT D-02 — pick up naturally on next master push / SEEDED_USER_ENTRA_OID rotation / live MSAL-init failure). Then `/gsd-verify-work 5` (Phase 5 awaiting verifier). Phases 6 (Chat) + 7 (Profile & Resume Upload) are parallel-eligible.
 
 Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete).
@@ -250,7 +250,7 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 | 260523-vrw | Fix CI deploy-infra.yml home_ip gap: add TF_VAR_home_ip from HOME_IP secret to prod terraform apply step | 2026-05-23 | f6480e6 | [260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-](./quick/260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-/) |
 
-Last activity: 2026-05-23 - Completed quick task 260523-vrw: Fix CI deploy-infra.yml home_ip gap
+Last activity: 2026-05-23
 
 ### Open Questions (from research, to resolve during planning)
 
