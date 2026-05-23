@@ -52,11 +52,11 @@ All four ship as a single pair to amortize the re-extraction cost.
 ### Chat — streaming (CHAT)
 
 - [x] **CHAT-01**: Chat React page consumes `/agent/stream` via `fetch` + `ReadableStream` (EventSource cannot attach Bearer JWT headers)
-- [ ] **CHAT-02**: `token` events render incrementally into the assistant bubble with smooth text append
+- [x] **CHAT-02**: `token` events render incrementally into the assistant bubble with smooth text append
 - [ ] **CHAT-03**: `tool_start` events render as a collapsed chip showing tool name + JSON-preview of args
 - [ ] **CHAT-04**: `tool_end` events expand the chip with an output preview (truncated ≥ 200 chars with "expand" affordance)
-- [ ] **CHAT-05**: `final` event marks the assistant bubble complete and re-enables the input
-- [ ] **CHAT-06**: Single-turn only in v1 — refreshing the page clears the conversation; no history persistence
+- [x] **CHAT-05**: `final` event marks the assistant bubble complete and re-enables the input
+- [x] **CHAT-06**: Single-turn only in v1 — refreshing the page clears the conversation; no history persistence
 
 ### Frontend shell and UI baseline (SHEL)
 
@@ -183,11 +183,11 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | DASH-05 | Phase 5 | Complete |
 | DASH-06 | Phase 5 | Complete |
 | CHAT-01 | Phase 6 | Complete |
-| CHAT-02 | Phase 6 | Pending |
+| CHAT-02 | Phase 6 | Complete |
 | CHAT-03 | Phase 6 | Pending |
 | CHAT-04 | Phase 6 | Pending |
-| CHAT-05 | Phase 6 | Pending |
-| CHAT-06 | Phase 6 | Pending |
+| CHAT-05 | Phase 6 | Complete |
+| CHAT-06 | Phase 6 | Complete |
 | SHEL-01 | Phase 4 | Complete |
 | SHEL-02 | Phase 4 | Complete |
 | SHEL-03 | Phase 4 | Complete |
