@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-23T22:20:28.257Z"
+last_updated: "2026-05-23T22:32:17.887Z"
 last_activity: 2026-05-23
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 42
-  completed_plans: 38
-  percent: 90
+  completed_plans: 39
+  percent: 93
 ---
 
 # State: job-rag web-app milestone
@@ -29,6 +29,8 @@ progress:
 
 ## Current Focus
 
+Phase 6 (Chat) **EXECUTING — Plan 02 of 5 COMPLETE**. Plan 06-01 (Wave 0 foundation — 2 shadcn primitives, TranscriptItem types, blink keyframes, 4 skip-guarded test scaffolds, DebugAgentStream Pitfall H closure) landed in `e6ae588`. Plan 06-02 (backend GET→POST `/agent/stream` method flip, 3-line surgical diff in routes.py + 2 test call-site swaps + openapi.snapshot.json regen + frontend/src/api/types.ts codegen) landed in 3 commits: `7208a01` (feat — backend method flip + test updates), `14bf177` (feat — snapshot + types.ts regen), `d166450` (style — single-line client.post collapse). Pitfall G (snapshot drift between backend method-flip and frontend codegen) CLOSED via atomic co-land of backend + snapshot + types.ts. Defensive headers (X-Accel-Buffering: no, Content-Encoding: identity) preserved verbatim (3 occurrences each in routes.py). All gates green: pytest tests/test_api.py+test_sse_contract.py=34 passed; full backend suite 233 passed/8 skipped (excluding pre-existing test_alembic DATABASE_URL gap); ruff clean; pyright 0 errors; frontend typecheck/lint/test/build all green; CI drift-check simulation PASS (snapshot+types.ts idempotent against live app.openapi()). TestOpenAPISchema test now ACTIVE (no longer skip — Plan 1 P06 responses= wiring + Plan 6 P02 method flip together activate the assertion). Next: Plan 06-03 (frontend streamAgent helper + useChatStream hook).
+
 Phase 5 (Dashboard) **COMPLETE — all 6 plans landed, UAT close-out PASSED**. Plans 05-01 → 05-05 shipped the backend analytics service + 3 `/dashboard/*` endpoints + 4 widgets + Show More dialog. Plan 05-06 captured 6 M-marker manual UAT evidence against the live SWA + ACA stack (all 5 ROADMAP success criteria PASS; M2 country canary verified PL vs DE differ on every column). Three hotfix commits landed during UAT: `fbf82c6` (120/min rate limit), `8c8037a` (React Query skip 4xx retries), `ab9437d` (root cause — `_expected_issuer()` now uses tenant GUID as iss subdomain to match Entra External ID's actual token issuer). Phase 5 was the FIRST surface to exercise full token-acquire-validate roundtrip; Phase 4 left this latent because `/health` is unauthenticated and `/chat`+`/profile` are Phase 6/7 placeholders. 4 Phase 8 polish candidates tracked (PLN salary normalization, EU≡WW corpus hint, N=1 salary-bands EmptyState, `--chart-1` saturation). **Ready for `/gsd-verify-work 5`.**
 
 Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `status: passed (5/5 must-haves)`. The backend now ships CORSMiddleware (env allowlist, never `*`), Pydantic-typed SSE event contract exposed in OpenAPI, FastAPI lifespan with reranker preload + SIGTERM drain (30s budget) + asyncio.to_thread reranker wraps, `/agent/stream` with sse-starlette ping heartbeats + asyncio.timeout(60s) + sanitized error frames + cooperative shutdown drain, `get_current_user_id` Depends() injected on `/match` `/gaps` `/ingest` (returns `settings.seeded_user_id` — Phase 4 rewrites body for Entra JWT), Alembic as the canonical schema path (3 migrations, init_db wraps `alembic upgrade head`, dev DB transitioned losslessly with 108 postings preserved + career_id backfilled + seed user inserted), and IngestionSource Protocol with MarkdownFileSource v1 + ingest_from_source async consumer. CI gained postgres service container + alembic upgrade smoke step + user_id DEFAULT grep guard. All 10 BACK-* requirements closed.
@@ -36,7 +38,7 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 ## Current Position
 
 Phase: 06 (Chat) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Next: **Phase 04.1 verified 2026-05-23** — HUMAN-UAT.md complete (4/4 PASS, commit `182f800`): Tests 1+2 via live evidence, Tests 3+4 via static code-chain verification + unit tests (destructive live triggers deliberately skipped). Suggested: `/gsd-verify-work 5` next (Phase 5 awaiting verifier). Phases 6 (Chat) + 7 (Profile & Resume Upload) are parallel-eligible.
 
 Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete).
@@ -98,6 +100,7 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 | Phase 04.1 P06-partial | 30m | 8 tasks | 5 files |
 | Phase 04.1-phase-4-follow-ups-runbook-deviation-cleanup P06 | ~30m executor + ~30m operator + ~5m follow-up | 10 tasks | 9 files |
 | Phase 06 P06-01 | ~4 min | 3 tasks | 10 files |
+| Phase 06-chat P02 | ~7m | 2 tasks | 4 files |
 
 ### Per-Plan Execution
 
@@ -207,6 +210,13 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 - **Plan 05-06:** Retain `fbf82c6` (120/min dashboard rate limit) + `8c8037a` (React Query skip 4xx retries) as defense-in-depth after `ab9437d` fixed the underlying iss-subdomain root cause. Rate-limit headroom and React Query 4xx-no-retry are correct hardening on their own merit; cheap insurance even after the firehose was stopped.
 - **Plan 05-06:** Phase 5 was the FIRST surface to exercise full token-acquire-validate roundtrip; Phase 4 left an iss-subdomain bug latent in `_expected_issuer()` because `/health` is unauthenticated, `/chat` + `/profile` are Phase 6/7 placeholders. Auto-memory candidate noted: "Entra External ID tokens use tenant GUID as `iss` subdomain (`3fd51a76-....ciamlogin.com`), NOT the friendly CIAM hostname (`jobrag.ciamlogin.com`)." Cross-link `ciam-customer-vs-b2b-guest.md`.
 - **Plan 05-06:** Established `.planning/phases/**/uat-screenshots/` gitignore convention — binaries stay local on Adrian's disk; only paths are referenced from UAT.md. Phase 3 had no analog folder so the convention was implicit until Plan 05-06 codified it in `.gitignore`. Reusable for Phase 6/7 close-out UATs.
+
+### Decisions (from execution — Phase 6)
+
+- **Plan 06-02:** Single-line `client.post` over multi-line — line 186 of `tests/test_api.py` fits in 89 chars (under ruff's 100-char limit), so the natural single-line form matches the project convention (line 158 sibling `/agent` POST single-line) AND makes the success-criterion grep `client.post("/agent/stream"` match cleanly without regex acrobatics. Pattern: prefer single-line over multi-line for any `client.X(...)` call that fits the line-length budget.
+- **Plan 06-02:** `json.dumps(indent=2)` WITHOUT `sort_keys=True` for openapi snapshot regen — Phase 5 Plan 05-03 (commit `5cd6d7e`) committed the canonical snapshot format using `json.dumps(app.openapi(), indent=2) + '\n'` (no sort_keys). Plan 06-02 deliberately matched this format despite the PLAN.md spec listing `sort_keys=True` — switching to sorted keys would have created a 1885-line whole-file reformat diff (vs. the actual 145-line semantic diff). Preserving Phase 5's format keeps the diff focused on the actual contract change. Reusable for any future snapshot regen plan.
+- **Plan 06-02:** Combined TDD RED+GREEN in a single Task 1 commit — test mutations and `routes.py` method-flip are tightly coupled by the contract change. Splitting across two commits would leave master in a broken state mid-cycle. Per TDD execution flow note, when test changes are part of the contract (not standalone failing-test artifacts), a single commit is correct. Verified RED phase locally (got 405 against old GET) before applying the GREEN routes.py mutation. Pattern: combined commit appropriate when test = contract update; separate commits when test = standalone scaffolding.
+- **Plan 06-02:** `TestOpenAPISchema::test_openapi_includes_agent_event` flipped from SKIP to ACTIVE without touching the test body. The test's two-gate skip-guard (a) `from job_rag.api import sse` (satisfied by Phase 1 Plan 04) AND (b) at least one of 6 `*Event` schemas appearing in `components.schemas` (satisfied by Phase 1 Plan 06's `responses=` wiring + Plan 6 P02's method-flip preservation of that wiring). Wave 0 scaffold pattern self-activates without test edits — same pattern Phase 4 Plan 04-01 and Phase 5 Plan 05-01 established.
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
