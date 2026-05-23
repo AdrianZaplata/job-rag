@@ -22,7 +22,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
  (completed 2026-04-28)
 - [x] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows (verified 2026-05-19, 12/12 must-haves)
 - [x] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context (live verified 2026-05-21; 13/13 requirements closed; 10 deviations documented in 04-06-SUMMARY.md)
-- [ ] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface
+- [x] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface (plans complete 2026-05-23; UAT PASSED 5/5 ROADMAP success criteria; pending /gsd-verify-work 5)
 - [ ] **Phase 6: Chat** - Ship the number-one portfolio-signal feature: streaming tokens with inline tool-call chips
 - [ ] **Phase 7: Profile & Resume Upload** - Close the personal-data loop so CV-vs-market scores stay fresh without CLI edits
 - [ ] **Phase 8: Eval & Documentation** - Close the MLOps loop with a CI-gated RAGAS harness and publish the web-app deploy story
@@ -147,7 +147,7 @@ Plans:
 - [x] 05-03-PLAN.md — Backend routes: 3 @router.get handlers in src/job_rag/api/routes.py (/dashboard/top-skills /salary-bands /cv-vs-market) with tags=['dashboard'] + Depends(get_current_user_id) + standard_limit + Pydantic response_model annotations (D-12 200-not-404 zero-state); regenerate frontend/openapi.snapshot.json via in-process app.openapi() capture; TestDashboardEndpoints activates (DASH-01..04)
 - [x] 05-04-PLAN.md — Frontend data layer: npm run codegen:snapshot regenerates frontend/src/api/types.ts; frontend/src/api/jobs.ts filled with typed topSkills/salaryBands/cvVsMarket fetchers (authedFetch + default-elision query construction); frontend/src/components/dashboard/useDashboardFilters.ts hook (useSearchParams + default elision + defensive coercion); hook tests activate (DASH-04, DASH-06, SHEL-03)
 - [x] 05-05-PLAN.md — Frontend widgets: DashboardFilters (country DropdownMenu + seniority DropdownMenu + remote ToggleGroup) + TopSkillsCard (Tailwind bars + Show more) + TopSkillsDialog (50-row scrollable table) + SalaryBandsCard (Recharts BarChart) + CvVsMarketCard (hero number + Badge chips) + errors.ts (describeError) + routes/Dashboard.tsx composition; 4 widget tests activate; all UI-SPEC §16 copy strings verbatim (DASH-01..06, SHEL-03/06)
-- [ ] 05-06-PLAN.md — Live UAT runbook (autonomous: false): 6 M-markers against deployed SWA (M1 initial render + M2 country-flip canary proving SQL flow per success criterion #5 + M3 refresh-state-preserved + M4 Show More dialog scroll + M5 theme-toggle on /dashboard + M6 cold-start documented); produces .planning/phases/05-dashboard/05-UAT.md (DASH-01..06 closure)
+- [x] 05-06-PLAN.md — Live UAT runbook (autonomous: false): 6 M-markers against deployed SWA (M1 initial render + M2 country-flip canary proving SQL flow per success criterion #5 + M3 refresh-state-preserved + M4 Show More dialog scroll + M5 theme-toggle on /dashboard + M6 cold-start documented); produces .planning/phases/05-dashboard/05-UAT.md (DASH-01..06 closure)
 **UI hint**: yes
 
 ### Phase 6: Chat
@@ -210,7 +210,7 @@ Plans:
 | 2. Corpus Cleanup | 4/4 | Complete   | 2026-04-28 |
 | 3. Infrastructure & CI/CD | 3/8 | In Progress|  |
 | 4. Frontend Shell + Auth | 0/6 | Planned | - |
-| 5. Dashboard | 0/6 | Planned | - |
+| 5. Dashboard | 6/6 | ✓ Complete (pending /gsd-verify-work) | 2026-05-23 |
 | 6. Chat | 0/? | Not started | - |
 | 7. Profile & Resume Upload | 0/? | Not started | - |
 | 8. Eval & Documentation | 0/? | Not started | - |

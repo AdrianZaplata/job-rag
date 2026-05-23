@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-05-22T09:05:00.760Z"
-last_activity: 2026-05-22
+status: Phase complete — ready for verification
+last_updated: "2026-05-23T00:02:24.736Z"
+last_activity: 2026-05-23
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 36
-  completed_plans: 35
-  percent: 97
+  completed_plans: 36
+  percent: 100
 ---
 
 # State: job-rag web-app milestone
@@ -29,30 +29,31 @@ progress:
 
 ## Current Focus
 
-Phase 5 (Dashboard) **WAVE 3 — Plan 05-06 mid-execution at human-verify checkpoint**. Plans 05-01 through 05-05 all complete (backend analytics service + Pydantic response models + 3 `/dashboard/*` FastAPI routes + frontend codegen + typed fetchers + useDashboardFilters hook + 4 widgets + Show More dialog + describeError helper all shipped). Plan 05-06 is the UAT close-out: Adrian executes the 6 M-markers from a browser against the live SWA. Pre-checkpoint setup complete: `git push origin master` fired both deploy-spa.yml (SUCCEEDED, 1m15s, run 26278710888) and deploy-api.yml (IN_PROGRESS, ~19m baseline for ACA revision rollout, run 26278710894). UAT-screenshots folder pre-created at `.planning/phases/05-dashboard/uat-screenshots/`. Awaiting (a) deploy-api.yml to finish so the live ACA backend exposes the new `/dashboard/*` endpoints, then (b) Adrian's M-marker observations against the dashboard.
+Phase 5 (Dashboard) **COMPLETE — all 6 plans landed, UAT close-out PASSED**. Plans 05-01 → 05-05 shipped the backend analytics service + 3 `/dashboard/*` endpoints + 4 widgets + Show More dialog. Plan 05-06 captured 6 M-marker manual UAT evidence against the live SWA + ACA stack (all 5 ROADMAP success criteria PASS; M2 country canary verified PL vs DE differ on every column). Three hotfix commits landed during UAT: `fbf82c6` (120/min rate limit), `8c8037a` (React Query skip 4xx retries), `ab9437d` (root cause — `_expected_issuer()` now uses tenant GUID as iss subdomain to match Entra External ID's actual token issuer). Phase 5 was the FIRST surface to exercise full token-acquire-validate roundtrip; Phase 4 left this latent because `/health` is unauthenticated and `/chat`+`/profile` are Phase 6/7 placeholders. 4 Phase 8 polish candidates tracked (PLN salary normalization, EU≡WW corpus hint, N=1 salary-bands EmptyState, `--chart-1` saturation). **Ready for `/gsd-verify-work 5`.**
 
 Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `status: passed (5/5 must-haves)`. The backend now ships CORSMiddleware (env allowlist, never `*`), Pydantic-typed SSE event contract exposed in OpenAPI, FastAPI lifespan with reranker preload + SIGTERM drain (30s budget) + asyncio.to_thread reranker wraps, `/agent/stream` with sse-starlette ping heartbeats + asyncio.timeout(60s) + sanitized error frames + cooperative shutdown drain, `get_current_user_id` Depends() injected on `/match` `/gaps` `/ingest` (returns `settings.seeded_user_id` — Phase 4 rewrites body for Entra JWT), Alembic as the canonical schema path (3 migrations, init_db wraps `alembic upgrade head`, dev DB transitioned losslessly with 108 postings preserved + career_id backfilled + seed user inserted), and IngestionSource Protocol with MarkdownFileSource v1 + ingest_from_source async consumer. CI gained postgres service container + alembic upgrade smoke step + user_id DEFAULT grep guard. All 10 BACK-* requirements closed.
 
 ## Current Position
 
-Phase: 05 (dashboard) — EXECUTING
-Plan: 6 of 6
-Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/6/7 are parallel-eligible. Phase 04.1 awaits Adrian's out-of-band batch-push of all 5 fixes + the subsequent `infra/external/` apply that reconciles the identifier_uri state (destroy old resource + update-in-place adding `identifier_uris`).
+Phase: 05 (dashboard) — PLANS COMPLETE, AWAITING `/gsd-verify-work 5`
+Plan: 6 of 6 (last plan — UAT close-out shipped 2026-05-23)
+Next: `/gsd-verify-work 5` to formalize phase pass. Then Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete). Phase 04.1 awaits Adrian's out-of-band batch-push of all 5 fixes + the subsequent `infra/external/` apply that reconciles the identifier_uri state (destroy old resource + update-in-place adding `identifier_uris`).
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
 - **Phase 2**: Corpus Cleanup — 4/4 plans complete with SUMMARY.md files; documented data-quality residual (10 of 108 postings persistently fail Instructor extraction; 98/108 = 90.7% reextracted to PROMPT_VERSION='2.0').
 - **Phase 3**: Infrastructure & CI/CD — verified 2026-05-19 (12/12 must-haves)
 - **Phase 4**: Frontend Shell + Auth — live verified 2026-05-21 (13/13 requirements; 10 deviations documented). Live SPA at `https://witty-flower-065dac003.7.azurestaticapps.net` hits ACA backend with real Entra JWTs via MSAL → fastapi-azure-auth → AUTH-06 oid allowlist (`18d774c1-62ac-4416-8945-b5eca715e9ed` = local customer `adrian@jobrag.onmicrosoft.com`).
-- **Progress**: 4/8 phases complete
+- **Phase 5**: Dashboard — 6/6 plans complete; UAT-passed 2026-05-23 (5/5 ROADMAP success criteria, 8/8 requirements DASH-01..06 + SHEL-03/06; 3 hotfix commits during UAT — `fbf82c6` rate limit, `8c8037a` React Query 4xx skip, `ab9437d` root-cause iss-subdomain fix; pending `/gsd-verify-work 5`).
+- **Progress**: 5/8 phases plan-complete (4 formally verified; Phase 5 awaiting verifier)
 
 ```
 [x] Phase 1: Backend Prep                    ✓ COMPLETE (verified)
 [x] Phase 2: Corpus Cleanup                  ✓ Plans complete (pending /gsd-verify-work)
 [x] Phase 3: Infrastructure & CI/CD          ✓ COMPLETE (verified 2026-05-19, 12/12 must-haves)
 [x] Phase 4: Frontend Shell + Auth           ✓ COMPLETE (live verified 2026-05-21, 13/13 reqs, 10 deviations)
-[ ] Phase 5: Dashboard                       <- next (parallel-eligible with 6/7)
-[ ] Phase 6: Chat
-[ ] Phase 7: Profile & Resume Upload
+[x] Phase 5: Dashboard                       ✓ Plans complete, UAT PASSED 2026-05-23 (pending /gsd-verify-work)
+[ ] Phase 6: Chat                            <- next (parallel-eligible with 7)
+[ ] Phase 7: Profile & Resume Upload         <- next (parallel-eligible with 6)
 [ ] Phase 8: Eval & Documentation
 ```
 
@@ -64,8 +65,8 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 | Requirements mapped | 67 (100%) |
 | Requirements unmapped | 0 |
 | Phases planned | 8 |
-| Phases complete | 1 |
-| Plans complete | 6 |
+| Phases complete | 5 (4 verified + Phase 5 plans-complete, awaiting verifier) |
+| Plans complete | 36 of 36 (100%) |
 | Phase 02 P01 | 4m | 3 tasks | 4 files |
 | Phase 02 P02 | 6m | 2 tasks | 3 files |
 | Phase 02 P03 | 14m | 3 tasks | 14 files |
@@ -91,6 +92,7 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 | Phase 05 P03 | 5min | 2 tasks | 3 files |
 | Phase 05-dashboard P04 | ~4 min | 2 tasks | 4 files |
 | Phase 05 P05 | 6m | 3 tasks | 11 files |
+| Phase 05 P06 | 3 min | 2 tasks | 3 files |
 
 ### Per-Plan Execution
 
@@ -195,6 +197,11 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 - **Plan 05-05:** describeError(err) shared in `frontend/src/components/dashboard/errors.ts` — exactly one module, imported by all 3 widget Alert branches. Returns `err.message` if `err instanceof Error` else the UI-SPEC §9 verbatim fallback "Unexpected error. Reload the page or try again later." Backend errors are already sanitized by Plan 01-06 `_sanitize` (200-char bound + no newlines) so leaking err.message is safe. Pattern: shared error helper module per surface (dashboard / chat / profile) rather than inline error rendering.
 - **Plan 05-05:** Hermetic widget test pattern — `vi.mock('@/api/jobs')` with ALL 3 fetchers as `vi.fn()` (even when only one is exercised) + `QueryClientProvider` with `retry: false` + `MemoryRouter`. Each test re-sets the mock with `mockResolvedValue` / `mockRejectedValue` / `mockImplementation(() => new Promise(() => {}))` for the 4 branches. No MSW, no real network. Test runtime is ~50ms per widget file.
 - **Plan 05-05:** Recharts ChartContainer aria-label as accessibility scaffold — the wrapper's `aria-label="Salary band chart: p25 €X/yr, p50 €Y/yr, p75 €Z/yr"` is announced BEFORE the chart's keyboard-interactive surface (Recharts' `accessibilityLayer` prop provides per-bar announcements on focus). Single-line summary plus per-bar detail gives screen-reader users full coverage without overwhelming them. Pattern reusable for any future chart widget.
+- **Plan 05-06:** Accept ACA cold-start (~225s) as v1 limitation — free-tier €0/mo runtime budget preserved per DEPL-03 / Phase 3 D-17. Phase 8 portfolio polish may revisit via `min_replicas=1` (~€8/mo continuous warmth) once portfolio demo cadence justifies it. The first dashboard load after scale-to-zero pays the full cost; subsequent loads sub-second.
+- **Plan 05-06:** Defer Polish PLN salary normalization to v2 — already documented as v1 limitation in PROJECT.md §Constraints ("treat salaries as EUR; FX-aware conversion is a v2 platform feature"). Inflated PL p50 (€793,440/yr) is a tolerable visible signal to v1 user (Adrian) and doesn't block Berlin/German target-market use case. Two future fix sites: (a) FX-at-query in `services/analytics.py::salary_bands`, or (b) FX-at-ingest in `extraction/extractor.py` (preferred — keeps query path numeric-only).
+- **Plan 05-06:** Retain `fbf82c6` (120/min dashboard rate limit) + `8c8037a` (React Query skip 4xx retries) as defense-in-depth after `ab9437d` fixed the underlying iss-subdomain root cause. Rate-limit headroom and React Query 4xx-no-retry are correct hardening on their own merit; cheap insurance even after the firehose was stopped.
+- **Plan 05-06:** Phase 5 was the FIRST surface to exercise full token-acquire-validate roundtrip; Phase 4 left an iss-subdomain bug latent in `_expected_issuer()` because `/health` is unauthenticated, `/chat` + `/profile` are Phase 6/7 placeholders. Auto-memory candidate noted: "Entra External ID tokens use tenant GUID as `iss` subdomain (`3fd51a76-....ciamlogin.com`), NOT the friendly CIAM hostname (`jobrag.ciamlogin.com`)." Cross-link `ciam-customer-vs-b2b-guest.md`.
+- **Plan 05-06:** Established `.planning/phases/**/uat-screenshots/` gitignore convention — binaries stay local on Adrian's disk; only paths are referenced from UAT.md. Phase 3 had no analog folder so the convention was implicit until Plan 05-06 codified it in `.gitignore`. Reusable for Phase 6/7 close-out UATs.
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
@@ -238,7 +245,7 @@ Next: Phase 5 (Dashboard) — depends only on Phase 4 (now satisfied); Phases 5/
 | 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 
-Last activity: 2026-05-22
+Last activity: 2026-05-23
 
 ### Open Questions (from research, to resolve during planning)
 
