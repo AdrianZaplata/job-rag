@@ -165,7 +165,7 @@ Plans:
 **Cost delta**: €0/mo (runtime only; per-query OpenAI cost charged to Adrian's key)
 **Plans**: 5 plans
 Plans:
-- [ ] 06-01-PLAN.md — Wave 0 foundation: 2 shadcn primitives (collapsible + textarea) + chat types module + ERROR copy tables + blink keyframes CSS + sseMockUtils + 4 skip-guarded test scaffolds + DebugAgentStream body-key fix (Pitfall H closure)
+- [x] 06-01-PLAN.md — Wave 0 foundation: 2 shadcn primitives (collapsible + textarea) + chat types module + ERROR copy tables + blink keyframes CSS + sseMockUtils + 4 skip-guarded test scaffolds + DebugAgentStream body-key fix (Pitfall H closure)
 - [ ] 06-02-PLAN.md — Backend GET→POST: /agent/stream decorator + signature + body ref (3-line diff) + tests/test_api.py 3 call-site updates + OpenAPI snapshot regen + types.ts codegen (CHAT-01 contract)
 - [ ] 06-03-PLAN.md — Frontend data layer: streamAgent(query, signal) typed helper + useChatStream hook (reducer + AbortController + cold-start timer + SSE event loop) + activated useChatStream tests (CHAT-01/02/05/06 + Pitfalls A/B/D)
 - [ ] 06-04-PLAN.md — Frontend presentation: 5 components (ChatTranscript/ChatMessage/ToolChip/ChatComposer/ChatEmptyState) per UI-SPEC §6 + Chat.tsx route replacement + 3 activated component tests (CHAT-02/03/04/05 UI)
