@@ -865,11 +865,11 @@ The callback writes the chip text into the composer's controlled `value` and foc
 |----------|-------|
 | Outer wrapper | inherited from `<EmptyState>` primitive: `max-w-md mx-auto mt-24 p-8 text-center` (Phase 4 §10) |
 | Chip cluster `<div>` | `flex flex-wrap gap-2 justify-center pt-4` |
-| Sample chip `<Badge>` | `cursor-pointer hover:bg-muted transition-colors text-xs whitespace-normal text-left h-auto py-1.5 px-2.5` |
+| Sample chip `<Badge>` | `cursor-pointer hover:bg-muted transition-colors text-xs whitespace-normal text-left h-auto py-1 px-2` |
 
 The sample chips override Badge defaults in two ways:
 1. `whitespace-normal` (instead of default `whitespace-nowrap`) so the full sentence wraps on narrow viewports.
-2. `h-auto py-1.5 px-2.5` (instead of fixed Badge height) so multi-line text doesn't clip.
+2. `h-auto py-1 px-2` (instead of fixed Badge height) so multi-line text doesn't clip.
 
 `Badge variant="outline"` keeps the chip in the inherited Phase 4 §4 color set (border + foreground, no accent fill).
 
@@ -913,7 +913,7 @@ export function ChatEmptyState({ onSampleClick }: ChatEmptyStateProps) {
             <Badge
               key={query}
               variant="outline"
-              className="cursor-pointer hover:bg-muted transition-colors text-xs whitespace-normal text-left h-auto py-1.5 px-2.5"
+              className="cursor-pointer hover:bg-muted transition-colors text-xs whitespace-normal text-left h-auto py-1 px-2"
               role="button"
               tabIndex={0}
               onClick={() => onSampleClick(query)}
