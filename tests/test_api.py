@@ -183,9 +183,7 @@ class TestAgentEndpoint:
                 async with AsyncClient(
                     transport=transport, base_url="http://test"
                 ) as client:
-                    response = await client.post(
-                        "/agent/stream", json={"query": "test"}
-                    )
+                    response = await client.post("/agent/stream", json={"query": "test"})
                     body = response.text
 
         assert response.status_code == 200
