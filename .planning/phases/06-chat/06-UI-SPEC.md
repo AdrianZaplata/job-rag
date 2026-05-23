@@ -138,11 +138,10 @@ Phase 6 uses the inherited Phase 4 §2 spacing tokens (multiples of 4 only). Pha
 | EmptyState sample-chip cluster | `flex flex-wrap gap-2` | 8px between chips | xs |
 | Network-error Alert | top of route, above transcript | `mx-4 mt-4` | 16px from edges and top | md |
 
-**Phase 6 spacing exceptions** (documented; not part of the prescriptive token set):
+**Phase 6 spacing exceptions** (1 documented exception; not part of the prescriptive token set):
 
 - **Composer container vertical padding:** `py-3` (12px). This is NOT a Phase 4 §2 token. Justified: gives the multi-line Textarea breathing room at the bottom of the viewport without an oversized footer that competes with content. 12px is the smallest comfortable padding for a sticky-bottom input under shadcn's default Button height (`h-9 = 36px`); 16px (`md`) felt too heavy in dense-mode mockups. Used ONLY in the composer container; not propagated as a new token.
 - **Textarea height architecture:** `min-h-[44px] max-h-[200px]` per CONTEXT D-14. These are height/width architecture, not spacing tokens.
-- **Streaming cursor inline gap:** `ml-0.5` (2px) between trailing token text and the blinking `▍`. This is NOT a Phase 4 §2 token. Justified: visually attaches the cursor to the last character without the perceptual gap of 4px+. Used ONLY for the streaming cursor.
 - **Tool-chip border radius:** `rounded-md` (= `--radius-md`, derived from `--radius: 0.625rem` × 0.8 in `app.css`). Inherited Tailwind/shadcn radius, not a new token.
 
 All other values not in the Phase 4 §2 table or above (e.g., `p-3`, `p-5`, `gap-3`, `gap-10`) are **disallowed** in chat-feature files without an explicit override note in the PR.
@@ -954,12 +953,12 @@ export function ChatEmptyState({ onSampleClick }: ChatEmptyStateProps) {
 
 **Location:** `frontend/src/components/chat/ChatMessage.tsx` (inline component `<StreamingCursor>` exported nowhere else)
 
-**Purpose:** Phase 4 §18 deferred item. Render a blinking caret `▍` (U+258D LEFT FIVE EIGHTHS BLOCK) at the end of a streaming assistant-text segment. Pure visual; `aria-hidden`.
+**Purpose:** Phase 4 §18 deferred item. Render a blinking caret `▍` (U+258D LEFT FIVE EIGHTHS BLOCK) at the end of a streaming assistant-text segment. Pure visual; `aria-hidden`. Renders flush against the last streamed character (no inline gap) — matches the Linear / Cursor convention and the CONTEXT.md D-21 specification verbatim.
 
 **Visual structure:**
 
 ```tsx
-<span className="animate-blink ml-0.5" aria-hidden="true">▍</span>
+<span className="animate-blink" aria-hidden="true">▍</span>
 ```
 
 **Class strings (locked):**
@@ -967,7 +966,6 @@ export function ChatEmptyState({ onSampleClick }: ChatEmptyStateProps) {
 | Property | Value | Rationale |
 |----------|-------|-----------|
 | Glyph | `▍` (U+258D) | Half-block height; reads as a software cursor without being noisy like full-block. Stripe Workbench / Linear use similar half-block glyphs. |
-| Inline gap | `ml-0.5` (2px) | Visually attaches to the trailing character (see §3 spacing exception). |
 | Color | inherited from parent `<p>` (no class) → `--foreground` | Matches the body text it trails. |
 | Animation | `animate-blink` — Tailwind custom utility (NOT shipped by default) | See §10 motion contract — Phase 6 adds the `@keyframes blink` to `app.css`. |
 | `aria-hidden` | `true` | D-32 verbatim — cursor is decorative; screen readers must NOT announce it (would interrupt `aria-live` flow). |
@@ -1638,7 +1636,7 @@ Phase 6 has **two** destructive-styled interactions: Stop button (D-16) and inli
 - [ ] Dimension 2 Visuals: pending checker review (see §6a–§6f + §7 state machine + §13 chip variants + §15 density)
 - [ ] Dimension 3 Color: pending checker review (see §5 — Phase 6 introduces ZERO new color tokens)
 - [ ] Dimension 4 Typography: pending checker review (see §4 + role-label 10px exception flag in §11)
-- [ ] Dimension 5 Spacing: pending checker review (see §3 — Phase 6 stays on Phase 4 §2 tokens with 2 documented exceptions: composer py-3 and cursor ml-0.5)
+- [ ] Dimension 5 Spacing: pending checker review (see §3 — Phase 6 stays on Phase 4 §2 tokens with 1 documented exception: composer py-3)
 - [ ] Dimension 6 Registry Safety: pending checker review (see §16 — shadcn official only, 2 new primitives via bare invocation)
 
 **Approval:** pending
