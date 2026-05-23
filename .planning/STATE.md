@@ -248,8 +248,9 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 | 260519-ids | fix Gap 10.C — deploy-api.yml smoke check uses per-revision FQDN | 2026-05-19 | 07817d8 | [260519-ids-fix-gap-10-c-deploy-api-yml-smoke-check-](./quick/260519-ids-fix-gap-10-c-deploy-api-yml-smoke-check-/) |
 | 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
+| 260523-vrw | Fix CI deploy-infra.yml home_ip gap: add TF_VAR_home_ip from HOME_IP secret to prod terraform apply step | 2026-05-23 | f6480e6 | [260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-](./quick/260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-/) |
 
-Last activity: 2026-05-23
+Last activity: 2026-05-23 - Completed quick task 260523-vrw: Fix CI deploy-infra.yml home_ip gap
 
 ### Open Questions (from research, to resolve during planning)
 
