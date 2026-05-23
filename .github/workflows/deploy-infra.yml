@@ -57,6 +57,7 @@ jobs:
         # Gap 8.C: TF_VAR_gha_client_id / tenant_id_workforce / use_oidc_auth flip
         # the azuread provider into OIDC auth on the CI runner (no Azure CLI dep).
         env:
+          TF_VAR_home_ip:             ${{ secrets.HOME_IP }}
           TF_VAR_ghcr_pat:            ${{ secrets.GHCR_PAT }}
           TF_VAR_gha_client_id:       ${{ secrets.AZURE_CLIENT_ID }}
           TF_VAR_tenant_id_workforce: ${{ secrets.AZURE_TENANT_ID }}
