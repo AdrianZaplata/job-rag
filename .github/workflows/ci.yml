@@ -143,7 +143,11 @@ jobs:
       - name: Install uv (for codegen-drift-check)
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          # Cache intentionally disabled: lint-and-test already populates the
+          # uv cache for the same lockfile. Enabling it here causes the
+          # post-action `uv cache prune --ci` to hang for 5min and fail when
+          # the GH Actions cache service is flaky (observed run 26327302153).
+          enable-cache: false
 
       - name: Set up Python (for codegen-drift-check)
         run: uv python install 3.12
