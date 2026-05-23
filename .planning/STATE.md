@@ -37,7 +37,7 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 Phase: 05
 Plan: Not started
-Next: **Phase 04.1 closed.** Suggested: `/gsd-verify-work 04.1` to formalize phase pass (Tests 1, 3, 4 in HUMAN-UAT remain orthogonally pending per CONTEXT D-02 — pick up naturally on next master push / SEEDED_USER_ENTRA_OID rotation / live MSAL-init failure). Then `/gsd-verify-work 5` (Phase 5 awaiting verifier). Phases 6 (Chat) + 7 (Profile & Resume Upload) are parallel-eligible.
+Next: **Phase 04.1 verified 2026-05-23** — HUMAN-UAT.md complete (4/4 PASS, commit `182f800`): Tests 1+2 via live evidence, Tests 3+4 via static code-chain verification + unit tests (destructive live triggers deliberately skipped). Suggested: `/gsd-verify-work 5` next (Phase 5 awaiting verifier). Phases 6 (Chat) + 7 (Profile & Resume Upload) are parallel-eligible.
 
 Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete).
 
