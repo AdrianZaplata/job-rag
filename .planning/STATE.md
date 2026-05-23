@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-last_updated: "2026-05-23T00:02:24.736Z"
+status: Ready to plan
+last_updated: "2026-05-23T00:13:21.468Z"
 last_activity: 2026-05-23
 progress:
   total_phases: 9
@@ -35,8 +35,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 05 (dashboard) — PLANS COMPLETE, AWAITING `/gsd-verify-work 5`
-Plan: 6 of 6 (last plan — UAT close-out shipped 2026-05-23)
+Phase: 6
+Plan: Not started
 Next: `/gsd-verify-work 5` to formalize phase pass. Then Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete). Phase 04.1 awaits Adrian's out-of-band batch-push of all 5 fixes + the subsequent `infra/external/` apply that reconciles the identifier_uri state (destroy old resource + update-in-place adding `identifier_uris`).
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
