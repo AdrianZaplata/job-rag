@@ -20,6 +20,10 @@ docker-compose.override.yml
 .planning/phases/**/*.log
 .planning/phases/**/*.local.md
 
+# Phase 5 UAT — screenshots are local-only evidence (binaries; large; not portable)
+# 05-UAT.md references the paths; the actual PNGs stay on Adrian's disk
+.planning/phases/**/uat-screenshots/
+
 # Terraform (Phase 3 — bootstrap state must NEVER be committed; prod state lives in Azure Blob)
 infra/bootstrap/.terraform/
 infra/bootstrap/terraform.tfstate
