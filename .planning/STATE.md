@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-last_updated: "2026-05-23T09:14:14.949Z"
+status: Executing Phase 04.1 — Plan 06 paused at Task 09 (operator-action gate)
+last_updated: "2026-05-23T10:24:41.855Z"
 last_activity: 2026-05-23
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 36
-  completed_plans: 36
+  total_plans: 37
+  completed_plans: 37
   percent: 100
 ---
 
@@ -35,9 +35,11 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
-Next: `/gsd-verify-work 5` to formalize phase pass. Then Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete). Phase 04.1 awaits Adrian's out-of-band batch-push of all 5 fixes + the subsequent `infra/external/` apply that reconciles the identifier_uri state (destroy old resource + update-in-place adding `identifier_uris`).
+Phase: 04.1 (phase-4-follow-ups-runbook-deviation-cleanup) — EXECUTING (Plan 6 paused at checkpoint:human-action gate)
+Plan: 6 of 6 — Tasks 01–08 of 10 complete (commit `96e7b9f`); Task 09 (operator-only `terraform apply` against External CIAM tenant) awaiting Adrian; Task 10 (UAT update) follows operator's structured report.
+Next: **Operator action required.** Adrian runs `cd infra/external && terraform apply -var-file=terraform.tfvars.local` from local (workforce GHA SP cannot auth into the External tenant — Gap D). After apply + sign-in verification + admin-consent re-grant via portal, resume with "applied" + structured report (new api_client_id, exit codes, identifierUris query, sign-in roundtrip result, GitHub secret update) OR "issue: <description>". On clean report, Task 10 flips `04.1-HUMAN-UAT.md` Test 2 to `result: pass` and Phase 04.1 closes.
+
+Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete).
 
 - **Phase 1**: Backend Prep — verified passed (5/5 must-haves)
 - **Phase 2**: Corpus Cleanup — 4/4 plans complete with SUMMARY.md files; documented data-quality residual (10 of 108 postings persistently fail Instructor extraction; 98/108 = 90.7% reextracted to PROMPT_VERSION='2.0').
@@ -93,6 +95,7 @@ Next: `/gsd-verify-work 5` to formalize phase pass. Then Phases 6 (Chat) + 7 (Pr
 | Phase 05-dashboard P04 | ~4 min | 2 tasks | 4 files |
 | Phase 05 P05 | 6m | 3 tasks | 11 files |
 | Phase 05 P06 | 3 min | 2 tasks | 3 files |
+| Phase 04.1 P06-partial | 30m | 8 tasks | 5 files |
 
 ### Per-Plan Execution
 

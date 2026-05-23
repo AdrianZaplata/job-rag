@@ -119,7 +119,7 @@ Plans:
 **Goal:** Close the 5 outstanding structural follow-ups recorded in Phase 4's close-out SUMMARY ("Outstanding follow-ups" table). One PLAN per fix, executed in priority order Fix 1 → Fix 5. No remote push, no cloud touches — every plan ends with a local atomic commit (D-01..D-03).
 **Requirements**: None (follow-ups, not new requirements — 04-* requirements stay as-is in REQUIREMENTS.md)
 **Depends on:** Phase 04
-**Plans:** 5/5 plans complete
+**Plans:** 6/6 plans complete
 
 Plans:
 - [x] 04.1-01-PLAN.md — Move 0005's `UPDATE users SET entra_oid` into `init_db()::_seed_entra_oid()` (every-boot idempotent; ACA-restart-only rotation, no manual `az containerapp exec`)
