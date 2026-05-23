@@ -188,6 +188,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Agent Stream
          * @description Stream agent execution as SSE: typed events + heartbeat + 60s timeout + drain.
@@ -212,9 +214,7 @@ export interface paths {
          *     prevent reverse-proxy/CDN buffering and accidental compression that would
          *     break EventSource parsing (D-18 / Pitfall 6).
          */
-        get: operations["agent_stream_agent_stream_get"];
-        put?: never;
-        post?: never;
+        post: operations["agent_stream_agent_stream_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -863,16 +863,18 @@ export interface operations {
             };
         };
     };
-    agent_stream_agent_stream_get: {
+    agent_stream_agent_stream_post: {
         parameters: {
-            query: {
-                q: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentQuery"];
+            };
+        };
         responses: {
             /** @description Stream of AgentEvent variants (token, tool_start, tool_end, heartbeat, error, final) */
             200: {

@@ -554,26 +554,20 @@
       }
     },
     "/agent/stream": {
-      "get": {
+      "post": {
         "summary": "Agent Stream",
         "description": "Stream agent execution as SSE: typed events + heartbeat + 60s timeout + drain.\n\nThe handler wraps the Plan 04 ``stream_agent`` async iterator in\n``asyncio.timeout(settings.agent_timeout_seconds)`` (D-25) so a runaway\nLangGraph reasoning loop cannot block forever. Three exception branches\neach emit a typed ``ErrorEvent`` (D-19) before closing:\n\n- ``TimeoutError`` \u2192 ``reason=\"agent_timeout\"``\n- ``CancelledError`` \u2192 ``reason=\"shutdown\"`` (then re-raises so sse-starlette\n  can complete the cancellation handshake)\n- any other ``Exception`` \u2192 ``reason=\"internal\"`` with sanitized message\n\nThe current task is registered in ``app.state.active_streams`` on entry\nand discarded in ``finally`` \u2014 Plan 05's lifespan shutdown drains this set\nvia ``asyncio.gather(*active_streams)`` with a 30s grace period (D-17).\n\nsse-starlette's ``ping_message_factory`` is overridden so the keep-alive\nis a real ``event: heartbeat`` rather than a comment-only ``:ping`` (D-15).\nDefensive headers (``X-Accel-Buffering: no`` + ``Content-Encoding: identity``)\nprevent reverse-proxy/CDN buffering and accidental compression that would\nbreak EventSource parsing (D-18 / Pitfall 6).",
-        "operationId": "agent_stream_agent_stream_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Q"
+        "operationId": "agent_stream_agent_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentQuery"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Stream of AgentEvent variants (token, tool_start, tool_end, heartbeat, error, final)",
@@ -583,17 +577,6 @@
               },
               "text/event-stream": {
                 "schema": {
-                  "discriminator": {
-                    "mapping": {
-                      "error": "#/components/schemas/ErrorEvent",
-                      "final": "#/components/schemas/FinalEvent",
-                      "heartbeat": "#/components/schemas/HeartbeatEvent",
-                      "token": "#/components/schemas/TokenEvent",
-                      "tool_end": "#/components/schemas/ToolEndEvent",
-                      "tool_start": "#/components/schemas/ToolStartEvent"
-                    },
-                    "propertyName": "type"
-                  },
                   "oneOf": [
                     {
                       "$ref": "#/components/schemas/TokenEvent"
@@ -613,7 +596,18 @@
                     {
                       "$ref": "#/components/schemas/FinalEvent"
                     }
-                  ]
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "error": "#/components/schemas/ErrorEvent",
+                      "final": "#/components/schemas/FinalEvent",
+                      "heartbeat": "#/components/schemas/HeartbeatEvent",
+                      "token": "#/components/schemas/TokenEvent",
+                      "tool_end": "#/components/schemas/ToolEndEvent",
+                      "tool_start": "#/components/schemas/ToolStartEvent"
+                    }
+                  }
                 }
               }
             }
@@ -628,7 +622,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/ingest": {
@@ -990,15 +989,14 @@
         "title": "ValidationError"
       },
       "ErrorEvent": {
-        "description": "Typed error event (D-16, D-17, D-19).\n\nWire shape: ``{\"type\": \"error\", \"reason\": \"<literal>\", \"message\": \"<str>\"}`` \u2014\nemitted by the route handler's except blocks (Plan 06), NOT by ``stream_agent``.\nThe ``reason`` field is a closed ``Literal`` set so frontends can branch\ndeterministically on retry-vs-fatal classification.\n\n``message`` MUST be a sanitized human-readable string \u2014 NEVER a stack trace\n(T-04-01). The route handler runs ``_sanitize(exc)`` before constructing this\nevent.",
         "properties": {
           "type": {
+            "type": "string",
             "const": "error",
-            "title": "Type",
-            "type": "string"
+            "title": "Type"
           },
           "reason": {
-            "description": "Machine-readable error kind (closed Literal set per D-19)",
+            "type": "string",
             "enum": [
               "agent_timeout",
               "shutdown",
@@ -1006,124 +1004,124 @@
               "internal"
             ],
             "title": "Reason",
-            "type": "string"
+            "description": "Machine-readable error kind (closed Literal set per D-19)"
           },
           "message": {
-            "description": "Sanitized human-readable message \u2014 NEVER a stack trace",
+            "type": "string",
             "title": "Message",
-            "type": "string"
+            "description": "Sanitized human-readable message \u2014 NEVER a stack trace"
           }
         },
+        "type": "object",
         "required": [
           "type",
           "reason",
           "message"
         ],
         "title": "ErrorEvent",
-        "type": "object"
+        "description": "Typed error event (D-16, D-17, D-19).\n\nWire shape: ``{\"type\": \"error\", \"reason\": \"<literal>\", \"message\": \"<str>\"}`` \u2014\nemitted by the route handler's except blocks (Plan 06), NOT by ``stream_agent``.\nThe ``reason`` field is a closed ``Literal`` set so frontends can branch\ndeterministically on retry-vs-fatal classification.\n\n``message`` MUST be a sanitized human-readable string \u2014 NEVER a stack trace\n(T-04-01). The route handler runs ``_sanitize(exc)`` before constructing this\nevent."
       },
       "FinalEvent": {
-        "description": "Stream-complete marker.\n\nWire shape: ``{\"type\": \"final\", \"content\": \"<full-message>\"}`` \u2014 matches the\ndict yielded by ``agent/stream.py`` line 62. ``content`` is the concatenation\nof all token chunks emitted during the stream.",
         "properties": {
           "type": {
+            "type": "string",
             "const": "final",
-            "title": "Type",
-            "type": "string"
+            "title": "Type"
           },
           "content": {
-            "description": "Synthesized final assistant message",
+            "type": "string",
             "title": "Content",
-            "type": "string"
+            "description": "Synthesized final assistant message"
           }
         },
+        "type": "object",
         "required": [
           "type",
           "content"
         ],
         "title": "FinalEvent",
-        "type": "object"
+        "description": "Stream-complete marker.\n\nWire shape: ``{\"type\": \"final\", \"content\": \"<full-message>\"}`` \u2014 matches the\ndict yielded by ``agent/stream.py`` line 62. ``content`` is the concatenation\nof all token chunks emitted during the stream."
       },
       "HeartbeatEvent": {
-        "description": "15s liveness ping (D-15).\n\nWire shape: ``{\"type\": \"heartbeat\", \"ts\": \"<ISO-8601>\"}`` \u2014 emitted by the\nroute handler's sse-starlette ``ping_message_factory`` (Plan 06), NOT by\n``stream_agent``. The frontend may surface this as a liveness indicator or\nsilently consume it.",
         "properties": {
           "type": {
+            "type": "string",
             "const": "heartbeat",
-            "title": "Type",
-            "type": "string"
+            "title": "Type"
           },
           "ts": {
-            "description": "ISO-8601 timestamp at emit time",
+            "type": "string",
             "title": "Ts",
-            "type": "string"
+            "description": "ISO-8601 timestamp at emit time"
           }
         },
+        "type": "object",
         "required": [
           "type",
           "ts"
         ],
         "title": "HeartbeatEvent",
-        "type": "object"
+        "description": "15s liveness ping (D-15).\n\nWire shape: ``{\"type\": \"heartbeat\", \"ts\": \"<ISO-8601>\"}`` \u2014 emitted by the\nroute handler's sse-starlette ``ping_message_factory`` (Plan 06), NOT by\n``stream_agent``. The frontend may surface this as a liveness indicator or\nsilently consume it."
       },
       "TokenEvent": {
-        "description": "Incremental assistant text chunk.\n\nWire shape: ``{\"type\": \"token\", \"content\": \"<chunk>\"}`` \u2014 matches the dict\nyielded by ``agent/stream.py`` line 42.",
         "properties": {
           "type": {
+            "type": "string",
             "const": "token",
-            "title": "Type",
-            "type": "string"
+            "title": "Type"
           },
           "content": {
-            "description": "Assistant text chunk",
+            "type": "string",
             "title": "Content",
-            "type": "string"
+            "description": "Assistant text chunk"
           }
         },
+        "type": "object",
         "required": [
           "type",
           "content"
         ],
         "title": "TokenEvent",
-        "type": "object"
+        "description": "Incremental assistant text chunk.\n\nWire shape: ``{\"type\": \"token\", \"content\": \"<chunk>\"}`` \u2014 matches the dict\nyielded by ``agent/stream.py`` line 42."
       },
       "ToolEndEvent": {
-        "description": "Tool invocation has completed.\n\nWire shape: ``{\"type\": \"tool_end\", \"name\": \"<tool>\", \"output\": \"<str>\"}`` \u2014\nmatches the dict yielded by ``agent/stream.py`` lines 56-60. ``output`` is\nstringified at the source; structured outputs lose fidelity through ``str()``\n(T-04-03 accepted tradeoff).",
         "properties": {
           "type": {
+            "type": "string",
             "const": "tool_end",
-            "title": "Type",
-            "type": "string"
+            "title": "Type"
           },
           "name": {
-            "description": "Tool function name",
+            "type": "string",
             "title": "Name",
-            "type": "string"
+            "description": "Tool function name"
           },
           "output": {
-            "description": "Tool return value (stringified)",
+            "type": "string",
             "title": "Output",
-            "type": "string"
+            "description": "Tool return value (stringified)"
           }
         },
+        "type": "object",
         "required": [
           "type",
           "name",
           "output"
         ],
         "title": "ToolEndEvent",
-        "type": "object"
+        "description": "Tool invocation has completed.\n\nWire shape: ``{\"type\": \"tool_end\", \"name\": \"<tool>\", \"output\": \"<str>\"}`` \u2014\nmatches the dict yielded by ``agent/stream.py`` lines 56-60. ``output`` is\nstringified at the source; structured outputs lose fidelity through ``str()``\n(T-04-03 accepted tradeoff)."
       },
       "ToolStartEvent": {
-        "description": "Tool invocation has begun.\n\nWire shape: ``{\"type\": \"tool_start\", \"name\": \"<tool>\", \"args\": {...}|null}`` \u2014\nmatches the dict yielded by ``agent/stream.py`` lines 45-49. ``args`` is\noptional because LangGraph may not always supply tool inputs.",
         "properties": {
           "type": {
+            "type": "string",
             "const": "tool_start",
-            "title": "Type",
-            "type": "string"
+            "title": "Type"
           },
           "name": {
-            "description": "Tool function name",
+            "type": "string",
             "title": "Name",
-            "type": "string"
+            "description": "Tool function name"
           },
           "args": {
             "anyOf": [
@@ -1135,16 +1133,17 @@
                 "type": "null"
               }
             ],
-            "description": "Tool arguments (JSON)",
-            "title": "Args"
+            "title": "Args",
+            "description": "Tool arguments (JSON)"
           }
         },
+        "type": "object",
         "required": [
           "type",
           "name"
         ],
         "title": "ToolStartEvent",
-        "type": "object"
+        "description": "Tool invocation has begun.\n\nWire shape: ``{\"type\": \"tool_start\", \"name\": \"<tool>\", \"args\": {...}|null}`` \u2014\nmatches the dict yielded by ``agent/stream.py`` lines 45-49. ``args`` is\noptional because LangGraph may not always supply tool inputs."
       }
     },
     "securitySchemes": {
@@ -1158,7 +1157,7 @@
         "flows": {
           "authorizationCode": {
             "scopes": {
-              "api://00000000-0000-0000-0000-000000000000/access_as_user": "access_as_user"
+              "/access_as_user": "access_as_user"
             },
             "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
             "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
