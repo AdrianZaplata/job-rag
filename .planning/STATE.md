@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-23T13:49:38.996Z"
+last_updated: "2026-05-23T20:54:39.844Z"
 last_activity: 2026-05-23
 progress:
   total_phases: 9
@@ -35,9 +35,9 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 04.1 (phase-4-follow-ups-runbook-deviation-cleanup) — EXECUTING (Plan 6 paused at checkpoint:human-action gate)
-Plan: 6 of 6 — Tasks 01–08 of 10 complete (commit `96e7b9f`); Task 09 (operator-only `terraform apply` against External CIAM tenant) awaiting Adrian; Task 10 (UAT update) follows operator's structured report.
-Next: **Operator action required.** Adrian runs `cd infra/external && terraform apply -var-file=terraform.tfvars.local` from local (workforce GHA SP cannot auth into the External tenant — Gap D). After apply + sign-in verification + admin-consent re-grant via portal, resume with "applied" + structured report (new api_client_id, exit codes, identifierUris query, sign-in roundtrip result, GitHub secret update) OR "issue: <description>". On clean report, Task 10 flips `04.1-HUMAN-UAT.md` Test 2 to `result: pass` and Phase 04.1 closes.
+Phase: 04.1 (phase-4-follow-ups-runbook-deviation-cleanup) — COMPLETE (6/6 plans landed; UAT Test 2 verified PASS post-operator-action)
+Plan: 6 of 6 COMPLETE. All 10 tasks landed: executor commit `96e7b9f` (Tasks 01–08 atomic code+docs), partial-SUMMARY interim `1277990`, operator-action Task 09 verified live in External (CIAM) tenant (api_client_id rotated `a12dfd07-...`→`f4ced229-...`; admin consent propagated automatically via TF — no portal step needed; SPA sign-in PASS with real dashboard data), unplanned Rule-1 deviation `c28bb13` (added `workflow_dispatch:` to deploy-spa.yml + rolled VITE_API_AUDIENCE — Vite inlines env vars at build time, SPA bundle was stale post-secret-rotation), UAT commit `b2ee4fe` (Test 2 → pass + verified block), final SUMMARY `3959557`.
+Next: **Phase 04.1 closed.** Suggested: `/gsd-verify-work 04.1` to formalize phase pass (Tests 1, 3, 4 in HUMAN-UAT remain orthogonally pending per CONTEXT D-02 — pick up naturally on next master push / SEEDED_USER_ENTRA_OID rotation / live MSAL-init failure). Then `/gsd-verify-work 5` (Phase 5 awaiting verifier). Phases 6 (Chat) + 7 (Profile & Resume Upload) are parallel-eligible.
 
 Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete).
 
@@ -96,6 +96,7 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 | Phase 05 P05 | 6m | 3 tasks | 11 files |
 | Phase 05 P06 | 3 min | 2 tasks | 3 files |
 | Phase 04.1 P06-partial | 30m | 8 tasks | 5 files |
+| Phase 04.1-phase-4-follow-ups-runbook-deviation-cleanup P06 | ~30m executor + ~30m operator + ~5m follow-up | 10 tasks | 9 files |
 
 ### Per-Plan Execution
 
