@@ -11,6 +11,29 @@ API_CLIENT_ID="$(terraform output -raw api_client_id 2>/dev/null || true)"
 API_AUDIENCE_URI="$(terraform output -raw api_audience_uri 2>/dev/null || true)"
 API_SCOPE_NAME="$(terraform output -raw api_scope_name 2>/dev/null || true)"
 
+# Phase 04.1-06 — fail-loud guard against the documented silent-fail mode on
+# azuread_application_identifier_uri (memory terraform-azuread-identifier-uri-unreliable.md).
+# terraform output can return a stale or empty value if the underlying resource
+# applied "successfully" but the live identifierUris list stayed empty. We assert
+# live state directly via Microsoft Graph BEFORE rewriting any downstream files.
+if [ -n "$API_CLIENT_ID" ]; then
+  echo "Verifying live identifierUris for API app $API_CLIENT_ID ..."
+  LIVE_URIS="$(az ad app show --id "$API_CLIENT_ID" --query 'identifierUris' -o tsv 2>/dev/null || true)"
+  if [ -z "$LIVE_URIS" ]; then
+    echo "FATAL: az ad app show returned empty identifierUris for $API_CLIENT_ID" >&2
+    echo "       The terraform output says api_audience_uri=$API_AUDIENCE_URI but the live" >&2
+    echo "       Entra app has NO identifierUris set. This is the documented silent-fail" >&2
+    echo "       mode on azuread_application_identifier_uri (see memory" >&2
+    echo "       terraform-azuread-identifier-uri-unreliable.md). Aborting BEFORE downstream" >&2
+    echo "       files (frontend/.env.production, prod.tfvars.local, GitHub secrets) are" >&2
+    echo "       rewritten with stale/empty values. Unblock with:" >&2
+    echo "         az ad app update --id $API_CLIENT_ID --identifier-uris \"$API_AUDIENCE_URI\"" >&2
+    echo "       then re-run: bash scripts/refresh-external-outputs.sh" >&2
+    exit 2
+  fi
+  echo "✓ Live identifierUris=$LIVE_URIS (matches expected $API_AUDIENCE_URI)"
+fi
+
 if [ -z "$SPA_CLIENT_ID" ] || [ -z "$API_AUDIENCE_URI" ]; then
   echo "FATAL: terraform output missing — apply infra/external/ first" >&2
   exit 1
