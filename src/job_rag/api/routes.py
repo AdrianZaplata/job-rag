@@ -361,7 +361,7 @@ except Exception:  # pragma: no cover - defensive fallback
     _AGENT_EVENT_JSON_SCHEMA = {}
 
 
-@router.get(
+@router.post(
     "/agent/stream",
     dependencies=[Depends(require_api_key), Depends(agent_limit)],
     responses={
@@ -380,7 +380,7 @@ except Exception:  # pragma: no cover - defensive fallback
         }
     },
 )
-async def agent_stream(request: Request, q: str) -> EventSourceResponse:
+async def agent_stream(request: Request, payload: AgentQuery) -> EventSourceResponse:
     """Stream agent execution as SSE: typed events + heartbeat + 60s timeout + drain.
 
     The handler wraps the Plan 04 ``stream_agent`` async iterator in
@@ -414,7 +414,7 @@ async def agent_stream(request: Request, q: str) -> EventSourceResponse:
         try:
             try:
                 async with asyncio.timeout(settings.agent_timeout_seconds):
-                    async for event in stream_agent(q):
+                    async for event in stream_agent(payload.query):
                         yield to_sse(event)
             except TimeoutError:
                 # Python 3.11+: asyncio.TimeoutError aliased to builtin TimeoutError
