@@ -64,15 +64,38 @@ jobs:
       - name: Audit dependencies
         run: uv run pip-audit --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-6587  # CVE-2025-69872 diskcache 5.6.3 (no fix, transitive via ragas) + CVE-2026-6587 ragas 0.4.3 (no fix yet)
 
+  # ─── Detect frontend presence (gate for frontend-ci) ──────────────────────────
+  # `hashFiles()` is forbidden in job-level `if:` (workflow-validation-time
+  # context — no checkout has run yet). The canonical workaround is a tiny
+  # detect job that checks out the repo, emits a boolean output, and lets the
+  # downstream job gate on `needs.detect-frontend.outputs.present`. Job-level
+  # `if:` accepts `needs.*.outputs.*` because those values exist by the time
+  # the dependent job is scheduled.
+  detect-frontend:
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ─── Frontend CI (Phase 4 Plan 04-03) ─────────────────────────────────────────
-  # Sibling job to lint-and-test. Runs in parallel (no `needs:`). Skips cleanly
-  # when frontend/package.json is absent (Wave 0 / pre-Plan-04 state) via the
-  # hashFiles guard. Codegen drift-check (Phase 4 D-14) boots a temporary FastAPI
-  # against an ephemeral postgres service, fetches /openapi.json, then asserts
-  # `git diff --exit-code src/api/types.ts` after re-running openapi-typescript.
+  # Sibling job to lint-and-test (no functional dependency — `needs:` here is
+  # purely a gating mechanism for the file-presence guard). Skips cleanly when
+  # frontend/package.json is absent (Wave 0 / pre-Plan-04 state). Codegen
+  # drift-check (Phase 4 D-14) boots a temporary FastAPI against an ephemeral
+  # postgres service, fetches /openapi.json, then asserts `git diff --exit-code
+  # src/api/types.ts` after re-running openapi-typescript.
   frontend-ci:
     runs-on: ubuntu-latest
-    if: hashFiles('frontend/package.json') != ''
+    needs: detect-frontend
+    if: needs.detect-frontend.outputs.present == 'true'
     services:
       postgres:
         image: pgvector/pgvector:pg17
