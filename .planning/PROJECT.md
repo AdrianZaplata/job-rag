@@ -59,13 +59,13 @@ Make Adrian's job-market corpus actually useful for his job hunt — browse it, 
 - [ ] Frontend shows extracted skills in a review panel — tick / untick / edit before saving
 - [ ] Confirmed skills persist to the `user_profile` row
 
-#### Dashboard (static snapshot)
+#### Dashboard (static snapshot) — shipped Phase 5
 
-- [ ] Analytical SQL endpoint: top-N skills with must-have vs nice-to-have breakdown, filterable by country / seniority / remote
-- [ ] Analytical SQL endpoint: salary bands (p25 / p50 / p75) filterable by country / seniority / remote
-- [ ] Analytical SQL endpoint: CV-vs-market match score (aggregate of per-posting match scores across the filtered set)
-- [ ] Dashboard React page renders all three widgets with a shared filter bar (country dropdown: Poland / Germany / EU / Worldwide; seniority; remote toggle)
-- [ ] "Top skills" widget supports "show more" drill into a full ranked list
+- [x] Analytical SQL endpoint: top-N skills with must-have vs nice-to-have breakdown, filterable by country / seniority / remote — DASH-01, Phase 5
+- [x] Analytical SQL endpoint: salary bands (p25 / p50 / p75) filterable by country / seniority / remote — DASH-02, Phase 5
+- [x] Analytical SQL endpoint: CV-vs-market match score (aggregate of per-posting match scores across the filtered set) — DASH-03, Phase 5
+- [x] Dashboard React page renders all three widgets with a shared filter bar (country dropdown: Poland / Germany / EU / Worldwide; seniority; remote toggle) — DASH-04 + DASH-06, Phase 5
+- [x] "Top skills" widget supports "show more" drill into a full ranked list — DASH-05, Phase 5
 
 #### Chat
 
@@ -206,4 +206,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-22 after Phase 04.1 (Phase 4 follow-ups — runbook deviation cleanup) completion. No requirements changed (durable-tax cleanup per CONTEXT D-06). Phases 1-4 + 4.1 closed; Phase 5 (Dashboard) next.*
+*Last updated: 2026-05-23 after Phase 5 (Dashboard) completion. Dashboard surface shipped — 3 widgets (Top Skills, Salary Bands, CV vs Market) wired against live ACA backend behind Entra External ID auth, filter state round-trips through URL params. First milestone surface to exercise the full token-acquire-and-validate roundtrip — surfaced + fixed a latent `iss` validation bug in fastapi-azure-auth setup (commit ab9437d). Phases 1-5 closed; Phase 6 (Chat) next.*
