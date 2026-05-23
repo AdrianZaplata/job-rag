@@ -6,7 +6,7 @@ import { ChatTranscript } from '@/components/chat/ChatTranscript'
 import { useChatStream } from '@/components/chat/useChatStream'
 
 /**
- * Phase 6 — /chat route composition. Replaces Phase 4 PhasePlaceholder.
+ * Phase 6 — /chat route composition. Replaces the Phase 4 placeholder stub.
  *
  * useChatStream owns transcript state + AbortController + cold-start timer.
  * Presentation components (ChatTranscript / ChatEmptyState / ChatComposer)
