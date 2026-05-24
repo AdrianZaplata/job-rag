@@ -1157,7 +1157,7 @@
         "flows": {
           "authorizationCode": {
             "scopes": {
-              "/access_as_user": "access_as_user"
+              "api://00000000-0000-0000-0000-000000000000/access_as_user": "access_as_user"
             },
             "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
             "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
