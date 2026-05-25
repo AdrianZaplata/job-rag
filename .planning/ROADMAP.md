@@ -174,13 +174,16 @@ Plans:
 
 ### Phase 06.1: Terraform value_wo lifecycle hardening — prevent KV secret re-wipe on future apply (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Phase 06.1 closes the three Phase 06 UAT infra regressions (value_wo placeholder re-write wiping out-of-band-seeded KV secrets, hardcoded ACA cpu/memory reverting Adrian's manual OOM-fix bump, and the README's single-var-file `terraform apply` runbook silently breaking Entra auth env vars). Defensive infra-only phase: every future `terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local` against prod produces ZERO unintended drift.
+**Requirements**: TBD (this is an inserted hardening phase — no new REQ-IDs; the 4 KV secret resources, ACA container size, and Phase 4 D-04 auth env-var wiring all carry over from Phase 3 + Phase 4 unchanged)
 **Depends on:** Phase 6
-**Plans:** 4/5 plans complete
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 06.1 to break down)
+- [ ] 06.1-01-PLAN.md — value_wo lifecycle hardening: 4 azurerm_key_vault_secret resources in infra/envs/prod/main.tf get `lifecycle.ignore_changes = [value, value_wo, value_wo_version]` (D-01/D-02); closes Phase 06 UAT Bug #1+#2 (KV secret re-wipe)
+- [ ] 06.1-02-PLAN.md — ACA cpu/memory parameterization: new cpu (default 1.0) + memory (default "2Gi") variables in compute module + env layer + committed prod.tfvars + D-09 file-pyramid header (D-03/D-04/D-09); closes Phase 06 UAT Bug #4 (cross-encoder OOM-kill at 0.5/1Gi)
+- [ ] 06.1-03-PLAN.md — Runbook + scripts + CI parity: infra/envs/prod/README.md dual-var-file invocations + Apply command convention + CI-vs-local matrix + new scripts/tf-apply-prod.sh wrapper + scripts/refresh-swa-origin.sh fix + .github/workflows/deploy-infra.yml D-10 pre-apply guard (D-05/D-06/D-07/D-10); closes Phase 06 UAT Bug #3 (Entra env vars wiped)
+- [ ] 06.1-04-PLAN.md — Live `terraform plan` no-op verification (autonomous: false): Adrian runs `bash scripts/tf-apply-prod.sh plan -detailed-exitcode` against live prod; captures evidence in 06.1-VERIFICATION-EVIDENCE.md (D-08); phase GREEN only on exit code 0
 
 ### Phase 7: Profile & Resume Upload
 **Goal**: Phase 7 ships the personal-data loop when Adrian can upload a PDF or DOCX resume, see an Instructor-extracted skill diff vs his current profile in a reviewable panel, and tick/edit/save confirmed skills back to `user_profile` — with the full extract→review→save trace visible in Langfuse.
