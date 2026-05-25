@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-05-23T23:12:05.264Z"
-last_activity: 2026-05-23
+status: Ready to plan
+last_updated: "2026-05-25T18:25:26.017Z"
+last_activity: 2026-05-25
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 6
   total_plans: 42
   completed_plans: 41
@@ -37,8 +37,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 06 (Chat) — EXECUTING
-Plan: 5 of 5
+Phase: 06.1
+Plan: Not started
 Next: **Plan 06-05 (live UAT runbook, autonomous: false)** — final Phase 6 plan; operator-driven UAT against deployed Azure SWA + ACA stack. Will exercise full chat surface end-to-end: EmptyState sample-chip click → composer pre-fill + focus → submit → "Thinking" → first token → streaming + cursor blink → tool_start chip (running pulse) → tool_end chip (200-char preview + Show full output Dialog) → final → stopped (mid-stream abort) → error rendering (force timeout) → refresh wipes transcript (CHAT-06 DevTools Application tab inspection) → cold-start "Warming up — ~4 minutes after idle" copy verified after 4-minute idle on live stack.
 
 Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profile & Resume Upload) parallel-eligible — both depend only on Phase 4 (already complete).
@@ -273,7 +273,7 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 | 260523-vrw | Fix CI deploy-infra.yml home_ip gap: add TF_VAR_home_ip from HOME_IP secret to prod terraform apply step | 2026-05-23 | f6480e6 | [260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-](./quick/260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-/) |
 
-Last activity: 2026-05-23
+Last activity: 2026-05-25
 
 ### Open Questions (from research, to resolve during planning)
 

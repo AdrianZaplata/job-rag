@@ -23,7 +23,7 @@ Plus all the backend hedges (user_id, career_id, IngestionSource Protocol, Alemb
 - [x] **Phase 3: Infrastructure & CI/CD** - Provision the entire Azure stack (Entra, ACA, Postgres, SWA, KV, LAW) via Terraform + three OIDC-federated GitHub Actions workflows (verified 2026-05-19, 12/12 must-haves)
 - [x] **Phase 4: Frontend Shell + Auth** - Wire MSAL-backed auth end-to-end so every subsequent page has a real user context (live verified 2026-05-21; 13/13 requirements closed; 10 deviations documented in 04-06-SUMMARY.md)
 - [x] **Phase 5: Dashboard** - Ship the three analytical widgets and shared filter bar for the first demoable, shareable surface (plans complete 2026-05-23; UAT PASSED 5/5 ROADMAP success criteria; pending /gsd-verify-work 5)
-- [ ] **Phase 6: Chat** - Ship the number-one portfolio-signal feature: streaming tokens with inline tool-call chips
+- [x] **Phase 6: Chat** - Ship the number-one portfolio-signal feature: streaming tokens with inline tool-call chips (UAT 2026-05-25; 5/6 M-markers PASS, M2 cold-start DEFERRED; 6/6 CHAT-* requirements complete; 2 hotfixes landed live — Bug #5a CRLF parser via PR #7, Bug #5b MSAL timed_out recovery via PR #8)
 - [ ] **Phase 7: Profile & Resume Upload** - Close the personal-data loop so CV-vs-market scores stay fresh without CLI edits
 - [ ] **Phase 8: Eval & Documentation** - Close the MLOps loop with a CI-gated RAGAS harness and publish the web-app deploy story
 
@@ -177,7 +177,7 @@ Plans:
 **Goal:** [Urgent work - to be planned]
 **Requirements**: TBD
 **Depends on:** Phase 6
-**Plans:** 0 plans
+**Plans:** 4/5 plans complete
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 06.1 to break down)
