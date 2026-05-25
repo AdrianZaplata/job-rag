@@ -29,6 +29,17 @@ const msalConfig: Configuration = {
     // the library no longer uses cookies for auth state on modern browsers.
   },
   system: {
+    // MSAL 5.x renamed the silent-iframe wait — it's `iframeBridgeTimeout` now
+    // (BroadcastChannel-based, default 10000ms per BrowserConstants
+    // DEFAULT_IFRAME_TIMEOUT_MS). The older `iframeHashTimeout` / `windowHashTimeout`
+    // options were removed from `BrowserSystemOptions` in 5.x — keeping the old
+    // names breaks `tsc -b --noEmit`.
+    //
+    // Bump to 30s so cold CIAM / ciamlogin.com responses, slow networks, and
+    // Microsoft session-cookie propagation don't fall through to the redirect
+    // fallback unnecessarily. The popup path (`popupBridgeTimeout`) already
+    // defaults to 60s and we don't use popup acquisition, so leave it.
+    iframeBridgeTimeout: 30000,
     loggerOptions: {
       logLevel: import.meta.env.DEV ? LogLevel.Verbose : LogLevel.Error,
       piiLoggingEnabled: false,
