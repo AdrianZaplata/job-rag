@@ -58,4 +58,44 @@ describe('readSSEStream', () => {
     expect(events).toHaveLength(1)
     expect(events[0]).toMatchObject({ type: 'token', text: 'split' })
   })
+
+  it('parses CRLF line endings as emitted by sse-starlette (Bug #5)', async () => {
+    // Production sse-starlette serializes frames with \r\n line endings per
+    // the HTML SSE spec. Parser must accept either form — using only \n\n
+    // for the frame boundary would never match the real wire format.
+    const frames =
+      'event: token\r\ndata: {"type":"token","text":"Hi"}\r\n\r\n' +
+      'event: token\r\ndata: {"type":"token","text":" there"}\r\n\r\n' +
+      'event: final\r\ndata: {"type":"final","content":"Hi there"}\r\n\r\n'
+    const response = streamFromString(frames)
+    const events: AgentEvent[] = []
+    for await (const event of readSSEStream(response)) {
+      events.push(event)
+    }
+    expect(events).toHaveLength(3)
+    expect(events[0]).toMatchObject({ type: 'token', text: 'Hi' })
+    expect(events[1]).toMatchObject({ type: 'token', text: ' there' })
+    expect(events[2]).toMatchObject({ type: 'final', content: 'Hi there' })
+  })
+
+  it('handles a CRLF frame split mid-boundary across chunks', async () => {
+    // The \r\n\r\n separator can be split between chunks (e.g., \r\n in one
+    // chunk and \r\n in the next). Normalization + buffering must still
+    // produce one frame.
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('event: token\r\ndata: {"type":"token","text":"x"}\r\n'))
+        controller.enqueue(encoder.encode('\r\n'))
+        controller.close()
+      },
+    })
+    const response = new Response(stream)
+    const events: AgentEvent[] = []
+    for await (const event of readSSEStream(response)) {
+      events.push(event)
+    }
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'token', text: 'x' })
+  })
 })

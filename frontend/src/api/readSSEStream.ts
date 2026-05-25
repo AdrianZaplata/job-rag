@@ -56,9 +56,15 @@ export async function* readSSEStream(
         }
         return
       }
-      buffer += decoder.decode(value, { stream: true })
+      // Normalize CRLF/CR to LF — SSE spec (HTML Living Standard §9.2.6)
+      // permits LF, CRLF, or CR line endings. sse-starlette emits CRLF, so
+      // searching only for '\n\n' would never find a frame boundary and the
+      // SPA would hang at "Warming up…" forever (Phase 6 Bug #5).
+      buffer += decoder
+        .decode(value, { stream: true })
+        .replace(/\r\n?/g, '\n')
 
-      // SSE frame boundary = blank line (\n\n).
+      // SSE frame boundary = blank line (\n\n after normalization).
       let boundary: number
       while ((boundary = buffer.indexOf('\n\n')) !== -1) {
         const rawFrame = buffer.slice(0, boundary)
