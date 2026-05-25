@@ -44,11 +44,22 @@ export async function* readSSEStream(
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
+  // True when the previous chunk ended with a lone trailing `\r`. The next
+  // chunk may begin with `\n`, in which case the pair is a single CRLF line
+  // terminator and must collapse to one `\n`. Without this carry-over the
+  // per-chunk regex below would turn that lone `\r` into `\n` and then leave
+  // the next chunk's `\n` intact, producing a false `\n\n` frame boundary.
+  let pendingCR = false
 
   try {
     while (true) {
       const { value, done } = await reader.read()
       if (done) {
+        // Treat any deferred `\r` as a terminating `\n` on close.
+        if (pendingCR) {
+          buffer += '\n'
+          pendingCR = false
+        }
         // Flush any remaining buffered frame.
         if (buffer.trim()) {
           const event = parseSSEFrame(buffer)
@@ -60,9 +71,18 @@ export async function* readSSEStream(
       // permits LF, CRLF, or CR line endings. sse-starlette emits CRLF, so
       // searching only for '\n\n' would never find a frame boundary and the
       // SPA would hang at "Warming up…" forever (Phase 6 Bug #5).
-      buffer += decoder
-        .decode(value, { stream: true })
-        .replace(/\r\n?/g, '\n')
+      let chunk = decoder.decode(value, { stream: true })
+      if (pendingCR) {
+        // Prepend the deferred `\r`; the regex will fuse it with a leading
+        // `\n` into a single LF if the CRLF was split across chunks.
+        chunk = '\r' + chunk
+        pendingCR = false
+      }
+      if (chunk.endsWith('\r')) {
+        chunk = chunk.slice(0, -1)
+        pendingCR = true
+      }
+      buffer += chunk.replace(/\r\n?/g, '\n')
 
       // SSE frame boundary = blank line (\n\n after normalization).
       let boundary: number
