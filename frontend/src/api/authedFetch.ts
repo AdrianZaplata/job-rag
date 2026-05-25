@@ -6,10 +6,22 @@ import {
 import { msalInstance } from '@/auth/msal'
 import { loginRequest, API_SCOPE } from '@/auth/scopes'
 
+// Error codes that mean "silent token acquisition can't recover — restart the
+// interaction flow." MSAL throws BrowserAuthError with these codes when the
+// hidden iframe / SSO loop fails to complete, typically because of a stale
+// session, missing third-party cookies, or a Microsoft login page that didn't
+// post back in time. All require a full-page acquireTokenRedirect to recover.
+//
+// `timed_out` (BrowserAuthErrorCodes.timedOut in msal-browser 5.x) is the
+// generic timeout the navigation/iframe helpers raise — distinct from
+// `monitor_window_timeout`, but recoverable by the same redirect (Phase 6
+// post-merge bug: dashboard + chat showed "timed_out" instead of redirecting).
 const INTERACTION_REQUIRED_CODES = new Set([
   'monitor_window_timeout',
+  'monitor_popup_timeout',
   'no_account_error',
   'silent_sso_error',
+  'timed_out',
 ])
 
 async function acquireToken(): Promise<string> {

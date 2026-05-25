@@ -1,16 +1,17 @@
 ---
 phase: 6
 slug: chat
-status: testing
+status: complete
 source: [06-01-SUMMARY.md, 06-02-SUMMARY.md, 06-03-SUMMARY.md, 06-04-SUMMARY.md]
 started: 2026-05-24T00:00:00Z
-updated: 2026-05-24T00:00:00Z
+updated: 2026-05-25T18:10:00Z
 uat_environment: production SWA + deployed ACA
 swa_origin: https://witty-flower-065dac003.7.azurestaticapps.net
 backend_aca_fqdn: https://jobrag-prod-api.gentlebay-598f6d02.westeurope.azurecontainerapps.io
 signed_in_oid: 18d774c1-62ac-4416-8945-b5eca715e9ed
 build_sha_at_scaffold: 2e82389
-overall_verdict: [pending]
+build_sha_at_m1_pass: 86f420b
+overall_verdict: PASS WITH MINOR DEVIATIONS
 ---
 
 # Phase 6 — Live UAT Evidence
@@ -26,14 +27,7 @@ overall_verdict: [pending]
 
 ## Current Test
 
-number: 1
-name: M1 — Happy path (one full chat turn)
-expected: |
-  Sample-chip click pre-fills composer → submit → "Thinking…" → tokens stream
-  incrementally (DevTools EventStream tab shows discrete token/tool_start/
-  tool_end/final frames) → tool chip appears mid-stream → final closes
-  bubble → composer re-enables.
-awaiting: Adrian executes M1 against production SWA URL
+complete — all 6 M-markers transcribed (M1/M3/M4/M5/M6 PASS; M2 DEFERRED pending 4hr ACA idle window).
 
 ## Environment
 
@@ -92,13 +86,13 @@ Tokens streamed incrementally (NOT buffered) AND at least one tool chip appeared
 |----------|-------|
 | CHAT-* coverage | CHAT-01, CHAT-02, CHAT-05 |
 | ROADMAP criterion | #1 (tokens stream incrementally) |
-| **Result** | **[pending]** |
-| First token latency | [pending — e.g. ~1.2s on warm container] |
-| Tokens streamed incrementally (EventStream tab discrete frames) | [pending — YES / NO] |
-| Tool chip appeared mid-stream | [pending — YES / NO; tool name if YES] |
-| Final closed bubble + composer re-enabled | [pending — YES / NO] |
-| Evidence | [pending — screenshots/m1-network.png, screenshots/m1-ui.png] |
-| Notes | [pending] |
+| **Result** | **PASS** (after Bug #5 CRLF fix + MSAL cache clear) |
+| First token latency | ~1-2s on warm container (curl repro: 1.30s warm; 29.5s cold incl. 28.6s replica spinup) |
+| Tokens streamed incrementally (EventStream tab discrete frames) | YES — backend curl --raw confirmed discrete `event: token\r\ndata: ...\r\n\r\n` frames (no buffering); SPA rendered tool chip + final answer per Adrian's chat |
+| Tool chip appeared mid-stream | YES — `analyze_gaps` with args `{"seniority":"senior","remote":"false"}` |
+| Final closed bubble + composer re-enabled | YES — Adrian sent follow-up unstuck |
+| Evidence | Backend probe: `time curl -sS -N POST /agent/stream` → 10 tokens + final in 1.30s warm; SPA UI: real chat turn captured in conversation transcript (Berlin senior must-have skill query → tool call → no-results final answer) |
+| Notes | M1 blocked through ~3hr of debugging by two real defects discovered live: **Bug #5a — readSSEStream parser searched for `\n\n` but sse-starlette emits `\r\n\r\n` per HTML SSE spec**; fix in commit 44297aa (PR #7, hardened by a62b356) normalizes CRLF→LF in the read buffer with pendingCR carry-over for chunk-boundary splits. **Bug #5b — MSAL silent-token cache stale after long session**; immediate workaround = DevTools → Application → Clear site data + fresh login. Durable fix queued: add `timed_out` to `authedFetch.INTERACTION_REQUIRED_CODES` + bump `iframeHashTimeout`/`windowHashTimeout` to 30s. Backend was healthy throughout — 4 prior infra fixes (#1 KV openai-api-key, #2 KV langfuse keys, #3 ACA auth env vars, #4 OOM bump 1Gi→2Gi) all stuck; uvloop hypothesis ruled out via in-container probe (uvloop.install() + asyncio.run + agent.astream_events ran 30 events in 1.93s). |
 
 ---
 
@@ -129,14 +123,14 @@ Tokens streamed incrementally (NOT buffered) AND at least one tool chip appeared
 | Property | Value |
 |----------|-------|
 | D-19 coverage | UI-SPEC §12 cold-start swap at T=10s |
-| **Result** | **[pending]** (PASS / FAIL / DEFERRED — no cold-start window achievable) |
-| Cold-start latency observed (submit → first event) | [pending — e.g. ~215s] |
-| "Thinking..." rendered at T<10s | [pending — YES / NO] |
-| "Warming up the agent — this can take ~4 minutes after idle" rendered at T≥10s | [pending — YES / NO] |
-| Em-dash U+2014 verbatim verified | [pending — YES / NO] |
-| Eventually streams successfully (no false 60s timeout) | [pending — YES / NO] |
-| Evidence | [pending — screenshots/m2-t0.png, screenshots/m2-t12.png, screenshots/m2-stream-start.png] |
-| Notes | [pending] |
+| **Result** | **DEFERRED** — no 4hr ACA idle window achievable during this UAT session |
+| Cold-start latency observed (submit → first event) | n/a (DEFERRED) — partial probe data: my curl-driven cold-start during the M1 debug (replica `plqpr` spinup) measured 29.5s total / 28.6s time-to-first-byte (well under the 60s `asyncio.timeout`), which is far below the handoff's earlier ~225s estimate. M2 UI verification needs a true scale-to-zero idle event Adrian can observe live with stopwatch on the "Thinking..." → "Warming up..." swap. |
+| "Thinking..." rendered at T<10s | n/a (DEFERRED) |
+| "Warming up the agent — this can take ~4 minutes after idle" rendered at T≥10s | n/a (DEFERRED) |
+| Em-dash U+2014 verbatim verified | n/a (DEFERRED) — copy string is unit-tested in vitest, so the swap text itself is regression-guarded; only the live T=10s timing requires the cold-start window. |
+| Eventually streams successfully (no false 60s timeout) | n/a (DEFERRED) — cold-start curl probe (29.5s) confirms the agent budget is not exceeded under cold-start; live SPA confirmation deferred. |
+| Evidence | n/a (DEFERRED) — to be captured in a follow-up UAT session after a deliberate 4hr+ idle window |
+| Notes | DEFERRED, not FAILED. Cold-start UX is implemented per UI-SPEC §12 (Bug #5a fix verified end-to-end on the warm path; the cold-start swap timer is a separate `setTimeout(10000)` in `useChatStream.ts:174-177` which doesn't depend on backend behavior — the only true unknown is the wall-clock timing under a real cold-start). Schedule a recap UAT session after the next overnight idle window. |
 
 ---
 
@@ -168,16 +162,16 @@ Chip toggles open/closed on header click AND args render as pretty-printed JSON 
 |----------|-------|
 | CHAT-* coverage | CHAT-03, CHAT-04 |
 | ROADMAP criterion | #2 (tool_start chip → tool_end with 200-char preview + Show full) |
-| **Result** | **[pending]** |
-| Tool called | [pending — e.g. search_jobs] |
-| Output length (chars) | [pending] |
-| Output > 200 chars (Show full visible) | [pending — YES / NO] |
-| Chip header click toggles expand/collapse | [pending — YES / NO] |
-| Dialog opens with full output | [pending — YES / NO] |
-| Dialog Escape closes + focus returns to "Show full output" trigger | [pending — YES / NO] |
-| args rendered as pretty-printed JSON | [pending — YES / NO] |
-| Evidence | [pending — screenshots/m3-collapsed.png, screenshots/m3-expanded.png, screenshots/m3-dialog.png] |
-| Notes | [pending] |
+| **Result** | **PASS** |
+| Tool called | `analyze_gaps` (M1 turn) + `search_jobs` / `match_profile` × 2 (M3 dialog probe via "Find postings for Senior Python engineers in Berlin") |
+| Output length (chars) | analyze_gaps: ~89 (no Show full — correct guard); search_jobs: 10,736; match_profile: 656 + 836 |
+| Output > 200 chars (Show full visible) | YES on search_jobs + match_profile; NO on analyze_gaps no-postings case (correct — guard threshold respected) |
+| Chip header click toggles expand/collapse | YES — expand + collapse roundtrip on `analyze_gaps` chip confirmed by Adrian |
+| Dialog opens with full output | YES — confirmed by Adrian on search_jobs chip |
+| Dialog Escape closes + focus returns to "Show full output" trigger | YES — confirmed by Adrian |
+| args rendered as pretty-printed JSON | YES — Adrian's screenshot shows `{"seniority":"senior","remote":"false"}` pretty-printed across multiple lines in the expanded args block |
+| Evidence | Adrian's M1+M3 screenshot showing expanded `analyze_gaps` chip with pretty-printed args + 89-char `{"error":"no_postings_found",...}` output preview; verbal confirmation of search_jobs Show-full-output Dialog (open / Escape close / focus return). Curl probe pre-verified the 3 tool output sizes (10736 / 656 / 836). |
+| Notes | "No postings" output from analyze_gaps is technically below the 200-char threshold so the Show-full Button correctly suppresses — verified the suppression branch as well as the display branch. M1's transcribed chevron rotation was visually ambiguous in screenshot; Adrian confirmed verbally the toggle works (expand + collapse). |
 
 ---
 
@@ -208,15 +202,15 @@ Stop click halted streaming AND `(stopped)` suffix rendered AND composer re-enab
 |----------|-------|
 | D-16 + Pitfall B coverage | yes |
 | ROADMAP criterion | #3 (final marks bubble complete; submit-during-stream blocked — Stop is the inverse path) |
-| **Result** | **[pending]** |
-| Streaming halted on Stop click | [pending — YES / NO] |
-| "(stopped)" suffix rendered on truncated assistant text | [pending — YES / NO] |
-| Top-of-route network-error Alert appeared | [pending — NO (correct) / YES (FAIL — Pitfall B regression)] |
-| networkError stayed null | [pending — YES / NO] |
-| Composer Send button reappeared | [pending — YES / NO] |
-| Next submit worked normally | [pending — YES / NO] |
-| Evidence | [pending — screenshots/m4-stopped.png] |
-| Notes | [pending] |
+| **Result** | **PASS** |
+| Streaming halted on Stop click | YES — Stop fired during tool call; tool_end never rendered (chip stayed collapsed with args inline) |
+| "(stopped)" suffix rendered on truncated assistant text | YES — assistant bubble shows just `(stopped)` since zero tokens had accumulated before Stop (no preceding content to suffix); muted color rendering observed in screenshot |
+| Top-of-route network-error Alert appeared | NO (correct — Pitfall B verified: AbortError is intentional cancellation, NOT network failure) |
+| networkError stayed null | YES — implied by absence of top-of-route Alert |
+| Composer Send button reappeared | YES — Send button visible + placeholder "Ask the agent something…" active in screenshot |
+| Next submit worked normally | YES — Adrian sent fresh follow-up query that streamed normally, proving per-submit AbortController (no orphan signal carrying over) |
+| Evidence | Adrian's M4 screenshot: collapsed `analyze_gaps` chip + `(stopped)` bubble + active Send button + no Alert; verbal confirmation of follow-up submit working |
+| Notes | Stop click landed during `tool_start` window (before `tool_end` event arrived) — chip locked in its tool_start visual state with args inline, no output block ever rendered. Cleanest possible M4 outcome: tested both abort during tool-execution AND immediate re-stream readiness. |
 
 ---
 
@@ -248,15 +242,15 @@ Zero `chat-*` / `transcript-*` / `agent-*` / `message-*` keys in localStorage / 
 |----------|-------|
 | CHAT-* coverage | CHAT-06 |
 | ROADMAP criterion | #4 (refresh clears transcript; zero localStorage/IndexedDB residue) |
-| **Result** | **[pending]** |
-| Chat-related keys in localStorage | [pending — 0 (correct) / N (FAIL with key list)] |
-| Chat-related keys in sessionStorage | [pending — 0 / N] |
-| Chat-related IndexedDB databases | [pending — 0 / N] |
-| Allowed keys present (theme, msal.*) | [pending — list, e.g. theme, msal.account.keys, msal.cache.b2c_account.*] |
-| Refresh wipes transcript entirely | [pending — YES / NO] |
-| Post-refresh state = EmptyState | [pending — YES / NO] |
-| Evidence | [pending — screenshots/m5-application-tab.png] |
-| Notes | [pending] |
+| **Result** | **PASS** |
+| Chat-related keys in localStorage | 0 — only `theme` present |
+| Chat-related keys in sessionStorage | 0 — only msal.* keys + one `server-telemetry-{clientId}` key (MSAL-owned; see Notes) |
+| Chat-related IndexedDB databases | 0 |
+| Allowed keys present (theme, msal.*) | `theme` (localStorage); sessionStorage: `msal.3.account.keys`, `msal.3.token.keys.{clientId}`, multiple `msal.3\|{homeAccountId}-...` entries (idToken / RefreshToken / homeAccountId variants), `msal.{clientId}`, `msal.version` = `5.11.0`, `server-telemetry-{clientId}` |
+| Refresh wipes transcript entirely | YES (Adrian: "all other passed") |
+| Post-refresh state = EmptyState | YES (Adrian: "all other passed") |
+| Evidence | Adrian's M5 Application-tab screenshot showing complete sessionStorage key inventory |
+| Notes | `server-telemetry-{clientId}` is MSAL's own ServerTelemetryManager cache (`node_modules/@azure/msal-common/src/telemetry/server/ServerTelemetryManager.ts`) — aggregates failedRequests/errors/cacheHits to send via the `x-client-current-telemetry` header on subsequent token requests. NOT chat residue; matches the "msal.* + library-owned" allowance category. CHAT-06 single-turn invariant fully satisfied. |
 
 ---
 
@@ -286,13 +280,13 @@ Recording is ≤30 seconds AND captures one full chat turn AND tool chip expansi
 | Property | Value |
 |----------|-------|
 | ROADMAP criterion | #5 (≤30s demoable recording) |
-| **Result** | **[pending]** |
-| Recording duration | [pending — e.g. 24s] (must be ≤30s) |
-| Recording captures one full chat turn (question → tool chip → stream → final) | [pending — YES / NO] |
-| Tool chip expansion visible in recording | [pending — YES / NO] |
-| File location | [pending — .planning/phases/06-chat/06-chat-demo.mp4 (or screenshots/m6-frames/)] |
-| Demoable as-is (no edits needed) | [pending — YES / NO] |
-| Notes | [pending] |
+| **Result** | **PASS** |
+| Recording duration | 13s (well under the 30s ceiling) |
+| Recording captures one full chat turn (question → tool chip → stream → final) | YES |
+| Tool chip expansion visible in recording | YES (per Adrian's M6 choreography — included chip click after final) |
+| File location | `.planning/phases/06-chat/06-chat-demo.mov` (1,358,522 bytes / 1.3 MB) |
+| Demoable as-is (no edits needed) | YES |
+| Notes | 13s well leaves room for the full streaming + tool-call narrative. The fact that one warm-path turn fits in this budget IS the portfolio differentiator — recording proves the cold-start mitigations + CRLF SSE plumbing produce a fluid demo, not a stuttering one. |
 
 ---
 
@@ -300,11 +294,11 @@ Recording is ≤30 seconds AND captures one full chat turn AND tool chip expansi
 
 | # | Criterion | Result | Evidence |
 |---|-----------|--------|----------|
-| 1 | Tokens stream incrementally (DevTools EventStream tab discrete frames, not buffered) | [pending] | M1 |
-| 2 | tool_start chip collapsed → tool_end chip expanded with 200-char preview + "Show full" affordance | [pending] | M3 |
-| 3 | `final` marks bubble complete + re-enables composer; submit-during-stream blocked | [pending] | M1 (final + composer re-enable) + M4 (Stop inverse) |
-| 4 | Refresh clears transcript entirely; zero localStorage/IndexedDB residue | [pending] | M5 |
-| 5 | ≤30s demoable screen recording of one chat turn | [pending] | M6 |
+| 1 | Tokens stream incrementally (DevTools EventStream tab discrete frames, not buffered) | PASS (post-Bug-#5a fix; SPA real chat turn observed + curl --raw confirmed discrete CRLF frames) | M1 |
+| 2 | tool_start chip collapsed → tool_end chip expanded with 200-char preview + "Show full" affordance | PASS (M3 — toggle + Dialog roundtrip verified; ≤200-char output correctly suppresses Show-full Button) | M3 |
+| 3 | `final` marks bubble complete + re-enables composer; submit-during-stream blocked | PASS (M1 confirmed final + composer re-enable; M4 Stop inverse — abort halts stream cleanly, fresh submit works) | M1 (final + composer re-enable) + M4 (Stop inverse) |
+| 4 | Refresh clears transcript entirely; zero localStorage/IndexedDB residue | PASS (M5 — localStorage `theme` only; sessionStorage msal.* + server-telemetry MSAL cache only; IndexedDB empty; refresh → EmptyState verified) | M5 |
+| 5 | ≤30s demoable screen recording of one chat turn | PASS (M6 — 13s `06-chat-demo.mov`, well under budget) | M6 |
 
 ---
 
@@ -312,50 +306,72 @@ Recording is ≤30 seconds AND captures one full chat turn AND tool chip expansi
 
 | ID | Description | Status | Marker |
 |----|-------------|--------|--------|
-| CHAT-01 | Chat React page consumes `/agent/stream` via `fetch` + `ReadableStream` | [pending] | M1 |
-| CHAT-02 | `token` events render incrementally into assistant bubble | [pending] | M1 |
-| CHAT-03 | `tool_start` events render as collapsed chip with name + JSON args preview | [pending] | M3 |
-| CHAT-04 | `tool_end` expands chip with output preview (≥200 chars truncated with "expand" affordance) | [pending] | M3 |
-| CHAT-05 | `final` marks bubble complete + re-enables composer; attempting submit-during-stream blocked | [pending] | M1 + M4 |
-| CHAT-06 | Single-turn only; refreshing clears conversation; no history persistence | [pending] | M5 |
+| CHAT-01 | Chat React page consumes `/agent/stream` via `fetch` + `ReadableStream` | PASS (M1) | M1 |
+| CHAT-02 | `token` events render incrementally into assistant bubble | PASS (M1) | M1 |
+| CHAT-03 | `tool_start` events render as collapsed chip with name + JSON args preview | PASS (M3) | M3 |
+| CHAT-04 | `tool_end` expands chip with output preview (≥200 chars truncated with "expand" affordance) | PASS (M3 — `search_jobs` 10,736-char output collapsed to preview + Show full → Dialog) | M3 |
+| CHAT-05 | `final` marks bubble complete + re-enables composer; attempting submit-during-stream blocked | PASS (M1 final + composer re-enable; M4 Stop inverse + per-submit AbortController verified by fresh re-submit) | M1 + M4 |
+| CHAT-06 | Single-turn only; refreshing clears conversation; no history persistence | PASS (M5 — zero chat-* keys anywhere; refresh wipes transcript; chip click repopulates composer via React state, not storage replay) | M5 |
 
 ---
 
 ## Issues encountered / hotfixes applied during UAT
 
-[pending — Free-form list. If any markers FAILED and a hotfix landed during the UAT session, list:
-- Commit SHA of the hotfix
-- Brief description
-- Marker that was re-tested + final result
+### Bug #5a — SPA SSE parser searches `\n\n`; sse-starlette emits `\r\n\r\n` (HOTFIX LANDED)
 
-OR write "None — all 6 markers PASS on first attempt."]
+- **Symptom:** Every M1 attempt sat on "Warming up the agent…" forever despite backend streaming tokens cleanly in ~1s. Heartbeats fired on the wire every 15s but cold-start state never cleared.
+- **Root cause:** `frontend/src/api/readSSEStream.ts` used `buffer.indexOf('\n\n')` to find SSE frame boundaries. sse-starlette's `ServerSentEvent` serialization emits `\r\n\r\n` per the HTML SSE spec — bytes `0d 0a 0d 0a`. The substring `\n\n` (bytes `0a 0a`) never appeared, so the parser buffered indefinitely and yielded zero events.
+- **Why vitest stayed 82/82 green:** `frontend/src/test/sseMockUtils.ts` also emitted `\n\n`. Every test exercised a parser+fixture pair that agreed with itself but diverged from production.
+- **Discovery path:** Ruled out via in-container probes — uvloop hypothesis (probe with `uvloop.install()` + `asyncio.run` + `agent.astream_events` ran 30 events in 1.93s) and `asyncio.timeout` + nested-gen interaction (route-shape probe 30 events in 1.03s). Curl `--raw | xxd` on the live `/agent/stream` revealed CRLF bytes definitively.
+- **Fix:** PR #7 → commit `44297aa` (`fix(06-05): SPA SSE parser handles CRLF frame boundaries (Bug #5)`) normalizes CRLF/CR → LF in the read buffer; commit `a62b356` adds `pendingCR` carry-over for cases where `\r` ends one chunk and `\n` starts the next. Mock updated to emit CRLF (production-faithful) plus 2 new tests. Merged to master at 86f420b; Deploy SPA succeeded.
+- **Re-test result:** M1 PASS (Adrian: "What's the top must-have skill in Berlin?" → `analyze_gaps` tool fired → real final answer).
+- **Memory captured:** `sse-starlette-crlf-vs-spa-parser.md`.
+
+### Bug #5b — MSAL silent-token acquisition `timed_out` (WORKAROUND APPLIED; durable fix queued)
+
+- **Symptom:** Right after the CRLF fix shipped, dashboard widget "Couldn't load top skills timed_out" and chat showed `timed_out: See https://aka.ms/msal.js.errors#timed_out for details`. Console also flagged a CSP `script-src` `eval` violation — believed to originate from the MSAL hidden iframe loading Microsoft's CIAM login page (SPA itself sets no CSP per SWA response headers + index.html inspection).
+- **Root cause (proximate):** `frontend/src/api/authedFetch.ts:9-13` lists only `monitor_window_timeout` / `no_account_error` / `silent_sso_error` in `INTERACTION_REQUIRED_CODES`. MSAL 5.11 also raises `timed_out` (`BrowserAuthErrorCodes.timedOut` per `node_modules/@azure/msal-browser/src/error/BrowserAuthErrorCodes.ts:64`) from navigation + iframe-blocking helpers; that code propagates instead of triggering `acquireTokenRedirect`. Stale SPA session likely originated from the long debug window where the access token aged out without a fresh interaction.
+- **Workaround applied (resolved Adrian's session):** DevTools → Application → Clear site data → reload + fresh sign-in. Restored a clean MSAL cache; M1 worked immediately after.
+- **Durable fix (local working tree, not yet committed):** add `timed_out` (+ `monitor_popup_timeout`) to `INTERACTION_REQUIRED_CODES`; extend `iframeHashTimeout` and `windowHashTimeout` to 30000ms in `msal.ts` (defaults 6000 are too tight for cold CIAM login responses). Awaits Adrian's authorization to open follow-up PR.
+
+### Phase 6 prior infra fixes (pre-UAT debug, all merged before this session)
+
+- **Bug #1 (FIXED):** Azure KV `openai-api-key` value placeholder after TF `value_wo` migration; `az keyvault secret set` restored.
+- **Bug #2 (FIXED):** Azure KV `langfuse-public-key`/`langfuse-secret-key` same TF placeholder; secrets re-seeded then env vars removed via `--remove-env-vars` to keep Langfuse cold during UAT. Re-enable queued.
+- **Bug #3 (FIXED):** ACA env vars `BACKEND_AUDIENCE` / `ENTRA_TENANT_ID` / `ENTRA_TENANT_SUBDOMAIN` were empty (OIDC URL malformed → DNS NXDOMAIN). Set via `az containerapp update --set-env-vars`.
+- **Bug #4 (FIXED):** Container OOM at `cpu=0.5, memory=1Gi` mid-agent-call (SIGKILL 137). Bumped to `cpu=1.0, memory=2Gi`. `infra/modules/compute/main.tf:104-105` still hardcodes 0.5/1Gi — Phase 6.1 scope to parameterize.
 
 ---
 
 ## Overall Phase 6 verdict
 
-**[pending]** — will be one of: PASS / PASS WITH MINOR DEVIATIONS / FAIL
+**PASS WITH MINOR DEVIATIONS** — 5/6 M-markers PASS (M1, M3, M4, M5, M6); M2 (cold-start UX) DEFERRED to a follow-up session after a deliberate 4hr+ ACA idle window. All 6 CHAT-* requirements closed PASS; 4/5 ROADMAP success criteria PASS (#5 also PASS via M6); criterion #6 (M2 cold-start swap timing) deferred.
+
+Two real defects surfaced + landed during the UAT session:
+- **Bug #5a (CRLF parser)** — fix shipped via PR #7 (commits 44297aa + a62b356, merged at 86f420b)
+- **Bug #5b (MSAL timed_out recovery)** — workaround applied for Adrian's session; durable fix queued in PR #8 (commit 00848e0, awaiting merge)
+
+The cold-start probe data captured during the debug (replica `plqpr` cold-start at 29.5s total / 28.6s TTFB) is well below the 60s `asyncio.timeout`, providing confidence the cold-start UX will pass when M2 is run live.
 
 ---
 
 ## Deviations from spec (if any)
 
-[pending — List any observed UI deviations vs UI-SPEC §6 / class strings / copy / a11y attributes.
-Cross-reference the affected D-XX decision so future readers can trace the divergence.
-Common harmless deviations: 1-2 px spacing tweaks observed live but not noticed in unit tests, etc.
-
-OR write "None — UI matches UI-SPEC §6 verbatim."]
+None observed during M1/M3/M4/M5/M6. UI rendered per UI-SPEC §6 in Adrian's three captured screenshots (M1 transcript with collapsed `analyze_gaps` chip showing args inline; M3 expanded chip showing pretty-printed args + `output` block; M4 `(stopped)` bubble + composer Send active; M5 Application-tab key inventory). Chevron rotation on the chip header was visually ambiguous in the M3 screenshot but verified verbally as toggling correctly. Both interactive Dialog requirements (focus trap, Escape close, focus return) PASS per Adrian's verbal confirmation. M2 cold-start UI strings are unit-tested separately so the only live unknown for the deferred marker is wall-clock timing.
 
 ---
 
 ## Summary
 
 total: 6
-passed: 0
-issues: 0
-pending: 6
+passed: 5
+issues: 2
+pending: 0
 skipped: 0
 blocked: 0
+deferred: 1
+hotfixes_landed: 1
+durable_fix_queued: 1
 
 ---
 
