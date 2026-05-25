@@ -254,6 +254,7 @@ Then: `/gsd-verify-work 5` to formalize Phase 5 pass. Phases 6 (Chat) + 7 (Profi
 ### Roadmap Evolution
 
 - Phase 04.1 inserted after Phase 04: Phase 4 follow-ups — runbook deviation cleanup (URGENT)
+- Phase 06.1 inserted after Phase 06: Terraform value_wo lifecycle hardening — prevent KV secret re-wipe on future apply (URGENT — discovered during Phase 6 M1 UAT when migration commit 38f06eb wiped out-of-band-seeded openai-api-key)
 
 ### Todos
 

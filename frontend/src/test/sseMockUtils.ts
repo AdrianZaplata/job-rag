@@ -8,11 +8,15 @@ import type { AgentEvent } from '@/api/readSSEStream'
 
 /**
  * Produce a mock Response object whose body is a ReadableStream yielding
- * SSE-formatted bytes for the given events. Each event is serialized as:
+ * SSE-formatted bytes for the given events. Each event is serialized with
+ * CRLF line endings to match what sse-starlette emits in production:
  *
- *     event: <type>\n
- *     data: <JSON>\n
- *     \n
+ *     event: <type>\r\n
+ *     data: <JSON>\r\n
+ *     \r\n
+ *
+ * Using `\n\n` here would mask Phase 6 Bug #5 — the SPA's parser previously
+ * searched for `\n\n` and never matched the real CRLF frame boundary.
  *
  * Status 200 + Content-Type: text/event-stream so readSSEStream's !res.ok
  * guard doesn't reject.
@@ -22,7 +26,7 @@ export function mockSseResponse(events: AgentEvent[]): Response {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       for (const event of events) {
-        const frame = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+        const frame = `event: ${event.type}\r\ndata: ${JSON.stringify(event)}\r\n\r\n`
         controller.enqueue(encoder.encode(frame))
       }
       controller.close()
@@ -37,6 +41,8 @@ export function mockSseResponse(events: AgentEvent[]): Response {
 /**
  * Produce a Response that yields events but never closes — for cancellation
  * tests (Pitfall B AbortError verification). Caller must abort via signal.
+ *
+ * Uses CRLF line endings to match production (see mockSseResponse above).
  */
 export function mockSseHangingResponse(initialEvents: AgentEvent[]): Response {
   const encoder = new TextEncoder()
@@ -44,7 +50,9 @@ export function mockSseHangingResponse(initialEvents: AgentEvent[]): Response {
     start(controller) {
       for (const event of initialEvents) {
         controller.enqueue(
-          encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
+          encoder.encode(
+            `event: ${event.type}\r\ndata: ${JSON.stringify(event)}\r\n\r\n`,
+          ),
         )
       }
       // Do NOT close — caller must abort via signal

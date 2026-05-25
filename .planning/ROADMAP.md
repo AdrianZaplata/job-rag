@@ -172,6 +172,16 @@ Plans:
 - [ ] 06-05-PLAN.md — Live UAT runbook (autonomous: false): 6 M-markers against deployed SWA+ACA (happy path, cold-start, tool chip Dialog, Stop mid-stream, zero residue, ≤30s recording) → 06-UAT.md closure
 **UI hint**: yes
 
+### Phase 06.1: Terraform value_wo lifecycle hardening — prevent KV secret re-wipe on future apply (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 06.1 to break down)
+
 ### Phase 7: Profile & Resume Upload
 **Goal**: Phase 7 ships the personal-data loop when Adrian can upload a PDF or DOCX resume, see an Instructor-extracted skill diff vs his current profile in a reviewable panel, and tick/edit/save confirmed skills back to `user_profile` — with the full extract→review→save trace visible in Langfuse.
 **Depends on**: Phases 1 (`UserProfile` DB model + Langfuse backend wiring), 4 (auth'd shell for the upload UI)
