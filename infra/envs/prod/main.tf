@@ -204,6 +204,10 @@ module "compute" {
   seeded_user_id       = var.seeded_user_id
   tags                 = local.tags
 
+  # Phase 06.1 D-04 — container size (ACA cpu/memory)
+  cpu    = var.cpu
+  memory = var.memory
+
   # Phase 4 D-04 — auth-related env vars wired into the container
   backend_audience       = var.backend_audience
   entra_tenant_id        = var.entra_tenant_id

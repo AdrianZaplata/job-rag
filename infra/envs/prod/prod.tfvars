@@ -1,3 +1,21 @@
+# ─── tfvars file pyramid (Phase 06.1 D-09) ────────────────────────────────────
+# Where each kind of value belongs in the prod TF flow:
+#
+#   prod.tfvars (committed, this file)  — non-secret, deployment-stable config:
+#     image_tag, cpu, memory, ghcr_username, swa_origin, location, tags.
+#   prod.tfvars.local (gitignored)      — Adrian-specific or rotating values:
+#     home_ip, backend_audience, entra_tenant_id, entra_tenant_subdomain,
+#     api_audience.
+#   TF_VAR_* env vars (CI/local secret) — true secrets:
+#     ghcr_pat (deploy-infra.yml passes TF_VAR_ghcr_pat).
+#   Out-of-band via `az keyvault secret set` (never in TF) — runtime secrets:
+#     OPENAI_API_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY,
+#     SEEDED_USER_ENTRA_OID on rotation.
+#
+# Canonical apply command: `terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local`
+# Or use the wrapper: `bash scripts/tf-apply-prod.sh apply` (Plan 03).
+# ──────────────────────────────────────────────────────────────────────────────
+
 # Adrian's prod environment values.
 # tfvars files are committed (no secrets in literal form — secrets come from terraform.tfvars.local
 # or `-var` CLI flags or environment TF_VAR_*).
@@ -28,6 +46,13 @@ swa_origin = "https://witty-flower-065dac003.7.azurestaticapps.net"
 ghcr_username = "adrianzaplata"
 # ghcr_pat — DO NOT commit; provide via TF_VAR_ghcr_pat or terraform.tfvars.local
 image_tag = "latest"
+
+# Container size — Phase 06.1 D-04. Live revision was manually bumped 0.5→1.0 / 1Gi→2Gi
+# during Phase 06 UAT M1 (06-UAT-DEBUG-HANDOFF Bug #4 — cross-encoder OOM-kill).
+# These commits make the bump version-controlled; bare `terraform apply` produces
+# no container-size diff.
+cpu    = 1.0
+memory = "2Gi"
 
 # Budget
 budget_alert_email = "adrianzaplata@gmail.com"
