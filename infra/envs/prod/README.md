@@ -11,12 +11,56 @@
 - `terraform.tfvars.local` (gitignored) provides the only TF-managed secret: `ghcr_pat` (or use `TF_VAR_ghcr_pat`). `openai_api_key` and `langfuse_*` are NOT TF variables — they are seeded out-of-band into Key Vault after pass 1 (see "Out-of-band secret seeding" below).
 - Adrian is signed in via `az login` to the subscription that owns `jobrag-tfstate-rg`.
 
+## Apply command convention (Phase 06.1 D-05/D-06)
+
+**Every `terraform plan` / `apply` / `destroy` against this directory MUST pass BOTH var files:**
+
+```bash
+terraform <subcommand> -var-file=prod.tfvars -var-file=prod.tfvars.local
+```
+
+Or use the canonical wrapper (recommended — fails loudly if `prod.tfvars.local` is missing):
+
+```bash
+bash scripts/tf-apply-prod.sh <subcommand>          # from repo root
+bash scripts/tf-apply-prod.sh plan
+bash scripts/tf-apply-prod.sh apply
+bash scripts/tf-apply-prod.sh apply -auto-approve
+bash scripts/tf-apply-prod.sh plan -detailed-exitcode   # Phase 06.1 D-08 verification
+```
+
+**Why both files are required:** `prod.tfvars` (committed) carries non-secret, version-controlled
+config (image_tag, cpu, memory, ghcr_username, swa_origin). `prod.tfvars.local` (gitignored
+per `.gitignore:35`) carries the Phase 4 D-04 auth values (`backend_audience`, `entra_tenant_id`,
+`entra_tenant_subdomain`) plus `home_ip` and `api_audience`. Running `terraform apply -var-file=prod.tfvars`
+alone leaves the auth values at their `""` defaults in `infra/modules/compute/variables.tf`,
+which wipes the ACA container's `BACKEND_AUDIENCE` / `ENTRA_TENANT_*` env vars and silently
+breaks Entra auth (Phase 06 UAT Bug #3, `.planning/phases/06-chat/06-UAT-DEBUG-HANDOFF.md`).
+
+### Where each kind of value belongs (file pyramid — Phase 06.1 D-09)
+
+| Tier | File / mechanism | Examples |
+|------|------------------|----------|
+| Committed, deployment-stable | `prod.tfvars` (this repo) | `image_tag`, `cpu`, `memory`, `ghcr_username`, `swa_origin`, `location`, `tags` |
+| Gitignored, Adrian-specific | `prod.tfvars.local` (gitignored) | `home_ip`, `backend_audience`, `entra_tenant_id`, `entra_tenant_subdomain`, `api_audience` |
+| `TF_VAR_*` env var (CI/local secret) | `secrets.GHCR_PAT` via workflow | `ghcr_pat` |
+| Out-of-band `az keyvault secret set` (never in TF) | Key Vault, post-apply | `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `SEEDED_USER_ENTRA_OID` on rotation |
+
+### CI vs local: variable-source matrix (Phase 06.1 D-10)
+
+| Variable | Local apply | CI apply (`deploy-infra.yml`) |
+|----------|-------------|-------------------------------|
+| `home_ip` | `prod.tfvars.local` | `TF_VAR_home_ip` from `secrets.HOME_IP` |
+| `ghcr_pat` | `TF_VAR_ghcr_pat` or `prod.tfvars.local` | `TF_VAR_ghcr_pat` from `secrets.GHCR_PAT` |
+| `gha_client_id` / `tenant_id_workforce` / `use_oidc_auth` | empty (CLI auth path) | `TF_VAR_*` from `secrets.AZURE_*` |
+| `backend_audience` / `entra_tenant_id` / `entra_tenant_subdomain` | `prod.tfvars.local` (sourced from `infra/external/` outputs via `scripts/refresh-external-outputs.sh`) | **Intentionally NOT managed by CI.** Adrian sets them locally; CI applies preserve via `terraform apply`'s no-op-on-equal semantics (set once, present in state). If CI ever wipes them, the next local `bash scripts/tf-apply-prod.sh apply` restores from `prod.tfvars.local`. See `deploy-infra.yml` inline comment block (Phase 06.1 D-10). |
+
 ## Ordered runbook (W2 — explicit step ordering)
 
 The two-pass apply is sequenced per the W2 fix to make the "image not deployed yet" expectation explicit:
 
 1. **Bootstrap apply** (one-time, separate directory): `cd infra/bootstrap && terraform apply` — creates state-storage RG. (See `infra/bootstrap/README.md`.)
-2. **Prod env pass 1**: `cd infra/envs/prod && terraform init && terraform apply -var-file=prod.tfvars` — creates ACA + SWA + KV + Postgres + LAW + budget. **Expected behavior:** the Container App revision will fail to start (image tag `latest` doesn't exist in GHCR yet, AND the openai/langfuse KV secrets are still placeholder strings). This is normal at this stage.
+2. **Prod env pass 1**: `cd infra/envs/prod && terraform init && terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local` — creates ACA + SWA + KV + Postgres + LAW + budget. **Expected behavior:** the Container App revision will fail to start (image tag `latest` doesn't exist in GHCR yet, AND the openai/langfuse KV secrets are still placeholder strings). This is normal at this stage.
 3. **Out-of-band secret seeding** (Option B, one-time + on rotation): `az keyvault secret set ...` for `openai-api-key` / `langfuse-public-key` / `langfuse-secret-key`. (See "Out-of-band secret seeding" below.)
 4. **First image push**: either run `deploy-api.yml` manually via `gh workflow run deploy-api.yml --ref master`, OR push from local: `docker push ghcr.io/adrianzaplata/job-rag:latest`. (See "Image push: GHCR visibility" below for the B3 visibility step.)
 5. **Prod env pass 2** (CORS injection): `bash ../../../scripts/refresh-swa-origin.sh` — script rewrites `swa_origin` in tfvars and re-applies. The Container App revision now starts cleanly (image exists, real secrets in KV, ALLOWED_ORIGINS now includes the SWA origin).
@@ -30,7 +74,7 @@ The two-pass apply is sequenced per the W2 fix to make the "image not deployed y
 cd infra/envs/prod
 
 terraform init
-terraform plan -var-file=prod.tfvars -out=plan-pass-1.tfplan
+terraform plan -var-file=prod.tfvars -var-file=prod.tfvars.local -out=plan-pass-1.tfplan
 terraform apply plan-pass-1.tfplan
 ```
 
@@ -82,7 +126,7 @@ bash ../../../scripts/refresh-swa-origin.sh
 The script:
 1. Reads `terraform output -raw swa_default_origin`.
 2. Rewrites `prod.tfvars` to set `swa_origin = "https://<swa-default-host>"` (idempotent).
-3. Runs `terraform apply -var-file=prod.tfvars -auto-approve`.
+3. Runs `terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local -auto-approve`.
 
 Result: the Container App's `ALLOWED_ORIGINS` env var becomes `"https://<swa-default-host>,http://localhost:5173"`; the SPA app reg's `redirect_uris` includes both local + prod.
 
@@ -179,6 +223,7 @@ Per CONTEXT.md Plan-Locking Addendum A1 (Path A) and Plan 04 module READMEs:
 | SWA `api_key` flows through TF state | SWA does not yet support OIDC GA. | `sensitive = true`; rotated per below; only consumed by deploy-spa.yml; B2: synced manually, no `GH_PAT_FOR_SECRETS` in the system. |
 | `min_replicas = 0` causes cold-start latency | Free-tier vCPU-sec budget would be blown by `min_replicas = 1` (~€15-20/mo). | Phase 6 ships UX states (`connecting` / `warming` / `streaming`) per CONTEXT.md D-17. |
 | `ContainerAppSystemLogs_CL` ingests into LAW alongside Console | ACA env's `appLogsConfiguration.destination = "log-analytics"` is a binary all-or-none pipeline; the `azurerm_monitor_diagnostic_setting` on the env governs only platform events, not container logs. See 03-CONTEXT.md D-16 Amendment (Gap 12.B). | Volume is ~0.005% of the 0.15 GB/day LAW cap (~0.008 MB/day average, peak 0.067 MB). Cost gate remains the daily quota. DCR-based filtering is documented as a Deferred backlog item if compliance ever requires hard-suppression. |
+| Auth env vars (`backend_audience`, `entra_tenant_id`, `entra_tenant_subdomain`) sourced from gitignored `prod.tfvars.local` | Values come from `infra/external/` outputs (Adrian's local-only TF). Committing them is harmless (they're public-by-design per Phase 3 D-13) but the per-machine `*.tfvars.local` pattern keeps the file-tier discipline uniform. | Apply command convention (Phase 06.1 D-05/D-06) makes both var files mandatory; `scripts/tf-apply-prod.sh` enforces the policy at the wrapper layer; CI documents the matrix in `deploy-infra.yml` inline comment block (D-10). |
 
 ## Token rotation cadence
 
@@ -186,7 +231,7 @@ Per CONTEXT.md Plan-Locking Addendum A1 (Path A) and Plan 04 module READMEs:
 |-------|---------|-----------|
 | KV secret `openai-api-key` (out-of-band, Option B) | Quarterly recommended; immediately on exposure | `az keyvault secret set --vault-name $(terraform output -raw kv_name) --name openai-api-key --value "<new>"` then `az containerapp revision restart ...` so the new revision picks it up |
 | KV secret `langfuse-public-key` / `langfuse-secret-key` | When rotated in Langfuse Cloud | Same `az keyvault secret set` pattern as above |
-| `var.ghcr_pat` | 90 days (GitHub fine-grained PAT max) | Generate new PAT (`read:packages` on the `job-rag` package). Apply BOTH surfaces in parallel: (1) update `terraform.tfvars.local` and run `terraform apply -var ghcr_pat="<new>"` (rotates state + ACA registry secret); (2) `gh secret set GHCR_PAT --repo AdrianZaplata/job-rag` (CI parity, else the next `deploy-infra.yml` run fails with `ContainerAppSecretInvalid: secret(s) 'ghcr-pat' invalid` when `TF_VAR_ghcr_pat` resolves to empty string). |
+| `var.ghcr_pat` | 90 days (GitHub fine-grained PAT max) | Generate new PAT (`read:packages` on the `job-rag` package). Apply BOTH surfaces in parallel: (1) update `terraform.tfvars.local` and run `terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local -var ghcr_pat="<new>"` (rotates state + ACA registry secret); (2) `gh secret set GHCR_PAT --repo AdrianZaplata/job-rag` (CI parity, else the next `deploy-infra.yml` run fails with `ContainerAppSecretInvalid: secret(s) 'ghcr-pat' invalid` when `TF_VAR_ghcr_pat` resolves to empty string). |
 | Postgres admin password (KV: `postgres-admin-password`) | On-demand only | `terraform taint module.database.random_password.pg_admin && terraform apply` |
 | SWA api_key (KV: N/A — direct GH secret) | **180 days** (Microsoft default) | Run the B2 manual sync command above (`terraform output -raw swa_api_key \| gh secret set ...`) from local. NO automated rotation in workflow per B2. |
 | GHA SP federated credentials | Never (OIDC = no long-lived secret to rotate) | n/a |
@@ -199,7 +244,7 @@ Adrian's home IP rotates with ISP DHCP. Refresh procedure documented in `infra/m
 
 ## Drift detection
 
-Run `terraform plan -var-file=prod.tfvars` periodically. A non-empty plan against an unchanged repo means someone portal-edited a resource, OR the live image diverged from `var.image_tag` (expected per B5 — terraform's view of the image is intentionally stale after first deploy-api.yml run).
+Run `terraform plan -var-file=prod.tfvars -var-file=prod.tfvars.local` periodically. A non-empty plan against an unchanged repo means someone portal-edited a resource, OR the live image diverged from `var.image_tag` (expected per B5 — terraform's view of the image is intentionally stale after first deploy-api.yml run).
 
 ---
 
