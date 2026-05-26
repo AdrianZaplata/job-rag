@@ -23,6 +23,15 @@ if [ -z "$SWA_HOST" ]; then
 fi
 SWA_ORIGIN="https://${SWA_HOST}"
 
+# Phase 06.1 D-07 — pass 2 (CORS refresh) MUST also load prod.tfvars.local, or it
+# silently re-wipes BACKEND_AUDIENCE / ENTRA_TENANT_* env vars (Bug #3). Guard
+# BEFORE the sed rewrite so we never leave prod.tfvars half-mutated to a stale
+# SWA origin with no apply to settle it (WR-02).
+if [ ! -f prod.tfvars.local ]; then
+  echo "FATAL: prod.tfvars.local missing — see infra/envs/prod/README.md 'Apply command convention'" >&2
+  exit 2
+fi
+
 # Re-write prod.tfvars in place
 if grep -q '^swa_origin' prod.tfvars; then
   sed -i.bak "s|^swa_origin.*|swa_origin = \"$SWA_ORIGIN\"|" prod.tfvars
@@ -31,4 +40,4 @@ else
   echo "swa_origin = \"$SWA_ORIGIN\"" >> prod.tfvars
 fi
 
-terraform apply -var-file=prod.tfvars -auto-approve
+terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local -auto-approve

@@ -98,3 +98,30 @@ variable "entra_tenant_subdomain" {
   description = "Phase 4 D-04 — Entra External ID subdomain (e.g. 'jobrag' for jobrag.ciamlogin.com). Wired as ENTRA_TENANT_SUBDOMAIN plain env. Public-by-design."
   default     = ""
 }
+
+# ─── Phase 06.1 D-03 — ACA container size (parameterized) ─────────────────────
+# Hardcoded 0.5 / "1Gi" reverted Adrian's manual `az containerapp update` bump
+# applied during Phase 06 UAT M1 (06-UAT-DEBUG-HANDOFF Bug #4) — agent OOM-killed
+# at 1Gi while preloading the cross-encoder + serving an astream_events request.
+# Defaults (1.0 / 2Gi) match the live revision; bare `terraform apply` produces
+# no container-size diff.
+
+variable "cpu" {
+  type        = number
+  description = "Container vCPU allocation. Azure Consumption profile requires cpu:memory ratio of 1:2 (e.g., 0.25/0.5Gi, 0.5/1Gi, 0.75/1.5Gi, 1.0/2Gi). Bumped from 0.5 to 1.0 during Phase 06 UAT M1 (06-UAT-DEBUG-HANDOFF Bug #4) — agent OOM-killed at 1Gi while preloading the cross-encoder + serving an astream_events request."
+  default     = 1.0
+  validation {
+    condition     = contains([0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0], var.cpu)
+    error_message = "cpu must be one of: 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0 (Azure Consumption profile)."
+  }
+}
+
+variable "memory" {
+  type        = string
+  description = "Container memory allocation, must match cpu at 1:2 ratio. E.g., '2Gi' for cpu=1.0. See cpu variable description."
+  default     = "2Gi"
+  validation {
+    condition     = contains(["0.5Gi", "1Gi", "1.5Gi", "2Gi", "2.5Gi", "3Gi", "3.5Gi", "4Gi"], var.memory)
+    error_message = "memory must be one of: 0.5Gi, 1Gi, 1.5Gi, 2Gi, 2.5Gi, 3Gi, 3.5Gi, 4Gi (Azure Consumption profile)."
+  }
+}

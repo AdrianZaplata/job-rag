@@ -144,7 +144,7 @@ resource "azurerm_key_vault_secret" "openai_api_key" {
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, value_wo, value_wo_version]
   }
 }
 
@@ -157,7 +157,7 @@ resource "azurerm_key_vault_secret" "langfuse_public_key" {
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, value_wo, value_wo_version]
   }
 }
 
@@ -170,7 +170,7 @@ resource "azurerm_key_vault_secret" "langfuse_secret_key" {
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, value_wo, value_wo_version]
   }
 }
 
@@ -181,6 +181,10 @@ resource "azurerm_key_vault_secret" "seeded_user_entra_oid" {
   key_vault_id     = module.kv.kv_id
   content_type     = "text/plain"
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value, value_wo, value_wo_version]
+  }
 }
 
 # ─── Compute (Container App) ──────────────────────────────────────────────────
@@ -199,6 +203,10 @@ module "compute" {
   allowed_origins      = local.allowed_origins_csv
   seeded_user_id       = var.seeded_user_id
   tags                 = local.tags
+
+  # Phase 06.1 D-04 — container size (ACA cpu/memory)
+  cpu    = var.cpu
+  memory = var.memory
 
   # Phase 4 D-04 — auth-related env vars wired into the container
   backend_audience       = var.backend_audience

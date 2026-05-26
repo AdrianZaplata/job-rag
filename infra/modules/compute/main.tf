@@ -91,6 +91,25 @@ resource "azurerm_container_app" "api" {
       template[0].container[0].image,
       template[0].revision_suffix,
     ]
+    # WR-03: enforce the Azure Consumption profile's cpu:memory 1:2 ratio at
+    # plan time. The per-variable `contains()` validation lists in
+    # variables.tf check each value in isolation; this precondition catches
+    # the cross-variable foot-gun (e.g., cpu=1.0 + memory="0.5Gi" would pass
+    # both per-variable validators but fail with an opaque ContainerAppInvalid
+    # 4xx from ARM at apply time).
+    precondition {
+      condition = (
+        (var.cpu == 0.25 && var.memory == "0.5Gi") ||
+        (var.cpu == 0.5 && var.memory == "1Gi") ||
+        (var.cpu == 0.75 && var.memory == "1.5Gi") ||
+        (var.cpu == 1.0 && var.memory == "2Gi") ||
+        (var.cpu == 1.25 && var.memory == "2.5Gi") ||
+        (var.cpu == 1.5 && var.memory == "3Gi") ||
+        (var.cpu == 1.75 && var.memory == "3.5Gi") ||
+        (var.cpu == 2.0 && var.memory == "4Gi")
+      )
+      error_message = "Azure Consumption profile requires cpu:memory 1:2 ratio. Got cpu=${var.cpu}, memory=${var.memory}. Valid pairs: 0.25/0.5Gi, 0.5/1Gi, 0.75/1.5Gi, 1.0/2Gi, 1.25/2.5Gi, 1.5/3Gi, 1.75/3.5Gi, 2.0/4Gi."
+    }
   }
 
   template {
@@ -101,8 +120,8 @@ resource "azurerm_container_app" "api" {
     container {
       name   = "api"
       image  = "ghcr.io/${var.ghcr_username}/job-rag:${var.image_tag}"
-      cpu    = 0.5
-      memory = "1Gi"
+      cpu    = var.cpu
+      memory = var.memory
 
       # KV-backed secrets routed to env vars by name reference
       env {
