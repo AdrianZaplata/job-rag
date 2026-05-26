@@ -49,6 +49,56 @@ jobs:
           TF_VAR_tenant_id_workforce: ${{ secrets.AZURE_TENANT_ID }}
           TF_VAR_use_oidc_auth:       "true"
 
+      # ─── Phase 06.1 D-10 — auth vars CI-vs-local policy ─────────────────────
+      # The Phase 4 D-04 auth vars (backend_audience, entra_tenant_id,
+      # entra_tenant_subdomain) are INTENTIONALLY NOT managed by CI.
+      #
+      # Why:
+      #   - They are sourced from infra/external/ Terraform outputs, which lives
+      #     in Adrian's local-only TF flow (per Phase 4 D-02 — local state only,
+      #     no remote backend). CI cannot run `terraform output -raw` against a
+      #     state file it does not have access to.
+      #   - Promoting them to GitHub Actions secrets would invert Phase 3 D-13
+      #     (out-of-band-seeded values stay out of GH secrets) for no security
+      #     gain — these values are public-by-design (visible in JWT claims) but
+      #     the local-file convention is uniform across the Phase 4 D-04 set.
+      #   - The values default to "" in infra/envs/prod/variables.tf, so an
+      #     unprotected CI apply would silently wipe the ACA env vars and break
+      #     Entra auth (Phase 06 UAT Bug #3).
+      #
+      # Protection: the step below asserts the live ACA container template still
+      # has non-empty BACKEND_AUDIENCE / ENTRA_TENANT_ID / ENTRA_TENANT_SUBDOMAIN
+      # env vars before running `terraform apply`. If any is empty, CI fails
+      # closed — Adrian must run `bash scripts/tf-apply-prod.sh apply` locally
+      # first (which loads prod.tfvars.local) to seed the values.
+      #
+      # Reference: infra/envs/prod/README.md "CI vs local: variable-source matrix"
+      - name: Pre-apply guard — verify auth env vars present on live ACA
+        run: |
+          set -euo pipefail
+          ENV_JSON=$(az containerapp show \
+            --name jobrag-prod-aca \
+            --resource-group jobrag-prod-rg \
+            --query 'properties.template.containers[0].env' \
+            -o json 2>/dev/null || echo "[]")
+
+          # If the container app does not exist yet (first-ever apply), skip the
+          # guard — the apply itself will create it with the var values from the
+          # local-apply-bootstrap pattern.
+          if [ "$ENV_JSON" = "[]" ]; then
+            echo "::notice::Container app jobrag-prod-aca not found — skipping pre-apply guard (first-apply path)."
+            exit 0
+          fi
+
+          for VAR in BACKEND_AUDIENCE ENTRA_TENANT_ID ENTRA_TENANT_SUBDOMAIN; do
+            VAL=$(echo "$ENV_JSON" | jq -r ".[] | select(.name==\"$VAR\") | .value // empty")
+            if [ -z "$VAL" ]; then
+              echo "::error::Live ACA $VAR is empty. Refusing to apply — CI would re-wipe it. Run 'bash scripts/tf-apply-prod.sh apply' locally first to seed from prod.tfvars.local. See infra/envs/prod/README.md 'CI vs local: variable-source matrix' (Phase 06.1 D-10)." >&2
+              exit 1
+            fi
+            echo "::notice::ACA $VAR present (length ${#VAL})"
+          done
+
       - name: Terraform Apply
         run: terraform apply -input=false -auto-approve -var-file=prod.tfvars
         # Option B: openai/langfuse secret VALUES are seeded out-of-band via
