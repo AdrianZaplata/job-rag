@@ -105,8 +105,8 @@ After seeding, force a Container App revision restart so the new env var values 
 
 ```bash
 RG=$(terraform output -raw resource_group_name 2>/dev/null || echo "jobrag-prod-rg")
-az containerapp revision restart --name jobrag-prod-aca --resource-group "$RG" \
-  --revision "$(az containerapp revision list --name jobrag-prod-aca --resource-group "$RG" --query '[0].name' -o tsv)"
+az containerapp revision restart --name jobrag-prod-api --resource-group "$RG" \
+  --revision "$(az containerapp revision list --name jobrag-prod-api --resource-group "$RG" --query '[0].name' -o tsv)"
 ```
 
 Verify (does NOT print the secret — only its `versionless_id`):
