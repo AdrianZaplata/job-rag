@@ -77,7 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           ENV_JSON=$(az containerapp show \
-            --name jobrag-prod-aca \
+            --name jobrag-prod-api \
             --resource-group jobrag-prod-rg \
             --query 'properties.template.containers[0].env' \
             -o json 2>/dev/null || echo "[]")
@@ -86,7 +86,7 @@ jobs:
           # guard — the apply itself will create it with the var values from the
           # local-apply-bootstrap pattern.
           if [ "$ENV_JSON" = "[]" ]; then
-            echo "::notice::Container app jobrag-prod-aca not found — skipping pre-apply guard (first-apply path)."
+            echo "::notice::Container app jobrag-prod-api not found — skipping pre-apply guard (first-apply path)."
             exit 0
           fi
 
