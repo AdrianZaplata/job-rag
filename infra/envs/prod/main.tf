@@ -144,7 +144,7 @@ resource "azurerm_key_vault_secret" "openai_api_key" {
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, value_wo, value_wo_version]
   }
 }
 
@@ -157,7 +157,7 @@ resource "azurerm_key_vault_secret" "langfuse_public_key" {
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, value_wo, value_wo_version]
   }
 }
 
@@ -170,7 +170,7 @@ resource "azurerm_key_vault_secret" "langfuse_secret_key" {
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
 
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, value_wo, value_wo_version]
   }
 }
 
@@ -181,6 +181,10 @@ resource "azurerm_key_vault_secret" "seeded_user_entra_oid" {
   key_vault_id     = module.kv.kv_id
   content_type     = "text/plain"
   depends_on       = [azurerm_role_assignment.deployer_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value, value_wo, value_wo_version]
+  }
 }
 
 # ─── Compute (Container App) ──────────────────────────────────────────────────
