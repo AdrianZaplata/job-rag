@@ -101,8 +101,8 @@ resource "azurerm_container_app" "api" {
     container {
       name   = "api"
       image  = "ghcr.io/${var.ghcr_username}/job-rag:${var.image_tag}"
-      cpu    = 0.5
-      memory = "1Gi"
+      cpu    = var.cpu
+      memory = var.memory
 
       # KV-backed secrets routed to env vars by name reference
       env {
