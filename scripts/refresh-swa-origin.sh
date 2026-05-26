@@ -31,4 +31,11 @@ else
   echo "swa_origin = \"$SWA_ORIGIN\"" >> prod.tfvars
 fi
 
-terraform apply -var-file=prod.tfvars -auto-approve
+# Phase 06.1 D-07 — pass 2 (CORS refresh) MUST also load prod.tfvars.local, or it
+# silently re-wipes BACKEND_AUDIENCE / ENTRA_TENANT_* env vars (Bug #3). Guard here:
+if [ ! -f prod.tfvars.local ]; then
+  echo "FATAL: prod.tfvars.local missing — see infra/envs/prod/README.md 'Apply command convention'" >&2
+  exit 2
+fi
+
+terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local -auto-approve
