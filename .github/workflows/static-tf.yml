@@ -5,7 +5,9 @@ on:
     branches: [main, master]
     paths:
       - 'infra/**'
+      - 'scripts/**'
       - '.github/workflows/static-tf.yml'
+      - '.github/workflows/deploy-infra.yml'
 
 jobs:
   static-tf:
@@ -62,3 +64,156 @@ jobs:
           if [ -f infra/bootstrap/main.tf ]; then
             cd infra/bootstrap && terraform init -backend=false && terraform validate
           fi
+
+      # ─── Phase 06.1 regression guards ────────────────────────────────────────
+      # Static guards that prevent silent regression of the three Phase 06 UAT
+      # infra fixes captured in .planning/phases/06.1-.../06.1-VERIFICATION.md:
+      #   G-01 — KV value/value_wo/value_wo_version ignore_changes on all 4 secrets
+      #   G-02 — ACA cpu/memory parameterized (no hardcoded 0.5/1Gi); prod.tfvars
+      #          commits cpu=1.0/memory="2Gi"
+      #   G-03 — scripts/tf-apply-prod.sh behavioral test (exit codes, argv shape)
+      #   G-04 — scripts/refresh-swa-origin.sh still passes prod.tfvars.local
+      #          and guards its presence
+      #   G-05 — infra/envs/prod/README.md keeps ≥6 dual-var-file invocations
+      #   G-06 — deploy-infra.yml keeps the pre-apply auth-env-var guard
+      #
+      # See .planning/phases/06.1-terraform-value-wo-lifecycle-hardening-prevent-kv-secret-re-/
+      # for the canonical phase scope.
+
+      - name: G-01 — KV value_wo lifecycle hardening
+        run: |
+          set -euo pipefail
+          MAIN_TF="infra/envs/prod/main.tf"
+          COUNT=$(grep -c 'ignore_changes = \[value, value_wo, value_wo_version\]' "$MAIN_TF" || true)
+          if [ "$COUNT" -ne 4 ]; then
+            echo "::error::Expected exactly 4 'ignore_changes = [value, value_wo, value_wo_version]' blocks in $MAIN_TF (one per out-of-band-seeded KV secret), found $COUNT. Phase 06.1 D-01/D-02 — see .planning/phases/06.1-.../06.1-01-PLAN.md." >&2
+            exit 1
+          fi
+          echo "::notice::Found $COUNT value_wo lifecycle blocks (expected 4)."
+
+          # Reject reappearance of the single-attribute legacy form INSIDE a
+          # KV secret resource block. Comments / prose lines that mention
+          # `[value]` are allowed (the file currently has one such comment at
+          # main.tf:135). We slice each `azurerm_key_vault_secret` block out
+          # via awk and grep INSIDE the block only.
+          REGRESSED=$(awk '
+            /^resource "azurerm_key_vault_secret"/ {in_block=1}
+            in_block {print}
+            in_block && /^}/ {in_block=0; print "---END---"}
+          ' "$MAIN_TF" | grep -cE 'ignore_changes[[:space:]]*=[[:space:]]*\[value\][^,]' || true)
+          if [ "$REGRESSED" -gt 0 ]; then
+            echo "::error::Single-attribute 'ignore_changes = [value]' reappeared inside an azurerm_key_vault_secret block in $MAIN_TF. That form does NOT protect value_wo / value_wo_version and re-opens the Phase 06 UAT KV-wipe bug. Use [value, value_wo, value_wo_version] instead. (Phase 06.1 D-01/D-02.)" >&2
+            exit 1
+          fi
+          echo "::notice::No single-attribute [value] ignore lists found inside KV secret resources."
+
+      - name: G-02 — ACA cpu/memory parameterization
+        run: |
+          set -euo pipefail
+          COMPUTE_TF="infra/modules/compute/main.tf"
+          TFVARS="infra/envs/prod/prod.tfvars"
+
+          # Reject reintroduction of the hardcoded literals at the container block.
+          # Allow the literals to appear in the precondition expression (which
+          # enumerates valid cpu/memory pairs) — the container resource itself
+          # must use var.cpu / var.memory.
+          if grep -nE '^[[:space:]]*cpu[[:space:]]+=[[:space:]]+0\.5[[:space:]]*$' "$COMPUTE_TF"; then
+            echo "::error::Hardcoded 'cpu = 0.5' literal reintroduced in $COMPUTE_TF container resource. Phase 06.1 D-03 — must use var.cpu." >&2
+            exit 1
+          fi
+          if grep -nE '^[[:space:]]*memory[[:space:]]+=[[:space:]]+"1Gi"[[:space:]]*$' "$COMPUTE_TF"; then
+            echo "::error::Hardcoded 'memory = \"1Gi\"' literal reintroduced in $COMPUTE_TF container resource. Phase 06.1 D-03 — must use var.memory." >&2
+            exit 1
+          fi
+
+          # Confirm the variable references are still wired through.
+          if ! grep -qE '^[[:space:]]*cpu[[:space:]]+=[[:space:]]+var\.cpu' "$COMPUTE_TF"; then
+            echo "::error::Missing 'cpu = var.cpu' in $COMPUTE_TF container resource (Phase 06.1 D-03)." >&2
+            exit 1
+          fi
+          if ! grep -qE '^[[:space:]]*memory[[:space:]]+=[[:space:]]+var\.memory' "$COMPUTE_TF"; then
+            echo "::error::Missing 'memory = var.memory' in $COMPUTE_TF container resource (Phase 06.1 D-03)." >&2
+            exit 1
+          fi
+
+          # Committed prod size must match the live revision (1.0/2Gi).
+          if ! grep -qE '^cpu[[:space:]]*=[[:space:]]*1\.0[[:space:]]*$' "$TFVARS"; then
+            echo "::error::$TFVARS missing 'cpu = 1.0' (Phase 06.1 D-04). The committed size MUST match the live ACA revision or terraform apply will diff." >&2
+            exit 1
+          fi
+          if ! grep -qE '^memory[[:space:]]*=[[:space:]]*"2Gi"[[:space:]]*$' "$TFVARS"; then
+            echo "::error::$TFVARS missing 'memory = \"2Gi\"' (Phase 06.1 D-04)." >&2
+            exit 1
+          fi
+          echo "::notice::ACA cpu/memory parameterization intact (var.cpu/var.memory wired, prod.tfvars commits 1.0/2Gi)."
+
+      - name: G-03 — tf-apply-prod.sh behavioral test
+        run: |
+          set -euo pipefail
+          bash scripts/tests/test-tf-apply-prod.sh
+
+      - name: G-04 — refresh-swa-origin.sh dual-var-file + guard
+        run: |
+          set -euo pipefail
+          SCRIPT="scripts/refresh-swa-origin.sh"
+          if ! grep -q -- '-var-file=prod.tfvars.local' "$SCRIPT"; then
+            echo "::error::$SCRIPT no longer passes -var-file=prod.tfvars.local on its internal terraform apply. Pass-2 CORS refresh would silently re-wipe the BACKEND_AUDIENCE / ENTRA_TENANT_* env vars (Phase 06 UAT Bug #3). Phase 06.1 D-07." >&2
+            exit 1
+          fi
+          # The presence guard for prod.tfvars.local MUST be present BEFORE the apply.
+          # Accept either `[ ! -f prod.tfvars.local ]` or `[[ ! -f prod.tfvars.local ]]`.
+          if ! grep -qE '\[\[? +! +-f +prod\.tfvars\.local +\]?\]' "$SCRIPT"; then
+            echo "::error::$SCRIPT missing the inline 'prod.tfvars.local' existence guard before terraform apply (Phase 06.1 D-07 / WR-02 mitigation)." >&2
+            exit 1
+          fi
+          echo "::notice::refresh-swa-origin.sh passes dual var-files and guards prod.tfvars.local presence."
+
+      - name: G-05 — README dual-var-file runbook discipline
+        run: |
+          set -euo pipefail
+          README="infra/envs/prod/README.md"
+          COUNT=$(grep -c -- '-var-file=prod.tfvars -var-file=prod.tfvars.local' "$README" || true)
+          if [ "$COUNT" -lt 6 ]; then
+            echo "::error::$README must contain ≥6 'terraform <cmd> -var-file=prod.tfvars -var-file=prod.tfvars.local' invocations (Phase 06.1 D-06 runbook discipline). Found $COUNT." >&2
+            exit 1
+          fi
+          echo "::notice::Found $COUNT dual-var-file invocations in README (≥6 required)."
+
+          # Reject any operational `terraform apply -var-file=prod.tfvars`
+          # instruction line that lacks the trailing `-var-file=prod.tfvars.local`
+          # (reintroduces Phase 06 UAT Bug #3).
+          #
+          # Allow-list, in priority order:
+          #   1. The canonical dual-var-file form ("...prod.tfvars -var-file=prod.tfvars.local").
+          #   2. Inline-code references to the antipattern itself, e.g. the
+          #      rationale paragraph that says
+          #          Running `terraform apply -var-file=prod.tfvars` alone leaves ...
+          #      Those lines close the inline-code span with a backtick
+          #      immediately after `prod.tfvars`. Operational instructions
+          #      never have a backtick at that position (they either continue
+          #      the command with more flags or terminate at end-of-line).
+          OFFENDERS=$(grep -nE 'terraform[[:space:]]+(plan|apply|destroy)[[:space:]]+-var-file=prod\.tfvars([^.`]|$)' "$README" \
+            | grep -vE -- '-var-file=prod\.tfvars[[:space:]]+-var-file=prod\.tfvars\.local' \
+            || true)
+          if [ -n "$OFFENDERS" ]; then
+            echo "::error::$README contains 'terraform apply -var-file=prod.tfvars' instructions WITHOUT the trailing -var-file=prod.tfvars.local. Phase 06.1 D-06 forbids this. Offending lines:" >&2
+            echo "$OFFENDERS" >&2
+            exit 1
+          fi
+          echo "::notice::No single-var-file terraform invocations found in README runbook."
+
+      - name: G-06 — deploy-infra.yml pre-apply auth-var guard present
+        run: |
+          set -euo pipefail
+          WF=".github/workflows/deploy-infra.yml"
+          for TOKEN in BACKEND_AUDIENCE ENTRA_TENANT_ID ENTRA_TENANT_SUBDOMAIN; do
+            if ! grep -q "$TOKEN" "$WF"; then
+              echo "::error::$WF no longer references $TOKEN — the Phase 06.1 D-10 pre-apply guard appears removed or weakened." >&2
+              exit 1
+            fi
+          done
+          if ! grep -qE 'Refusing to apply' "$WF"; then
+            echo "::error::$WF missing the 'Refusing to apply' guard marker. The pre-apply state-inspection step that fails closed on empty auth env vars (Phase 06.1 D-10 Path A) appears removed." >&2
+            exit 1
+          fi
+          echo "::notice::deploy-infra.yml retains the BACKEND_AUDIENCE / ENTRA_TENANT_* pre-apply guard."
