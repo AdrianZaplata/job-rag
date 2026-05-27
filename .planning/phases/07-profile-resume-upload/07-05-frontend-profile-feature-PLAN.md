@@ -60,7 +60,7 @@ must_haves:
       pattern: "useResumeUpload"
     - from: "frontend/src/api/profile.ts"
       to: "authedFetch"
-      via: "POST FormData / PATCH JSON"
+      via: "GET / POST FormData / PATCH JSON against /profile* (all backed by Plan 04)"
       pattern: "authedFetch.*profile"
     - from: "useResumeUpload save mutation"
       to: "queryClient.invalidateQueries"
@@ -71,7 +71,10 @@ must_haves:
 <objective>
 Ship the Phase 7 frontend feature folder: 6 source files + 5 vitest+RTL tests under `frontend/src/components/profile/`, fill the `frontend/src/api/profile.ts` stub with three typed service functions, and replace the `PhasePlaceholder` in `frontend/src/routes/Profile.tsx` with the real two-state page. This closes PROF-05 (review panel UI) and the frontend half of PROF-06 (save flow + dashboard cache invalidation).
 
-Purpose: After Plan 04 lands the backend + OpenAPI snapshot, the frontend can codegen against `ResumeUploadResponse`, `UserProfileUpdate`, and `SkillDiffItem` types. The feature folder mirrors Phase 5 (`components/dashboard/`) and Phase 6 (`components/chat/`) — one feature-owner hook + one page composition + atomic chip primitives + read-only view + uploader + review panel. The status-pill review panel (D-24) + inline-edit on added chips (D-26) + Langfuse-correlated save (D-29 `extraction_id`) together embody the "inspectable AI extraction" portfolio anchor from PROJECT.md Key Decisions.
+Purpose: After Plan 04 lands the backend (POST /profile/upload + PATCH /profile + GET /profile) + OpenAPI snapshot, the frontend can codegen against `ResumeUploadResponse`, `UserProfileUpdate`, `SkillDiffItem`, and `UserSkillProfile` types AND consume the now-existing GET /profile endpoint via `getProfile()`. The feature folder mirrors Phase 5 (`components/dashboard/`) and Phase 6 (`components/chat/`) — one feature-owner hook + one page composition + atomic chip primitives + read-only view + uploader + review panel. The status-pill review panel (D-24) + inline-edit on added chips (D-26) + Langfuse-correlated save (D-29 `extraction_id`) together embody the "inspectable AI extraction" portfolio anchor from PROJECT.md Key Decisions.
+
+**Scope discipline (CHECKER-FIX-1):** This plan is FRONTEND-ONLY. All backend routes (POST /profile/upload, PATCH /profile, GET /profile), the OpenAPI snapshot, and `tests/test_api.py` are already shipped by Plan 04 (Task 3 added GET /profile + the test_api.py append; Task 4 regenerated the snapshot). This plan only CONSUMES those artifacts via codegen types + `getProfile()` HTTP call. `files_modified` lists frontend files exclusively.
+
 Output: 13 frontend files + Profile.tsx rewrite.
 </objective>
 
@@ -110,6 +113,11 @@ Codegen types (from Plan 04 OpenAPI regen — `frontend/src/api/types.ts`):
         // { skills, target_roles?, preferred_locations?, min_salary_eur?, remote_preference?, extraction_id? }
     type UserSkillProfile = components['schemas']['UserSkillProfile']
         // { skills, target_roles, preferred_locations, min_salary, remote_preference }
+
+Backend routes shipped by Plan 04 — this plan ONLY consumes them:
+- `GET /profile` → returns `UserSkillProfile` (Plan 04 Task 3 Step B)
+- `POST /profile/upload` → returns `ResumeUploadResponse` (Plan 04 Task 2)
+- `PATCH /profile` → returns `UserSkillProfile` (Plan 04 Task 3 Step A)
 
 Existing primitives (no new shadcn installs needed):
 - `frontend/src/components/ui/{card,button,badge,input,skeleton,alert,sonner}.tsx`
@@ -174,7 +182,7 @@ Save payload computation (D-21):
     - frontend/src/api/profile.ts (existing stub — confirm shape)
     - frontend/src/api/jobs.ts (analog: typed service module pattern — lines 1-67)
     - frontend/src/api/authedFetch.ts (confirms FormData and JSON body support)
-    - frontend/src/api/types.ts (post-Plan-04 regen — verify ResumeUploadResponse / UserProfileUpdate / SkillDiffItem exist)
+    - frontend/src/api/types.ts (post-Plan-04 regen — verify ResumeUploadResponse / UserProfileUpdate / SkillDiffItem / UserSkillProfile exist AND GET /profile path is in the schema)
     - frontend/src/components/dashboard/useDashboardFilters.ts (re-export pattern lines 13-26)
     - frontend/src/components/dashboard/useDashboardFilters.test.tsx (existing hook test analog)
     - frontend/src/components/chat/useChatStream.ts (state-owner hook pattern lines 127-280; cleanup-on-unmount)
@@ -184,7 +192,9 @@ Save payload computation (D-21):
     - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §11 (useResumeUpload state machine lines 470-505)
   </read_first>
   <action>
-**Step A — Fill `frontend/src/api/profile.ts`** per PATTERNS §25:
+**Step A — Fill `frontend/src/api/profile.ts`** per PATTERNS §25. This plan ONLY consumes endpoints already shipped by Plan 04. The GET /profile, POST /profile/upload, and PATCH /profile handlers all exist in `src/job_rag/api/routes.py` and are reflected in the regenerated `frontend/src/api/types.ts`. No backend changes, no OpenAPI regen, no test_api.py append in this plan — that work is done.
+
+Module body:
 
     import { authedFetch } from '@/api/authedFetch'
     import type { components } from '@/api/types'
@@ -234,24 +244,7 @@ Save payload computation (D-21):
 
 NOTE: do NOT manually set Content-Type for the FormData POST — browser sets `multipart/form-data; boundary=...` automatically.
 
-Backend `GET /profile` was not explicitly added by Plan 04 — it's not in the route list. Confirm whether the existing route surface offers a profile-read endpoint. If NOT, the planner-discretion choice is:
-- Option A (RECOMMENDED): Compose `getProfile` from `loadProfile` data already available via dashboard's `cv-vs-market` endpoint (it embeds the current profile). For Phase 7, the simplest path is to ADD a `GET /profile` handler in routes.py at the start of this task — return `await load_profile(session, user_id=user_id)`. This is a 5-line addition. If you take this path, also regenerate OpenAPI snapshot + types.ts in the same commit and append a test in `tests/test_api.py` confirming GET /profile returns 200 + UserSkillProfile shape.
-- Option B: Read profile from `/dashboard/cv-vs-market` response's nested `profile` field if present. Verify via `grep "profile" frontend/src/api/jobs.ts` whether the dashboard response already exposes profile shape.
-
-Default to Option A (simpler, more direct). Add the GET handler:
-
-    @router.get(
-        "/profile",
-        dependencies=[Depends(require_api_key), Depends(standard_limit)],
-        response_model=UserSkillProfile,
-    )
-    async def get_profile(
-        session: Session,
-        user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
-    ) -> UserSkillProfile:
-        return await load_profile(session, user_id=user_id)
-
-If you add this, regen the OpenAPI snapshot at the end of this task.
+If `frontend/src/api/types.ts` does NOT contain a `/profile` path entry or the GET method on it, that indicates a Plan 04 regression — STOP and surface the gap before continuing. Plan 04 Task 4 Step B is responsible for committing the regenerated snapshot + types.ts including the GET /profile endpoint; this plan ASSUMES that work landed cleanly.
 
 **Step B — Create `frontend/src/components/profile/types.ts`** per PATTERNS §22:
 
@@ -388,15 +381,16 @@ Run:
   </verify>
   <acceptance_criteria>
     - `grep -E "export.*(uploadResume|saveProfile)" frontend/src/api/profile.ts` returns the export lines (VALIDATION 07-05-03)
+    - `grep -E "export.*getProfile" frontend/src/api/profile.ts` returns the getProfile export line
     - `frontend/src/components/profile/types.ts` exports `DiffItemState`, `ReviewState`, codegen re-exports
     - `frontend/src/components/profile/useResumeUpload.ts` exports `useResumeUpload`
     - `cd frontend && npm test -- --run useResumeUpload` exits 0 (VALIDATION 07-05-09)
     - `cd frontend && npm run typecheck` exits 0 (VALIDATION 07-05-10)
   </acceptance_criteria>
   <done>
-    - api/profile.ts filled with 3 typed service functions
+    - api/profile.ts filled with 3 typed service functions (getProfile + uploadResume + saveProfile)
     - types.ts + useResumeUpload.ts + useResumeUpload.test.tsx committed
-    - If GET /profile was added (Option A): routes.py update + OpenAPI snapshot regen + types.ts regen + test_api.py append committed in the same logical change
+    - Zero backend changes in this task — purely consumes Plan 04's shipped endpoints
   </done>
 </task>
 
@@ -415,7 +409,7 @@ Run:
     - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §10 (chip UX + inline edit lines 421-466)
   </read_first>
   <action>
-**Step A — `frontend/src/components/profile/ProfileView.tsx`** (read-only current skills surface per PATTERNS §17):
+**Step A — `frontend/src/components/profile/ProfileView.tsx`** (read-only current skills surface per PATTERNS §17). Consumes the now-existing GET /profile endpoint via `getProfile()` (shipped by Plan 04 Task 3):
 
     import { useQuery } from '@tanstack/react-query'
     import { AlertCircle } from 'lucide-react'
@@ -751,10 +745,10 @@ test "$(ls frontend/src/components/profile/*.ts frontend/src/components/profile/
 # Static — PhasePlaceholder removed
 ! grep PhasePlaceholder frontend/src/routes/Profile.tsx
 
-# Static — service exports
-grep -E "export.*(uploadResume|saveProfile)" frontend/src/api/profile.ts
+# Static — service exports (all 3: getProfile, uploadResume, saveProfile)
+grep -E "export.*(uploadResume|saveProfile|getProfile)" frontend/src/api/profile.ts
 
-# Static — OpenAPI snapshot up-to-date (from Plan 04)
+# Static — OpenAPI snapshot up-to-date (from Plan 04, NOT regenerated here)
 grep -E '"ResumeUploadResponse"|"SkillDiffItem"' frontend/openapi.snapshot.json
 
 # Type + tests
@@ -764,7 +758,7 @@ cd frontend && npm test -- --run
 # Production build
 cd frontend && npm run build
 
-# Full backend suite still green (regression)
+# Full backend suite still green (regression — Plan 04's backend untouched here)
 uv run pytest tests/ -x
 ```
 
@@ -777,13 +771,14 @@ All commands must exit 0.
 - Visual contract matches UI-SPEC.md (D-24 status pill colors, D-25 default tick states, D-31 cold-start stepped copy)
 - No regression in Phase 4/5/6 frontend tests
 - All 10 VALIDATION 07-05-* gates green
+- Zero backend mutations introduced by this plan (all backend work done by Plan 04 per CHECKER-FIX-1)
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/07-profile-resume-upload/07-05-SUMMARY.md` capturing:
-- Whether GET /profile was added in Task 1 (Option A) or alternative source used (Option B)
 - Final file count under `frontend/src/components/profile/`
 - Whether `react-dropzone` was avoided (D-30 — native input + drag-drop only)
 - Notes on any fake-timer setup required for the cold-start stepped-copy test
 - Snapshot of the production build size if `npm run build` reports it (portfolio metric)
+- Confirmation that no backend files were touched by this plan (per CHECKER-FIX-1 scope discipline)
 </output>

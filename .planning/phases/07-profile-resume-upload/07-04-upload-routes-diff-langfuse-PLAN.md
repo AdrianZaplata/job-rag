@@ -10,6 +10,7 @@ files_modified:
   - src/job_rag/api/routes.py
   - src/job_rag/services/profile.py
   - src/job_rag/observability.py
+  - tests/test_api.py
   - tests/test_profile.py
   - tests/test_observability.py
   - frontend/openapi.snapshot.json
@@ -26,16 +27,17 @@ must_haves:
     - ".txt and other unsupported types return 415 unsupported_file_type"
     - "Encrypted PDFs return 422 pdf_encrypted; under-100 char extractions return 422 text_extraction_failed"
     - "PATCH /profile replaces skills_json fully; None fields preserve existing values"
+    - "GET /profile returns 200 + UserSkillProfile shape for the authenticated user"
     - "Langfuse trace per upload spans text_extract then llm_extract then diff_compute (plus profile_save on PATCH with matching extraction_id)"
     - "Langfuse traces do NOT capture raw resume text (PII redaction per D-33)"
     - "Langfuse fail-open: missing keys leave upload+save functional, just untraced"
-    - "OpenAPI snapshot + frontend/src/api/types.ts regenerated post-backend land"
+    - "OpenAPI snapshot + frontend/src/api/types.ts regenerated post-backend land, including the GET /profile endpoint"
   artifacts:
     - path: "src/job_rag/api/middleware.py"
       provides: "ResumeUploadSizeGuard ASGI middleware (pre-body 413)"
       contains: "ResumeUploadSizeGuard"
     - path: "src/job_rag/api/routes.py"
-      provides: "POST /profile/upload and PATCH /profile handlers"
+      provides: "POST /profile/upload, PATCH /profile, and GET /profile handlers"
       contains: "/profile/upload"
     - path: "src/job_rag/services/profile.py"
       provides: "compute_skills_diff + SkillDiffItem + ResumeUploadResponse + UserProfileUpdate"
@@ -46,8 +48,11 @@ must_haves:
     - path: "tests/test_profile.py"
       provides: "Backend tests covering upload, diff, PATCH paths"
       contains: "test_upload_pdf_happy_path"
+    - path: "tests/test_api.py"
+      provides: "GET /profile integration test"
+      contains: "test_get_profile_returns_loaded_profile"
     - path: "frontend/openapi.snapshot.json"
-      provides: "OpenAPI snapshot including ResumeUploadResponse + UserProfileUpdate schemas"
+      provides: "OpenAPI snapshot including ResumeUploadResponse + UserProfileUpdate + UserSkillProfile schemas"
   key_links:
     - from: "src/job_rag/api/app.py"
       to: "ResumeUploadSizeGuard middleware"
@@ -61,13 +66,17 @@ must_haves:
       to: "Langfuse trace correlation via extraction_id"
       via: "lf.trace(name='resume_upload', id=str(extraction_id))"
       pattern: "extraction_id"
+    - from: "GET /profile"
+      to: "load_profile(session, user_id=...)"
+      via: "Phase 7 D-01/D-02 DB-backed read path"
+      pattern: "await load_profile"
 ---
 
 <objective>
-Wire the resume upload + PATCH save endpoints, the pre-body size guard middleware, the skill-diff service, the Langfuse trace correlation across both endpoints, and the backend tests that prove every gate (PROF-02 / PROF-04 / PROF-06). After this plan lands, the backend is feature-complete for Phase 7 and the OpenAPI snapshot is regenerated so Plan 05's frontend can codegen against the new schemas.
+Wire the resume upload + PATCH save endpoints, the GET /profile read endpoint, the pre-body size guard middleware, the skill-diff service, the Langfuse trace correlation across both endpoints, and the backend tests that prove every gate (PROF-02 / PROF-04 / PROF-06). After this plan lands, the backend is feature-complete for Phase 7 and the OpenAPI snapshot is regenerated so Plan 05's frontend can codegen against the new schemas.
 
-Purpose: This is the integration plan. It composes the foundation (Plan 01: deps, settings, fixtures), the data layer (Plan 02: load_profile DB flip + seed), and the extraction primitive (Plan 03: extract_resume + ResumeExtraction model) into the two HTTP endpoints and the diff service that closes the loop. The Langfuse work is here because the spans straddle the route boundary (text_extract + llm_extract + diff_compute fire in /profile/upload; profile_save fires in PATCH /profile when the same extraction_id is supplied).
-Output: 1 new middleware + 1 new service + 1 observability helper + 2 new routes + backend tests + 3 observability tests + OpenAPI snapshot regen.
+Purpose: This is the integration plan. It composes the foundation (Plan 01: deps, settings, fixtures), the data layer (Plan 02: load_profile DB flip + seed), and the extraction primitive (Plan 03: extract_resume + ResumeExtraction model) into the three HTTP endpoints and the diff service that closes the loop. The Langfuse work is here because the spans straddle the route boundary (text_extract + llm_extract + diff_compute fire in /profile/upload; profile_save fires in PATCH /profile when the same extraction_id is supplied). GET /profile is also added here so the OpenAPI snapshot regen at the end of this plan ships a complete profile route surface (POST upload + PATCH save + GET read) that Plan 05 codegens against.
+Output: 1 new middleware + 1 new service + 1 observability helper + 3 new routes (POST upload, PATCH save, GET read) + backend tests + 3 observability tests + 1 GET /profile test in tests/test_api.py + OpenAPI snapshot regen.
 </objective>
 
 <execution_context>
@@ -368,18 +377,16 @@ Run: `uv run pytest tests/test_profile.py -k compute_skills_diff -x`. Expected: 
 </task>
 
 <task type="auto" id="07-04-02" tdd="true">
-  <name>Task 2: POST /profile/upload + PATCH /profile route handlers + Langfuse trace wiring</name>
+  <name>Task 2: POST /profile/upload route handler + ResumeUploadSizeGuard validation + upload tests</name>
   <files>src/job_rag/api/routes.py, tests/test_profile.py</files>
   <read_first>
     - src/job_rag/api/routes.py (existing /match handler lines 171-200 for Depends pattern; existing /ingest handler lines 477-528 for UploadFile pattern)
     - src/job_rag/api/auth.py (get_current_user_id, require_api_key, standard_limit — line refs in PATTERNS §"Shared Patterns")
-    - src/job_rag/services/profile.py (just created in Task 1 — imports `compute_skills_diff`, `ResumeUploadResponse`, `SkillDiffItem`, `UserProfileUpdate`)
+    - src/job_rag/services/profile.py (just created in Task 1 — imports `compute_skills_diff`, `ResumeUploadResponse`, `SkillDiffItem`)
     - src/job_rag/services/matching.py (post-Plan-02 `load_profile`)
     - src/job_rag/extraction/resume_extractor.py (from Plan 03)
-    - src/job_rag/db/models.py (UserProfileDB columns lines 118-147)
     - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §2 lines 85-99 (chunked fallback `read_with_cap`)
     - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §6 lines 286-329 (Langfuse trace wiring + PII redaction)
-    - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §7 lines 332-362 (PATCH None-as-no-change semantics)
     - .planning/phases/07-profile-resume-upload/07-PATTERNS.md §7 lines 342-412 (route patterns)
     - tests/fixtures/sample-resume.pdf, sample-resume.docx, encrypted-sample.pdf, empty-text-sample.pdf (Plan 01 fixtures)
   </read_first>
@@ -392,8 +399,7 @@ Run: `uv run pytest tests/test_profile.py -k compute_skills_diff -x`. Expected: 
     - 422 extraction_failed when tenacity exhausts 3 retries (ValidationError)
     - 422 empty_skills when extraction returns 0 skills
     - 503 llm_unavailable on openai.APIError family
-    - PATCH /profile replaces skills_json entirely; None fields preserve existing values; returns the reloaded UserSkillProfile
-    - Langfuse trace per upload: 3 spans (text_extract, llm_extract auto-captured, diff_compute); PATCH adds profile_save when extraction_id matches; raw resume text never appears in trace metadata; missing keys = fail-open no-op
+    - Langfuse trace per upload: 3 spans (text_extract, llm_extract auto-captured, diff_compute); raw resume text never appears in trace metadata; missing keys = fail-open no-op
   </behavior>
   <action>
 **Step A — Implement POST /profile/upload in `src/job_rag/api/routes.py`** (insert below the existing `/agent/stream` block per CONTEXT D-Discretion line 299):
@@ -555,7 +561,117 @@ Run: `uv run pytest tests/test_profile.py -k compute_skills_diff -x`. Expected: 
             extraction_id=extraction_id,
         )
 
-**Step B — Implement PATCH /profile** per RESEARCH §7:
+**Step B — Helper functions INLINE in routes.py (D-CHECKER-FIX-3: helper location is fixed inline; `files_modified` already lists `src/job_rag/api/routes.py` exclusively for these helpers):**
+
+    def _extract_pdf_text(raw: bytes) -> str:
+        reader = pypdf.PdfReader(io.BytesIO(raw))
+        if reader.is_encrypted:
+            raise pypdf.errors.PdfReadError("encrypted")
+        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+    def _pdf_page_count(raw: bytes) -> int:
+        try:
+            return len(pypdf.PdfReader(io.BytesIO(raw)).pages)
+        except Exception:
+            return 0
+
+
+    def _extract_docx_text(raw: bytes) -> str:
+        doc = docx.Document(io.BytesIO(raw))
+        parts: list[str] = []
+        for p in doc.paragraphs:
+            if p.text.strip():
+                parts.append(p.text)
+        for table in doc.tables:
+            for row in table.rows:
+                parts.append("\t".join(cell.text for cell in row.cells))
+        return "\n".join(parts)
+
+Imports to ADD at top of routes.py:
+
+    import asyncio
+    import io
+    import time
+    import uuid
+    from typing import Any
+
+    import docx
+    import openai
+    import pypdf
+    from pydantic import ValidationError
+
+    from job_rag.extraction.resume_extractor import extract_resume
+    from job_rag.extraction.resume_prompt import RESUME_PROMPT_VERSION
+    from job_rag.observability import get_langfuse_client
+    from job_rag.services.matching import load_profile
+    from job_rag.services.profile import (
+        ResumeUploadResponse,
+        SkillDiffItem,
+        compute_skills_diff,
+    )
+
+(PATCH-only / GET-only imports — `json`, `sqlalchemy.func`/`update`, `UserSkillProfile`, `UserProfileUpdate` — are added in Task 3.)
+
+**Step C — Write the upload tests in `tests/test_profile.py`** (APPEND to existing test file). Use FastAPI's `TestClient` or `httpx.AsyncClient` (whichever existing tests use — match `tests/test_api.py` style). Add 7 tests:
+
+- `test_upload_pdf_happy_path(client, sample_resume_pdf)` — POST multipart with valid PDF bytes; expect 200; response has `skills_diff` list with at least one item; `extraction_id` is a valid UUID
+- `test_upload_docx_happy_path(client, sample_resume_docx)` — same for DOCX
+- `test_upload_413_oversized_content_length(client)` — send POST with `Content-Length: 3000000` header and a tiny body; expect 413; assert handler NOT invoked (use a request-state counter pattern OR assert via log absence using `caplog`). Use `client.post("/profile/upload", headers={"Content-Length": "3000000"}, content=b"x" * 100)` — note: many test clients overwrite Content-Length; use httpx `Request` directly + `client.send` to bypass auto-Content-Length, OR test the middleware directly via `from starlette.applications import Starlette` mounting an instance and calling it
+- `test_upload_413_chunked_streaming(client)` — submit a `Transfer-Encoding: chunked` body > 2 MB (via httpx async stream generator); expect 413 mid-stream. Use `httpx.AsyncClient(transport=httpx.ASGITransport(app=app))` with `request = client.build_request("POST", "/profile/upload", headers={"Transfer-Encoding": "chunked"}, content=<async generator yielding > 2 MB>)` then `await client.send(request)`
+- `test_upload_415_txt_file_rejected(client)` — POST `text/plain` file with `.txt` extension; expect 415 `{"reason": "unsupported_file_type"}`
+- `test_upload_422_encrypted_pdf(client, encrypted_resume_pdf)` — expect 422 `{"reason": "pdf_encrypted"}`
+- `test_upload_422_empty_text_pdf(client, empty_text_resume_pdf)` — expect 422 `{"reason": "text_extraction_failed"}`
+- `test_upload_422_extraction_failed(client, sample_resume_pdf, monkeypatch)` — monkeypatch `job_rag.api.routes.extract_resume` to raise `ValidationError`; expect 422 `{"reason": "extraction_failed"}`
+
+Use existing test infrastructure patterns from `tests/test_api.py` for `client` fixture + `db_session` fixture.
+
+Run tests after writing:
+
+    uv run pytest tests/test_profile.py -k 'upload_pdf_happy or upload_docx_happy or 413_oversized or 413_chunked or 415_txt or 422_encrypted or 422_empty_text or 422_extraction_failed' -x -v
+  </action>
+  <verify>
+    <automated>uv run pytest tests/test_profile.py -k 'upload_pdf_happy or upload_docx_happy or 413_oversized or 413_chunked or 415_txt or 422_encrypted or 422_empty_text or 422_extraction_failed' -x &amp;&amp; uv run pyright src/job_rag/api/routes.py</automated>
+  </verify>
+  <acceptance_criteria>
+    - `uv run pytest tests/test_profile.py -k upload_pdf_happy_path -x` passes (VALIDATION 07-04-07)
+    - `uv run pytest tests/test_profile.py -k upload_docx_happy_path -x` passes (VALIDATION 07-04-08)
+    - `uv run pytest tests/test_profile.py -k 413_oversized_content_length -x` passes (VALIDATION 07-04-01)
+    - `uv run pytest tests/test_profile.py -k 413_chunked_streaming -x` passes (VALIDATION 07-04-02)
+    - `uv run pytest tests/test_profile.py -k 415_txt_file_rejected -x` passes (VALIDATION 07-04-03)
+    - `uv run pytest tests/test_profile.py -k 422_encrypted_pdf -x` passes (VALIDATION 07-04-04)
+    - `uv run pytest tests/test_profile.py -k 422_empty_text_pdf -x` passes (VALIDATION 07-04-05)
+    - `uv run pytest tests/test_profile.py -k 422_extraction_failed -x` passes (VALIDATION 07-04-06)
+    - `grep -E '@router\.post.*"/profile/upload"' src/job_rag/api/routes.py` confirms the POST route declaration
+    - `pyright src/job_rag/api/routes.py` exits 0
+  </acceptance_criteria>
+  <done>
+    - 8 backend tests green (2 happy paths + 6 error paths) for the upload endpoint
+    - routes.py has POST /profile/upload wired through standard_limit + get_current_user_id + ResumeUploadSizeGuard middleware
+    - Inline _extract_pdf_text / _pdf_page_count / _extract_docx_text helpers in routes.py
+  </done>
+</task>
+
+<task type="auto" id="07-04-03" tdd="true">
+  <name>Task 3: PATCH /profile + GET /profile route handlers + PATCH/GET tests</name>
+  <files>src/job_rag/api/routes.py, tests/test_profile.py, tests/test_api.py</files>
+  <read_first>
+    - src/job_rag/api/routes.py (post-Task-2: includes POST /profile/upload + inline text helpers)
+    - src/job_rag/services/matching.py (post-Plan-02 `load_profile` signature)
+    - src/job_rag/services/profile.py (Task 1: UserProfileUpdate model)
+    - src/job_rag/db/models.py (UserProfileDB columns lines 118-147)
+    - src/job_rag/models.py (UserSkillProfile shape)
+    - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §7 lines 332-362 (PATCH None-as-no-change semantics)
+    - .planning/phases/07-profile-resume-upload/07-PATTERNS.md §7 lines 342-412 (route patterns)
+    - tests/test_api.py (existing test style — fixture imports, request shape)
+  </read_first>
+  <behavior>
+    - PATCH /profile replaces skills_json entirely; None fields preserve existing values; returns the reloaded UserSkillProfile
+    - GET /profile returns 200 + UserSkillProfile shape for the authenticated user (PROF-01 read path via load_profile)
+    - Langfuse profile_save span fires on PATCH when extraction_id matches a prior upload (D-32 #4); fail-open if Langfuse keys missing
+  </behavior>
+  <action>
+**Step A — Implement PATCH /profile in `src/job_rag/api/routes.py`** per RESEARCH §7 (insert directly below the POST /profile/upload handler from Task 2):
 
     @router.patch(
         "/profile",
@@ -599,110 +715,88 @@ Run: `uv run pytest tests/test_profile.py -k compute_skills_diff -x`. Expected: 
         log.info("profile_saved", user_id=str(user_id), skill_count=len(payload.skills))
         return await load_profile(session, user_id=user_id)
 
-**Step C — Helper functions in routes.py (or extract to `src/job_rag/extraction/text_extract.py` per RESEARCH §"Integration Points" line 446 — planner discretion: inline in routes.py is acceptable for v1):**
+**Step B — Implement GET /profile in `src/job_rag/api/routes.py`** (insert below the PATCH /profile handler). 5-line handler that delegates to the now-DB-backed load_profile from Plan 02:
 
-    def _extract_pdf_text(raw: bytes) -> str:
-        reader = pypdf.PdfReader(io.BytesIO(raw))
-        if reader.is_encrypted:
-            raise pypdf.errors.PdfReadError("encrypted")
-        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+    @router.get(
+        "/profile",
+        dependencies=[Depends(require_api_key), Depends(standard_limit)],
+        response_model=UserSkillProfile,
+    )
+    async def get_profile(
+        session: Session,
+        user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    ) -> UserSkillProfile:
+        """GET /profile — return the authenticated user's profile (PROF-01)."""
+        return await load_profile(session, user_id=user_id)
 
+**Step C — Add the remaining imports at the top of routes.py** (POST imports already added in Task 2; this task adds the PATCH/GET-specific ones):
 
-    def _pdf_page_count(raw: bytes) -> int:
-        try:
-            return len(pypdf.PdfReader(io.BytesIO(raw)).pages)
-        except Exception:
-            return 0
-
-
-    def _extract_docx_text(raw: bytes) -> str:
-        doc = docx.Document(io.BytesIO(raw))
-        parts: list[str] = []
-        for p in doc.paragraphs:
-            if p.text.strip():
-                parts.append(p.text)
-        for table in doc.tables:
-            for row in table.rows:
-                parts.append("\t".join(cell.text for cell in row.cells))
-        return "\n".join(parts)
-
-Imports to ADD at top of routes.py (or appropriate module):
-
-    import asyncio
-    import io
     import json
-    import time
-    import uuid
-    from typing import Any
 
-    import docx
-    import openai
-    import pypdf
-    from pydantic import ValidationError
     from sqlalchemy import func, update
 
-    from job_rag.extraction.resume_extractor import extract_resume
-    from job_rag.extraction.resume_prompt import RESUME_PROMPT_VERSION
+    from job_rag.db.models import UserProfileDB
     from job_rag.models import UserSkillProfile
-    from job_rag.observability import get_langfuse_client
-    from job_rag.services.matching import load_profile
-    from job_rag.services.profile import (
-        ResumeUploadResponse,
-        UserProfileUpdate,
-        compute_skills_diff,
-    )
+    from job_rag.services.profile import UserProfileUpdate
 
-**Step D — Write the upload/patch tests in `tests/test_profile.py`** (APPEND to existing test file). Use FastAPI's `TestClient` or `httpx.AsyncClient` (whichever existing tests use — match `tests/test_api.py` style). Add:
+**Step D — Write the PATCH tests in `tests/test_profile.py`** (APPEND to upload tests from Task 2). 3 tests:
 
-- `test_upload_pdf_happy_path(client, sample_resume_pdf)` — POST multipart with valid PDF bytes; expect 200; response has `skills_diff` list with at least one item; `extraction_id` is a valid UUID
-- `test_upload_docx_happy_path(client, sample_resume_docx)` — same for DOCX
-- `test_upload_413_oversized_content_length(client)` — send POST with `Content-Length: 3000000` header and a tiny body; expect 413; assert handler NOT invoked (use a request-state counter pattern OR assert via log absence using `caplog`). Use `client.post("/profile/upload", headers={"Content-Length": "3000000"}, content=b"x" * 100)` — note: many test clients overwrite Content-Length; use httpx `Request` directly + `client.send` to bypass auto-Content-Length, OR test the middleware directly via `from starlette.applications import Starlette` mounting an instance and calling it
-- `test_upload_413_chunked_streaming(client)` — submit a `Transfer-Encoding: chunked` body > 2 MB (via httpx async stream generator); expect 413 mid-stream
-- `test_upload_415_txt_file_rejected(client)` — POST `text/plain` file with `.txt` extension; expect 415 `{"reason": "unsupported_file_type"}`
-- `test_upload_422_encrypted_pdf(client, encrypted_resume_pdf)` — expect 422 `{"reason": "pdf_encrypted"}`
-- `test_upload_422_empty_text_pdf(client, empty_text_resume_pdf)` — expect 422 `{"reason": "text_extraction_failed"}`
-- `test_upload_422_extraction_failed(client, sample_resume_pdf, monkeypatch)` — monkeypatch `job_rag.api.routes.extract_resume` to raise `ValidationError`; expect 422 `{"reason": "extraction_failed"}`
 - `test_patch_replaces_skills_json(client, db_session)` — PATCH with `{"skills": [{"name": "NewSkill"}]}`; query DB; assert `skills_json` updated
 - `test_patch_none_fields_preserve_existing(client, db_session)` — capture pre-PATCH `target_roles_json`; PATCH without `target_roles`; query DB; assert unchanged
 - `test_patch_returns_loaded_profile(client)` — assert response body matches `UserSkillProfile` shape and includes updated skills
 
-Use existing test infrastructure patterns from `tests/test_api.py` for `client` fixture + `db_session` fixture. If the FastAPI `TestClient` strips `Content-Length`, use a direct `httpx.AsyncClient(transport=httpx.ASGITransport(app=app))` with `request = client.build_request("POST", "/profile/upload", headers={"Content-Length": "3000000"}, content=b"x" * 100)` then `await client.send(request)`.
+**Step E — Write the GET test in `tests/test_api.py`** (APPEND to existing test file — `test_api.py` is the canonical home for route-level happy-path integration tests per the existing convention). 1 test:
+
+- `test_get_profile_returns_loaded_profile(client, db_session)` — seed the user_profile row via the Plan 02 seed migration (already auto-run by `init_db()`); GET /profile; assert 200; assert response JSON has `skills`, `target_roles`, `preferred_locations`, `min_salary` / `min_salary_eur` (whichever the canonical UserSkillProfile field is — verify against `src/job_rag/models.py`), `remote_preference` keys; assert `skills` is a non-empty list containing skill objects with `name` field matching the seed values
+
+Skeleton:
+
+    def test_get_profile_returns_loaded_profile(client):
+        resp = client.get("/profile")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert "skills" in body
+        assert isinstance(body["skills"], list)
+        assert len(body["skills"]) > 0
+        # Confirm shape matches UserSkillProfile model
+        assert "target_roles" in body
+        assert "preferred_locations" in body
+        assert "remote_preference" in body
+        # Confirm first skill has the expected sub-shape
+        first = body["skills"][0]
+        assert "name" in first
 
 Run tests after writing:
 
-    uv run pytest tests/test_profile.py -x -v
+    uv run pytest tests/test_profile.py -k 'patch_replaces or patch_none or patch_returns' -x -v
+    uv run pytest tests/test_api.py -k 'get_profile_returns_loaded_profile' -x -v
   </action>
   <verify>
-    <automated>uv run pytest tests/test_profile.py -k 'upload_pdf_happy or upload_docx_happy or 413_oversized or 413_chunked or 415_txt or 422_encrypted or 422_empty_text or 422_extraction_failed or patch_replaces or patch_none or patch_returns' -x &amp;&amp; uv run pyright src/job_rag/api/routes.py</automated>
+    <automated>uv run pytest tests/test_profile.py -k 'patch_replaces or patch_none or patch_returns' -x &amp;&amp; uv run pytest tests/test_api.py -k 'get_profile_returns_loaded_profile' -x &amp;&amp; uv run pyright src/job_rag/api/routes.py</automated>
   </verify>
   <acceptance_criteria>
-    - `uv run pytest tests/test_profile.py -k upload_pdf_happy_path -x` passes (VALIDATION 07-04-07)
-    - `uv run pytest tests/test_profile.py -k upload_docx_happy_path -x` passes (VALIDATION 07-04-08)
-    - `uv run pytest tests/test_profile.py -k 413_oversized_content_length -x` passes (VALIDATION 07-04-01)
-    - `uv run pytest tests/test_profile.py -k 413_chunked_streaming -x` passes (VALIDATION 07-04-02)
-    - `uv run pytest tests/test_profile.py -k 415_txt_file_rejected -x` passes (VALIDATION 07-04-03)
-    - `uv run pytest tests/test_profile.py -k 422_encrypted_pdf -x` passes (VALIDATION 07-04-04)
-    - `uv run pytest tests/test_profile.py -k 422_empty_text_pdf -x` passes (VALIDATION 07-04-05)
-    - `uv run pytest tests/test_profile.py -k 422_extraction_failed -x` passes (VALIDATION 07-04-06)
     - `uv run pytest tests/test_profile.py -k patch_replaces_skills_json -x` passes (VALIDATION 07-04-12)
     - `uv run pytest tests/test_profile.py -k patch_none_fields_preserve -x` passes (VALIDATION 07-04-13)
     - `uv run pytest tests/test_profile.py -k patch_returns_loaded_profile -x` passes (VALIDATION 07-04-14)
-    - `grep "patch.*profile" src/job_rag/api/routes.py` shows the PATCH route declaration
+    - `uv run pytest tests/test_api.py -k get_profile_returns_loaded_profile -x` passes
+    - `grep -E '@router\.patch.*"/profile"' src/job_rag/api/routes.py` shows the PATCH route declaration
+    - `grep -E '@router\.get.*"/profile"' src/job_rag/api/routes.py` shows the GET route declaration
     - `pyright src/job_rag/api/routes.py` exits 0
   </acceptance_criteria>
   <done>
-    - 11 backend tests green for upload + PATCH
-    - routes.py touches POST /profile/upload + PATCH /profile, both wired through standard_limit + get_current_user_id
+    - 3 PATCH tests + 1 GET test all green
+    - routes.py has PATCH /profile and GET /profile wired through standard_limit + get_current_user_id
+    - Both endpoints share the response_model=UserSkillProfile contract
   </done>
 </task>
 
-<task type="auto" id="07-04-03" tdd="true">
-  <name>Task 3: Langfuse trace tests + OpenAPI snapshot regen</name>
+<task type="auto" id="07-04-04" tdd="true">
+  <name>Task 4: Langfuse trace tests + OpenAPI snapshot regen</name>
   <files>tests/test_observability.py, frontend/openapi.snapshot.json, frontend/src/api/types.ts</files>
   <read_first>
     - tests/test_observability.py (existing — APPEND mode per Plan 01)
     - src/job_rag/observability.py (post-Task-1: includes get_langfuse_client)
-    - src/job_rag/api/routes.py (post-Task-2: includes upload + PATCH with trace wiring)
+    - src/job_rag/api/routes.py (post-Task-2 + Task-3: includes upload + PATCH + GET with trace wiring)
     - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §6 lines 286-329 (Langfuse trace structure + PII)
     - .planning/phases/07-profile-resume-upload/07-RESEARCH.md §9 lines 405-419 (codegen workflow)
     - .planning/phases/04-frontend-shell-auth/04-CONTEXT.md §D-14 (OpenAPI codegen workflow)
@@ -712,6 +806,7 @@ Run tests after writing:
     - test_resume_upload_trace_has_four_spans: mock get_langfuse_client to return a MagicMock; trigger upload + PATCH with matching extraction_id; assert mock.trace was called with name="resume_upload"; assert spans named text_extract, llm_extract (or auto-captured equivalent), diff_compute on upload + profile_save on PATCH
     - test_resume_trace_does_not_capture_text: spy on every span().end() metadata call; assert NO metadata kwargs contain the raw resume text string ("TEST FIXTURE" substring should NOT appear)
     - test_langfuse_fail_open_when_keys_missing: monkeypatch settings.langfuse_public_key + langfuse_secret_key to empty strings; upload still returns 200; no exceptions raised
+    - OpenAPI snapshot includes ResumeUploadResponse, UserProfileUpdate, SkillDiffItem schemas AND surfaces the GET /profile endpoint definition
   </behavior>
   <action>
 **Step A — Append Langfuse trace tests to `tests/test_observability.py`:**
@@ -818,16 +913,18 @@ Run tests after writing:
 
 Run: `uv run pytest tests/test_observability.py -k 'resume_upload_trace or resume_trace_does_not or langfuse_fail_open' -x`.
 
-**Step B — Regenerate OpenAPI snapshot + frontend types:**
+**Step B — Regenerate OpenAPI snapshot + frontend types** (now includes GET /profile from Task 3):
 
     cd frontend
     npm run codegen:snapshot   # writes openapi.snapshot.json from running backend
     npm run codegen            # regenerates frontend/src/api/types.ts from snapshot
     cd ..
 
-Verify the snapshot now includes the new schemas:
+Verify the snapshot now includes the new schemas AND the GET endpoint:
 
     grep -E '"ResumeUploadResponse"|"UserProfileUpdate"|"SkillDiffItem"' frontend/openapi.snapshot.json
+    grep -E '"/profile":' frontend/openapi.snapshot.json
+    # The /profile path should now have "get", "patch" methods declared
 
 If `codegen:snapshot` requires the backend to be running, start it in a subshell:
 
@@ -853,20 +950,21 @@ Commit:
     - `uv run pytest tests/test_observability.py -k resume_trace_does_not_capture_text -x` passes (VALIDATION 07-04-16)
     - `uv run pytest tests/test_observability.py -k langfuse_fail_open_when_keys_missing -x` passes (VALIDATION 07-04-17)
     - `frontend/openapi.snapshot.json` contains `ResumeUploadResponse`, `UserProfileUpdate`, `SkillDiffItem` schemas
+    - `frontend/openapi.snapshot.json` includes the GET /profile endpoint (paths→/profile→get)
     - `frontend/src/api/types.ts` regenerated; `cd frontend && npm run typecheck` exits 0
     - Backend full suite passes: `uv run pytest tests/ -x`
   </acceptance_criteria>
   <done>
     - 3 Langfuse trace tests green
     - OpenAPI snapshot + types.ts committed; ready for Plan 05 codegen consumers
-    - Backend Phase 7 work COMPLETE
+    - Backend Phase 7 work COMPLETE (POST upload + PATCH save + GET read all shipped + traced)
   </done>
 </task>
 
 </tasks>
 
 <verification>
-After all three tasks land, run from repo root:
+After all four tasks land, run from repo root:
 
 ```bash
 # Static — modules importable
@@ -875,14 +973,15 @@ uv run python -c "from job_rag.api.middleware import ResumeUploadSizeGuard; from
 # Middleware wired in app.py
 grep ResumeUploadSizeGuard src/job_rag/api/app.py
 
-# Routes registered
-grep -E '@router\.(post|patch).*"/profile' src/job_rag/api/routes.py
+# Routes registered (POST, PATCH, GET)
+grep -E '@router\.(post|patch|get).*"/profile' src/job_rag/api/routes.py
 
 # Targeted backend tests
 uv run pytest tests/test_profile.py -x
+uv run pytest tests/test_api.py -k 'get_profile_returns_loaded_profile' -x
 uv run pytest tests/test_observability.py -k 'resume_upload_trace or resume_trace_does_not or langfuse_fail_open' -x
 
-# OpenAPI snapshot up-to-date
+# OpenAPI snapshot up-to-date (schemas + GET /profile path)
 grep -E '"ResumeUploadResponse"|"UserProfileUpdate"|"SkillDiffItem"' frontend/openapi.snapshot.json
 
 # Frontend typecheck (proves types.ts is valid)
@@ -900,16 +999,18 @@ All commands must exit 0.
 
 <success_criteria>
 - PROF-02, PROF-04, PROF-06 closed at the backend boundary
+- PROF-01 GET read-path now reachable via GET /profile (foundation for Plan 05's frontend `getProfile()` consumer)
 - All 5 STRIDE threats (T-07-02, T-07-05, T-07-06, T-07-07, T-07-08) mitigated with test coverage
-- Frontend types.ts ready for Plan 05 consumption
-- 17 backend tests (11 in test_profile.py for upload/PATCH + 3 in test_observability.py for Langfuse + 3 compute_skills_diff in Task 1) all green
+- Frontend types.ts ready for Plan 05 consumption (includes GET /profile)
+- 18 backend tests across `tests/test_profile.py` (11 = 3 diff + 8 upload error/happy paths from Task 2 + ... wait, let me recount: Task 1 = 3 diff, Task 2 = 8 upload, Task 3 = 3 PATCH = 14 in test_profile.py + 1 GET in test_api.py + 3 Langfuse in test_observability.py = 18 total) all green
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/07-profile-resume-upload/07-04-SUMMARY.md` capturing:
-- New route line counts (POST + PATCH) in routes.py
-- Whether `text_extract.py` was inlined in routes.py or extracted to `src/job_rag/extraction/text_extract.py`
-- OpenAPI snapshot delta (lines added)
+- New route line counts (POST + PATCH + GET) in routes.py
+- Confirmation that text-extract helpers were inlined in routes.py (no separate text_extract.py module — fixed per CHECKER-FIX-3)
+- OpenAPI snapshot delta (lines added, including the GET /profile endpoint)
 - Notable test client tricks needed for the 413 chunked test (httpx ASGITransport workaround or similar)
 - Any deviations from VALIDATION's 17 listed gates with reason
+- Note: this plan is now 4 tasks (foundation → POST upload → PATCH+GET → Langfuse+OpenAPI) split per CHECKER-FIX-2 to keep task scope sane
 </output>
