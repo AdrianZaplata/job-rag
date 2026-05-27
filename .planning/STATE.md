@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to plan
-last_updated: "2026-05-27T13:48:56.472Z"
+last_updated: "2026-05-27T16:53:02.183Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 10
@@ -280,8 +280,9 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 | 260519-kr7 | synthesize 03-SMOKE.md from existing 03-UAT.md M1-M13 evidence | 2026-05-19 | 317c31c | [260519-kr7-synthesize-03-smoke-md-from-existing-03-](./quick/260519-kr7-synthesize-03-smoke-md-from-existing-03-/) |
 | 260519-l7h | write 03-07-SUMMARY.md linking SMOKE.md as M1-M13 evidence | 2026-05-19 | e32d83f | [260519-l7h-write-03-07-summary-md-linking-smoke-md-](./quick/260519-l7h-write-03-07-summary-md-linking-smoke-md-/) |
 | 260523-vrw | Fix CI deploy-infra.yml home_ip gap: add TF_VAR_home_ip from HOME_IP secret to prod terraform apply step | 2026-05-23 | f6480e6 | [260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-](./quick/260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-/) |
+| 260527-q87 | Delete dead tflint-flagged variables (logout_redirect_uri + identity-module swa_origin pass-through) to unblock Static TF on PR #11 | 2026-05-27 | 5700f8b | [260527-q87-delete-dead-tflint-flagged-variables-log](./quick/260527-q87-delete-dead-tflint-flagged-variables-log/) |
 
-Last activity: 2026-05-27
+Last activity: 2026-05-27 - Completed quick task 260527-q87: delete dead tflint-flagged variables
 
 ### Open Questions (from research, to resolve during planning)
 
