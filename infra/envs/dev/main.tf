@@ -33,7 +33,6 @@ module "identity" {
     azuread.workforce = azuread.workforce
   }
 
-  swa_origin        = var.swa_origin
   github_owner      = var.github_owner
   github_repo       = var.github_repo
   resource_group_id = azurerm_resource_group.dev.id

@@ -22,7 +22,6 @@ cp terraform.tfvars.example terraform.tfvars.local
 # Edit terraform.tfvars.local:
 #   - tenant_id_external from `terraform -chdir=../bootstrap output -raw tenant_id_external`
 #   - spa_redirect_uris[1] from `terraform -chdir=../envs/prod output -raw swa_default_origin`
-#   - logout_redirect_uri from same SWA origin (no trailing slash)
 ```
 
 ## Step 2 — Apply
