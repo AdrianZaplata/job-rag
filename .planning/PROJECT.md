@@ -67,13 +67,14 @@ Make Adrian's job-market corpus actually useful for his job hunt — browse it, 
 - [x] Dashboard React page renders all three widgets with a shared filter bar (country dropdown: Poland / Germany / EU / Worldwide; seniority; remote toggle) — DASH-04 + DASH-06, Phase 5
 - [x] "Top skills" widget supports "show more" drill into a full ranked list — DASH-05, Phase 5
 
-#### Chat
+#### Chat — shipped Phase 6
 
-- [ ] Chat React page consumes `/agent/stream` via native `EventSource` or `fetch` + SSE reader
-- [ ] Token events render into the assistant bubble incrementally
-- [ ] `tool_start` events show a collapsed "→ calling search_jobs" chip with args
-- [ ] `tool_end` events expand the chip with a preview of the output
-- [ ] Single-turn only in v1 (no conversation history); clear-on-refresh
+- [x] Chat React page consumes `/agent/stream` via `fetch` + `ReadableStream` (CRLF-aware SSE parser per Phase 6 Bug #5a) — CHAT-01, Phase 6
+- [x] `token` events render into the assistant bubble incrementally with blinking cursor — CHAT-02, Phase 6
+- [x] `tool_start` events show a collapsed `→ {tool_name} {args-preview}` chip with pretty-printed JSON args on expand — CHAT-03, Phase 6
+- [x] `tool_end` expands the chip with a 200-char output preview + "Show full output" Dialog gated on `output.length > 200` — CHAT-04, Phase 6
+- [x] `final` marks the bubble complete + re-enables composer; Stop button aborts mid-stream cleanly (AbortError ≠ network error) — CHAT-05, Phase 6
+- [x] Single-turn only in v1; refresh wipes transcript entirely; zero `chat-*`/`transcript-*`/`agent-*` keys in localStorage/sessionStorage/IndexedDB (only `theme` + MSAL cache permitted) — CHAT-06, Phase 6
 
 #### Frontend shell
 
@@ -206,4 +207,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-26 after Phase 06.1 (Terraform value_wo lifecycle hardening) completion. Inserted infra-only phase closed the three Phase 06 UAT regressions: (1) `lifecycle.ignore_changes = [value, value_wo, value_wo_version]` on all 4 out-of-band-seeded KV secrets so future `terraform apply` cannot wipe real OpenAI/Langfuse/seeded-user-oid values; (2) ACA cpu/memory parameterized via `var.cpu`/`var.memory` with committed prod.tfvars defaults (1.0/2Gi) matching Adrian's manual OOM-fix bump; (3) dual-var-file discipline enforced via new `scripts/tf-apply-prod.sh` wrapper + README "Apply command convention" + CI pre-apply guard for `BACKEND_AUDIENCE`/`ENTRA_TENANT_*`. Live `terraform plan -detailed-exitcode` exit 0 against prod state proves zero unintended drift. Verifier: 3/3 must-haves passed. Code review surfaced CR-01 (CI guard fails open on `az` read errors) + 4 warnings tracked as Phase 06.2-eligible follow-ups. Phases 1-6.1 closed; Phase 7 (Profile & Resume Upload) next, parallel-eligible with Phase 8.*
+*Last updated: 2026-05-27 after Phase 6 (Chat) UAT close-out — 6/6 M-markers PASS (M2 cold-start live-verified against forced-cold ACA revision at 30s submit→first-response); all 6 CHAT-* requirements validated; 5/5 ROADMAP success criteria PASS; `06-SECURITY.md` gate `threats_open: 0`; 2 hotfixes landed during UAT (Bug #5a CRLF SSE parser via PR #7; Bug #5b MSAL `timed_out` recovery via PR #8). Earlier note: Phase 06.1 (Terraform value_wo lifecycle hardening) completion. Inserted infra-only phase closed the three Phase 06 UAT regressions: (1) `lifecycle.ignore_changes = [value, value_wo, value_wo_version]` on all 4 out-of-band-seeded KV secrets so future `terraform apply` cannot wipe real OpenAI/Langfuse/seeded-user-oid values; (2) ACA cpu/memory parameterized via `var.cpu`/`var.memory` with committed prod.tfvars defaults (1.0/2Gi) matching Adrian's manual OOM-fix bump; (3) dual-var-file discipline enforced via new `scripts/tf-apply-prod.sh` wrapper + README "Apply command convention" + CI pre-apply guard for `BACKEND_AUDIENCE`/`ENTRA_TENANT_*`. Live `terraform plan -detailed-exitcode` exit 0 against prod state proves zero unintended drift. Verifier: 3/3 must-haves passed. Code review surfaced CR-01 (CI guard fails open on `az` read errors) + 4 warnings tracked as Phase 06.2-eligible follow-ups. Phases 1-6.1 closed; Phase 7 (Profile & Resume Upload) next, parallel-eligible with Phase 8.*

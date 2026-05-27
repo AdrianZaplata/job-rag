@@ -7,4 +7,3 @@ spa_redirect_uris = [
   "http://localhost:5173/",
   "https://YOUR-SWA-DEFAULT-HOSTNAME.azurestaticapps.net/", # from infra/envs/prod/outputs.tf swa_default_origin output
 ]
-logout_redirect_uri = "https://YOUR-SWA-DEFAULT-HOSTNAME.azurestaticapps.net"

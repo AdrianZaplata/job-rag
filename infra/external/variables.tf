@@ -14,9 +14,3 @@ variable "spa_redirect_uris" {
   description = "SPA redirect URIs for both dev (http://localhost:5173/) and prod (SWA origin). Multi-redirect per Phase 3 D-06."
   default     = ["http://localhost:5173/"]
 }
-
-variable "logout_redirect_uri" {
-  type        = string
-  description = "Post-logout redirect URI (D-12). Typically the SWA origin. Empty = no special logout target registered."
-  default     = ""
-}
