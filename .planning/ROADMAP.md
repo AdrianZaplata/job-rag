@@ -177,7 +177,7 @@ Plans:
 **Goal:** Phase 06.1 closes the three Phase 06 UAT infra regressions (value_wo placeholder re-write wiping out-of-band-seeded KV secrets, hardcoded ACA cpu/memory reverting Adrian's manual OOM-fix bump, and the README's single-var-file `terraform apply` runbook silently breaking Entra auth env vars). Defensive infra-only phase: every future `terraform apply -var-file=prod.tfvars -var-file=prod.tfvars.local` against prod produces ZERO unintended drift.
 **Requirements**: TBD (this is an inserted hardening phase — no new REQ-IDs; the 4 KV secret resources, ACA container size, and Phase 4 D-04 auth env-var wiring all carry over from Phase 3 + Phase 4 unchanged)
 **Depends on:** Phase 6
-**Plans:** 4/5 plans complete
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 06.1-01-PLAN.md — value_wo lifecycle hardening: 4 azurerm_key_vault_secret resources in infra/envs/prod/main.tf get `lifecycle.ignore_changes = [value, value_wo, value_wo_version]` (D-01/D-02); closes Phase 06 UAT Bug #1+#2 (KV secret re-wipe)
