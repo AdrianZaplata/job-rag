@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to plan
-last_updated: "2026-05-27T12:36:46.806Z"
+last_updated: "2026-05-27T13:48:56.472Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 10
@@ -37,7 +37,7 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 06
+Phase: 06.1
 Plan: Not started
 Next: **Plan 06-05 (live UAT runbook, autonomous: false)** — final Phase 6 plan; operator-driven UAT against deployed Azure SWA + ACA stack. Will exercise full chat surface end-to-end: EmptyState sample-chip click → composer pre-fill + focus → submit → "Thinking" → first token → streaming + cursor blink → tool_start chip (running pulse) → tool_end chip (200-char preview + Show full output Dialog) → final → stopped (mid-stream abort) → error rendering (force timeout) → refresh wipes transcript (CHAT-06 DevTools Application tab inspection) → cold-start "Warming up — ~4 minutes after idle" copy verified after 4-minute idle on live stack.
 
