@@ -100,7 +100,7 @@ jobs:
             /^resource "azurerm_key_vault_secret"/ {in_block=1}
             in_block {print}
             in_block && /^}/ {in_block=0; print "---END---"}
-          ' "$MAIN_TF" | grep -cE 'ignore_changes[[:space:]]*=[[:space:]]*\[value\][^,]' || true)
+          ' "$MAIN_TF" | grep -cE 'ignore_changes[[:space:]]*=[[:space:]]*\[[[:space:]]*value[[:space:]]*\]' || true)
           if [ "$REGRESSED" -gt 0 ]; then
             echo "::error::Single-attribute 'ignore_changes = [value]' reappeared inside an azurerm_key_vault_secret block in $MAIN_TF. That form does NOT protect value_wo / value_wo_version and re-opens the Phase 06 UAT KV-wipe bug. Use [value, value_wo, value_wo_version] instead. (Phase 06.1 D-01/D-02.)" >&2
             exit 1
