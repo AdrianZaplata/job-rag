@@ -4,13 +4,14 @@ slug: chat
 status: complete
 source: [06-01-SUMMARY.md, 06-02-SUMMARY.md, 06-03-SUMMARY.md, 06-04-SUMMARY.md]
 started: 2026-05-24T00:00:00Z
-updated: 2026-05-25T18:10:00Z
+updated: 2026-05-27T12:55:00Z
 uat_environment: production SWA + deployed ACA
 swa_origin: https://witty-flower-065dac003.7.azurestaticapps.net
 backend_aca_fqdn: https://jobrag-prod-api.gentlebay-598f6d02.westeurope.azurecontainerapps.io
 signed_in_oid: 18d774c1-62ac-4416-8945-b5eca715e9ed
 build_sha_at_scaffold: 2e82389
 build_sha_at_m1_pass: 86f420b
+build_sha_at_m2_pass: aad82eb
 overall_verdict: PASS WITH MINOR DEVIATIONS
 ---
 
@@ -27,7 +28,7 @@ overall_verdict: PASS WITH MINOR DEVIATIONS
 
 ## Current Test
 
-complete — all 6 M-markers transcribed (M1/M3/M4/M5/M6 PASS; M2 DEFERRED pending 4hr ACA idle window).
+complete — all 6 M-markers PASS (M1/M2/M3/M4/M5/M6). M2 cold-start UX live-verified 2026-05-27 against forced-cold revision `jobrag-prod-api--0000027` (replicas drained to 0 at 12:43:12Z via `az containerapp revision restart`).
 
 ## Environment
 
@@ -123,14 +124,14 @@ Tokens streamed incrementally (NOT buffered) AND at least one tool chip appeared
 | Property | Value |
 |----------|-------|
 | D-19 coverage | UI-SPEC §12 cold-start swap at T=10s |
-| **Result** | **DEFERRED** — no 4hr ACA idle window achievable during this UAT session |
-| Cold-start latency observed (submit → first event) | n/a (DEFERRED) — partial probe data: my curl-driven cold-start during the M1 debug (replica `plqpr` spinup) measured 29.5s total / 28.6s time-to-first-byte (well under the 60s `asyncio.timeout`), which is far below the handoff's earlier ~225s estimate. M2 UI verification needs a true scale-to-zero idle event Adrian can observe live with stopwatch on the "Thinking..." → "Warming up..." swap. |
-| "Thinking..." rendered at T<10s | n/a (DEFERRED) |
-| "Warming up the agent — this can take ~4 minutes after idle" rendered at T≥10s | n/a (DEFERRED) |
-| Em-dash U+2014 verbatim verified | n/a (DEFERRED) — copy string is unit-tested in vitest, so the swap text itself is regression-guarded; only the live T=10s timing requires the cold-start window. |
-| Eventually streams successfully (no false 60s timeout) | n/a (DEFERRED) — cold-start curl probe (29.5s) confirms the agent budget is not exceeded under cold-start; live SPA confirmation deferred. |
-| Evidence | n/a (DEFERRED) — to be captured in a follow-up UAT session after a deliberate 4hr+ idle window |
-| Notes | DEFERRED, not FAILED. Cold-start UX is implemented per UI-SPEC §12 (Bug #5a fix verified end-to-end on the warm path; the cold-start swap timer is a separate `setTimeout(10000)` in `useChatStream.ts:174-177` which doesn't depend on backend behavior — the only true unknown is the wall-clock timing under a real cold-start). Schedule a recap UAT session after the next overnight idle window. |
+| **Result** | **PASS** |
+| Cold-start latency observed (submit → first agent response) | 30s (Adrian's live stopwatch) — consistent with `/health` cold-start curl probe at 24.9s TTFB earlier in this session against the same forced-cold revision; both observations well under the 60s `asyncio.timeout` budget |
+| "Thinking..." rendered at T<10s | YES — Adrian: "It appeared right away after pressing enter and sending the prompt" |
+| "Warming up the agent — this can take ~4 minutes after idle" rendered at T≥10s | YES — Adrian: "It appeared exactly at 10 sec" (confirms `setTimeout(10000)` in `useChatStream.ts:174-177` fires precisely on schedule) |
+| Em-dash U+2014 verbatim verified | YES — Adrian reported no deviations from the verbatim copy string; the literal is already vitest-regression-guarded so live observation closes the loop |
+| Eventually streams successfully (no false 60s timeout) | YES — first response at 30s leaves ~30s of headroom inside the 60s budget; no false network-error Alert appeared |
+| Evidence | Live UAT session 2026-05-27 against forced-cold revision `jobrag-prod-api--0000027`. Cold-start condition created via `az containerapp revision restart -n jobrag-prod-api -g jobrag-prod-rg --revision jobrag-prod-api--0000027`; polled `properties.replicas` until it reached 0 at 12:43:12Z; Adrian then executed M2 protocol against the genuinely cold container. Verbal stopwatch confirmation across all 3 timing criteria. |
+| Notes | M2 closes the last open ROADMAP criterion for Phase 6. The earlier ~225s cold-start estimate from memory was the worst-case (uvloop + reranker preload + 0.5cpu/1Gi container); the current ACA config (cpu=1.0/memory=2Gi after Bug #4 OOM bump) lands cold-start at ~25-30s — ~7-9× faster than the legacy projection. Cold-start budget is now empirically validated for both backend (24.9s `/health` curl) and end-to-end UX (30s submit → first response). |
 
 ---
 
@@ -345,31 +346,31 @@ Recording is ≤30 seconds AND captures one full chat turn AND tool chip expansi
 
 ## Overall Phase 6 verdict
 
-**PASS WITH MINOR DEVIATIONS** — 5/6 M-markers PASS (M1, M3, M4, M5, M6); M2 (cold-start UX) DEFERRED to a follow-up session after a deliberate 4hr+ ACA idle window. All 6 CHAT-* requirements closed PASS; 4/5 ROADMAP success criteria PASS (#5 also PASS via M6); criterion #6 (M2 cold-start swap timing) deferred.
+**PASS WITH MINOR DEVIATIONS** — 6/6 M-markers PASS (M1, M2, M3, M4, M5, M6). All 6 CHAT-* requirements closed PASS; 5/5 ROADMAP success criteria PASS; M2 cold-start UX live-verified 2026-05-27 against a forced-cold revision (`az containerapp revision restart` followed by 0-replica drain confirmation) — closes the last open criterion.
 
 Two real defects surfaced + landed during the UAT session:
 - **Bug #5a (CRLF parser)** — fix shipped via PR #7 (commits 44297aa + a62b356, merged at 86f420b)
 - **Bug #5b (MSAL timed_out recovery)** — workaround applied for Adrian's session; durable fix queued in PR #8 (commit 00848e0, awaiting merge)
 
-The cold-start probe data captured during the debug (replica `plqpr` cold-start at 29.5s total / 28.6s TTFB) is well below the 60s `asyncio.timeout`, providing confidence the cold-start UX will pass when M2 is run live.
+Cold-start probe data is now triangulated across three independent observations: M1 debug curl during `plqpr` spinup (29.5s total / 28.6s TTFB); `/health` curl probe before M2 (24.9s TTFB); Adrian's M2 SPA stopwatch (30s submit → first response). All well under the 60s `asyncio.timeout`. The earlier ~225s worst-case projection in `memory/aca-cold-start-profile.md` is superseded by these live measurements — current ACA config (cpu=1.0/memory=2Gi after Phase 6 Bug #4 OOM bump) lands cold-start at ~25-30s.
 
 ---
 
 ## Deviations from spec (if any)
 
-None observed during M1/M3/M4/M5/M6. UI rendered per UI-SPEC §6 in Adrian's three captured screenshots (M1 transcript with collapsed `analyze_gaps` chip showing args inline; M3 expanded chip showing pretty-printed args + `output` block; M4 `(stopped)` bubble + composer Send active; M5 Application-tab key inventory). Chevron rotation on the chip header was visually ambiguous in the M3 screenshot but verified verbally as toggling correctly. Both interactive Dialog requirements (focus trap, Escape close, focus return) PASS per Adrian's verbal confirmation. M2 cold-start UI strings are unit-tested separately so the only live unknown for the deferred marker is wall-clock timing.
+None observed across M1–M6. UI rendered per UI-SPEC §6 in Adrian's captured screenshots (M1 transcript with collapsed `analyze_gaps` chip showing args inline; M3 expanded chip showing pretty-printed args + `output` block; M4 `(stopped)` bubble + composer Send active; M5 Application-tab key inventory). Chevron rotation on the chip header was visually ambiguous in the M3 screenshot but verified verbally as toggling correctly. Both interactive Dialog requirements (focus trap, Escape close, focus return) PASS per Adrian's verbal confirmation. M2 verbatim copy + em-dash U+2014 confirmed via verbal stopwatch report ("appeared exactly at 10 sec"; no deviations); the literal copy string is already vitest-regression-guarded.
 
 ---
 
 ## Summary
 
 total: 6
-passed: 5
+passed: 6
 issues: 2
 pending: 0
 skipped: 0
 blocked: 0
-deferred: 1
+deferred: 0
 hotfixes_landed: 1
 durable_fix_queued: 1
 
@@ -384,12 +385,12 @@ Empty until first FAIL observation. -->
 
 ## Next
 
-Run `/gsd-verify-work 6` to formalize Phase 6 closure. Then either:
-- Proceed to Phase 7 (Profile & Resume Upload) — parallel-eligible per ROADMAP §"Phase Ordering Notes"
+All 6 M-markers PASS. `06-SECURITY.md` landed via commit `0a04df4 docs(phase-06): add security threat verification`. Re-run `/gsd-verify-work 6` to formalize Phase 6 closure (security gate now satisfied; STATE.md transition + ROADMAP checkbox advancement via `gsd-tools phase complete 6`). Then either:
+- Proceed to Phase 7 (Profile & Resume Upload) — parallel-eligible per ROADMAP §"Phase Ordering Notes" (UI-SPEC already drafted at `aad82eb`)
 - OR Phase 8 (Eval & Documentation) — terminal phase
 
 ---
 
 *Phase: 06-chat*
 *UAT scaffold created: 2026-05-24*
-*Status: testing (awaiting Adrian's M1-M6 execution against deployed SWA + ACA)*
+*Status: complete — all 6 M-markers PASS (M1-M6); ready for formalization*
