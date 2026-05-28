@@ -17,7 +17,15 @@ vi.mock('@/api/profile', () => ({
   saveProfile: vi.fn(),
 }))
 
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
 import { saveProfile, uploadResume } from '@/api/profile'
+import { toast } from 'sonner'
 
 function makeWrapper(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -143,11 +151,18 @@ describe('useResumeUpload', () => {
       })
     })
 
-    await waitFor(() => expect(result.current.state.phase).toBe('saved'))
+    // WR-05: `saved` is transient — the hook auto-reverts to `idle` on the
+    // next macrotask. The user-visible contract from types.ts D-28 is
+    // "saved → idle after Sonner toast + cache invalidation."
+    await waitFor(() => expect(result.current.state.phase).toBe('idle'))
 
     // D-22 contract:
     expect(setDataSpy).toHaveBeenCalledWith(['profile'], persisted)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['dashboard'] })
+    // WR-05: Sonner toast fired with skill-count.
+    expect(toast.success).toHaveBeenCalledWith(
+      'Saved 1 skills to your profile',
+    )
   })
 
   it('reset() returns to idle phase from reviewing', async () => {

@@ -15,6 +15,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 import { saveProfile, uploadResume } from '@/api/profile'
 import type { UserProfileUpdate } from '@/api/profile'
@@ -51,7 +52,16 @@ export function useResumeUpload() {
       // the new skill set counted.
       queryClient.setQueryData(['profile'], profile)
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      // WR-05: surface the success via the AppShell-mounted Sonner Toaster
+      // (the types.ts D-28 comment promises this) and flip to the transient
+      // `saved` phase. `saved` is observable for one microtask before the
+      // auto-revert; the ProfileView + ResumeUploader render the same in
+      // both saved + idle, so the user sees the refreshed profile via the
+      // synchronous setQueryData above.
       setState({ phase: 'saved' })
+      toast.success(`Saved ${profile.skills.length} skills to your profile`)
+      // Auto-revert so `saved` is genuinely transient (matches types.ts D-28).
+      setTimeout(() => setState({ phase: 'idle' }), 0)
     },
   })
 
