@@ -203,7 +203,7 @@ Plans:
 - [x] 07-02-profile-load-flip-PLAN.md — Backend: load_profile() async DB flip + alembic 0006 seed migration + 5 call-site updates + 2 mock-test file updates + 3 load_profile tests + 2 migration tests (PROF-01)
 - [x] 07-03-resume-extractor-PLAN.md — Backend: resume_prompt.py with REJECTED_SOFT_SKILLS reuse + RESUME_PROMPT_VERSION + ResumeExtraction model + extract_resume with Instructor + tenacity + 7 unit tests (PROF-02 deps, PROF-03)
 - [x] 07-04-upload-routes-diff-langfuse-PLAN.md — Backend: ResumeUploadSizeGuard middleware + compute_skills_diff service + ResumeUploadResponse/UserProfileUpdate schemas + POST /profile/upload + PATCH /profile + 4 Langfuse spans with PII redaction + 11 route tests + 3 Langfuse tests + OpenAPI snapshot regen (PROF-02/04/06)
-- [ ] 07-05-frontend-profile-feature-PLAN.md — Frontend: 6-file feature folder (ProfileView/ResumeUploader/SkillDiffChip/ReviewPanel/useResumeUpload/types) + 5 vitest tests + profile.ts service module + Profile.tsx route rewrite + cache invalidation to dashboard (PROF-05, PROF-06 frontend half)
+- [x] 07-05-frontend-profile-feature-PLAN.md — Frontend: 6-file feature folder (ProfileView/ResumeUploader/SkillDiffChip/ReviewPanel/useResumeUpload/types) + 5 vitest tests + profile.ts service module + Profile.tsx route rewrite + cache invalidation to dashboard (PROF-05, PROF-06 frontend half)
 **UI hint**: yes
 
 ### Phase 8: Eval & Documentation

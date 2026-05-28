@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-05-28T11:19:31.157Z"
+status: Phase complete — ready for verification
+last_updated: "2026-05-28T11:32:02.372Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 10
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 51
-  completed_plans: 49
-  percent: 96
+  completed_plans: 50
+  percent: 98
 ---
 
 # State: job-rag web-app milestone
@@ -29,7 +29,7 @@ progress:
 
 ## Current Focus
 
-Phase 7 (Profile & Resume Upload) — **EXECUTING; 2 of 5 plans landed**. Plan 07-01 (Wave 0 foundation) shipped pypdf + python-docx deps, `max_resume_size_bytes` Setting, 4 synthetic resume fixtures + conftest byte fixtures, and the `data/README.md` "reference snapshot only" contract for `data/profile.json`. Plan 07-02 (this plan) closed PROF-01: `load_profile()` is now `async def load_profile(session, *, user_id=None) -> UserSkillProfile` reading from the `user_profile` DB row; `alembic/versions/0006_seed_user_profile.py` idempotently seeds Adrian's row from an embedded dict literal (ON CONFLICT DO NOTHING); 5 call sites flipped (/match, /gaps, analytics, two MCP tools); 2 mock test files converted to async stubs; `grep -rn "profile.json" src/` returns 0 matches. 244 backend tests pass; 1 pre-existing failure (`test_0005_upgrade_populates_oid_when_env_set`) logged to `deferred-items.md` per the SCOPE BOUNDARY rule — Phase 04.1 fix #1 moved the env-driven UPDATE out of the migration body, leaving this test stale. **Next:** Plan 07-03 (resume extractor + prompt module + Instructor wiring for PROF-03).
+Phase 7 (Profile & Resume Upload) — **PLANS COMPLETE; all 5 plans landed 2026-05-28**. Plan 07-01 (Wave 0 foundation) shipped pypdf + python-docx deps, `max_resume_size_bytes` Setting, 4 synthetic resume fixtures + conftest byte fixtures, and the `data/README.md` "reference snapshot only" contract for `data/profile.json`. Plan 07-02 closed PROF-01: `load_profile()` is now `async def load_profile(session, *, user_id=None) -> UserSkillProfile` reading from `user_profile`; `alembic/versions/0006_seed_user_profile.py` idempotently seeds Adrian's row from an embedded dict literal (ON CONFLICT DO NOTHING); 5 call sites flipped. Plan 07-03 closed PROF-03 at the extractor primitives level: `RESUME_PROMPT_VERSION='1.0'` + `RESUME_SYSTEM_PROMPT` + `ResumeExtraction` Pydantic model + `extract_resume()` sync wrapper with `@retry(stop_after_attempt(3), reraise=True)`. Plan 07-04 closed PROF-02/04/06 backend: `POST /profile/upload` + `PATCH /profile` + `GET /profile` + `ResumeUploadSizeGuard` ASGI middleware (first BaseHTTPMiddleware in the repo) + Langfuse 4-span trace correlation via server-generated `extraction_id` + PII redaction on auto-captured `llm_extract` span; OpenAPI snapshot regenerated with absolute-URI scope per CI drift guard; frontend types regenerated. Plan 07-05 closed PROF-05 + PROF-06 frontend half: 6 source files + 5 vitest+RTL tests under `frontend/src/components/profile/`; `frontend/src/api/profile.ts` filled with 3 typed service functions; `frontend/src/routes/Profile.tsx` PhasePlaceholder replaced with idle/reviewing composition; save mutation invalidates `['profile']` AND `['dashboard']` cache keys for Phase 5 CV-vs-market re-fetch. Full frontend suite 113 tests pass; full backend suite 260 pass (0 regressions); production build green (Profile chunk 16.12 kB / 5.72 kB gzipped). **Next:** `/gsd-verify-work 7` to validate the 6 PROF-* must-haves + 4 manual UAT M-markers.
 
 Phase 6 (Chat) **COMPLETE — all 5 plans landed, UAT closed 2026-05-27 with 6/6 M-markers PASS**. Plans 06-01 → 06-04 shipped the chat surface end-to-end: backend `POST /agent/stream` (method-flipped from GET), frontend `useChatStream` hook + `streamAgent` helper, 5 shadcn-composed presentation components (ChatTranscript / ChatMessage / ToolChip / ChatComposer / ChatEmptyState), Chat.tsx route, and 17 files / 82 tests in the frontend suite. Plan 06-05 captured live UAT evidence (`06-UAT.md`) against deployed SWA + ACA: M1 (happy path streaming + tool chip + final), M2 (cold-start UX — live-verified 2026-05-27 against forced-cold revision `jobrag-prod-api--0000027` at 30s submit→first-response; supersedes the ~225s worst-case projection in `memory/aca-cold-start-profile.md`), M3 (tool chip expand + Show full output Dialog), M4 (Stop mid-stream cancels cleanly with `(stopped)` suffix), M5 (refresh = zero residue — only `theme` + MSAL keys in storage), M6 (13s `06-chat-demo.mov` portfolio recording). All 6 CHAT-* requirements + 5/5 ROADMAP success criteria PASS. Two hotfixes landed live during UAT: **Bug #5a** — SPA SSE parser searched `\n\n` but sse-starlette emits `\r\n\r\n` (fix in PR #7 / commits `44297aa` + `a62b356`; memory `sse-starlette-crlf-vs-spa-parser.md`); **Bug #5b** — MSAL silent-token `timed_out` recovery (workaround applied for Adrian's session; durable fix queued in PR #8 / commit `00848e0`). Security gate satisfied: `06-SECURITY.md` shows `status: verified, threats_open: 0, asvs_level: 1`.
 
@@ -39,9 +39,9 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 
 ## Current Position
 
-Phase: 07 (profile-resume-upload) — EXECUTING
-Plan: 5 of 5 (07-04-upload-routes-diff-langfuse-PLAN.md closed 2026-05-28 — PROF-02/04/06 backend complete; OpenAPI snapshot regenerated with absolute-URI scope per CI drift guard)
-Next: **Plan 07-05 (frontend profile feature)** — `frontend/src/components/profile/` 6-file feature folder (ProfileView, ResumeUploader, ReviewPanel, SkillDiffChip, useResumeUpload, types) + `frontend/src/api/profile.ts` stub fill + `frontend/src/routes/Profile.tsx` swap from PhasePlaceholder; codegens against types.ts shipped by Plan 04. Closes PROF-05.
+Phase: 07 (profile-resume-upload) — **PLANS COMPLETE** (5 of 5 plans landed; ready for `/gsd-verify-work 7`)
+Plan: 5 of 5 (07-05-frontend-profile-feature-PLAN.md closed 2026-05-28 — PROF-05 + PROF-06 frontend half closed; 25 new vitest+RTL tests across 5 spec files; production build green; Profile chunk 16.12 kB / 5.72 kB gzipped; zero backend mutations per CHECKER-FIX-1 scope discipline)
+Next: **`/gsd-verify-work 7`** — verifier validates Phase 7's 6 must-haves (PROF-01..06) against the close-out checklist. Manual UAT M-markers documented in 07-05-SUMMARY (oversize 413, Langfuse 4-span trace, dashboard cache propagation, inline-edit persistence, cold-start copy steps).
 
 Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra phase) is already plans-complete + verifier-passed (3/3 must-haves; live `terraform plan -detailed-exitcode` exit 0 against prod state at commit `19adb94`). The `gsd-tools phase complete` sequence-bumped to 06.1 after Phase 6 closure, but 06.1's 4 PLAN.md checkboxes were already `[x]` — Phase 7 is the next real work.
 
@@ -64,7 +64,7 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 [x] Phase 5: Dashboard                       ✓ COMPLETE (UAT PASSED 2026-05-23, 5/5 ROADMAP criteria)
 [x] Phase 6: Chat                            ✓ COMPLETE (UAT closed 2026-05-27, 6/6 M-markers PASS — M2 cold-start live-verified)
 [x] Phase 06.1: Terraform value_wo hardening ✓ COMPLETE (INSERTED; verifier 3/3, live tf-plan exit 0)
-[ ] Phase 7: Profile & Resume Upload         <- next (parallel-eligible with 8)
+[x] Phase 7: Profile & Resume Upload         ✓ PLANS COMPLETE (5/5 plans landed 2026-05-28; ready for verifier)
 [ ] Phase 8: Eval & Documentation
 ```
 
@@ -117,6 +117,7 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 | Phase 07-profile-resume-upload P02 | ~10min | 2 tasks | 13 files |
 | Phase 07-profile-resume-upload P03 | ~5min | 2 tasks | 4 files |
 | Phase 07-profile-resume-upload P04 | ~14min | 4 tasks | 10 files |
+| Phase 07-profile-resume-upload P05 | ~7m | 3 tasks | 13 files |
 
 ### Per-Plan Execution
 
