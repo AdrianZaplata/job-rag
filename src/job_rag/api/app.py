@@ -33,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from sqlalchemy import text
 
+from job_rag.api.middleware import ResumeUploadSizeGuard
 from job_rag.api.routes import router
 from job_rag.config import settings
 from job_rag.db.engine import AsyncSessionLocal, async_engine
@@ -133,6 +134,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Phase 7 D-07 / T-07-02: pre-body 413 guard on POST /profile/upload.
+# Added BEFORE CORSMiddleware so OPTIONS preflight still flows through CORS
+# handling — the size guard only fires on POST /profile/upload, so any
+# preflight OPTIONS bypasses cleanly. Note Starlette middleware execution
+# order is reverse of registration (innermost runs first); registering
+# ResumeUploadSizeGuard first means it sits OUTSIDE CORS so the 413 is
+# returned without CORS headers — acceptable because the browser only
+# triggers a real upload after a successful CORS preflight.
+app.add_middleware(ResumeUploadSizeGuard)
+
 # CORS middleware [D-26, BACK-01, T-05-01]
 # allow_origins comes from settings.allowed_origins (env-var driven, NEVER "*").
 # allow_credentials=True is incompatible with wildcard origins per CORS spec —
@@ -143,7 +154,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 

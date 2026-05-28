@@ -81,3 +81,25 @@ def flush() -> None:
         get_client().flush()
     except Exception as e:  # pragma: no cover - best effort
         log.warning("langfuse_flush_failed", error=str(e))
+
+
+@lru_cache(maxsize=1)
+def get_langfuse_client() -> Any | None:
+    """Return a raw Langfuse client for manual span/trace creation (Phase 7 D-32).
+
+    Fail-open: returns ``None`` when keys are missing — all callers MUST
+    guard with ``if lf:`` before usage (mirrors :func:`get_langchain_callbacks`
+    fail-open semantics). Cached so the same client is reused across the
+    resume upload + PATCH save paths within a process.
+    """
+    if not is_enabled():
+        return None
+    _ensure_env()
+    from langfuse import Langfuse  # type: ignore[import-untyped]
+
+    log.info("langfuse_client_initialized")
+    return Langfuse(
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        host=settings.langfuse_host,
+    )
