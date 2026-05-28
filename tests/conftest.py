@@ -24,6 +24,33 @@ def sample_raw_text() -> str:
         return f.read()
 
 
+# ===== Phase 7 Wave 0 - resume upload byte fixtures =====
+
+
+@pytest.fixture
+def sample_resume_pdf() -> bytes:
+    with open("tests/fixtures/sample-resume.pdf", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def sample_resume_docx() -> bytes:
+    with open("tests/fixtures/sample-resume.docx", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def encrypted_resume_pdf() -> bytes:
+    with open("tests/fixtures/encrypted-sample.pdf", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def empty_text_resume_pdf() -> bytes:
+    with open("tests/fixtures/empty-text-sample.pdf", "rb") as f:
+        return f.read()
+
+
 @pytest.fixture
 def sample_posting() -> JobPosting:
     return JobPosting(

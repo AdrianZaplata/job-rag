@@ -51,3 +51,10 @@ class TestFlush:
             with patch.object(observability.settings, "langfuse_secret_key", ""):
                 # Should not raise
                 observability.flush()
+
+
+# Phase 7: resume_upload trace tests (Plan 04)
+# Plan 04 will append tests covering:
+# - resume_upload trace has 4 spans (text_extract, llm_extract, diff_compute, profile_save)
+# - resume trace does NOT capture raw resume text (PII redaction per D-33)
+# - Langfuse fail-open when keys missing (resume upload still works)
