@@ -156,3 +156,32 @@ class UserSkillProfile(BaseModel):
     remote_preference: RemotePolicy = Field(
         default=RemotePolicy.UNKNOWN, description="Preferred remote policy"
     )
+
+
+class ResumeExtraction(BaseModel):
+    """LLM-extracted resume contents (Phase 7 D-13).
+
+    Sibling of :class:`UserSkillProfile`. Decoupled so the extraction format can
+    evolve (e.g. add ``companies_worked_at``) without coupling the canonical
+    user-state shape. Adds ``years_experience``, which the resume-review UI
+    surfaces back to the user, and renames ``min_salary`` to ``min_salary_eur``
+    so the Instructor prompt has an explicit unit hint (otherwise GPT-4o-mini
+    tends to drop the currency conversion step).
+    """
+
+    skills: list[UserSkill] = Field(description="Extracted user skills")
+    target_roles: list[str] = Field(
+        default_factory=list, description="Target job titles inferred from the resume"
+    )
+    preferred_locations: list[str] = Field(
+        default_factory=list, description="Preferred locations stated in the resume"
+    )
+    min_salary_eur: int | None = Field(
+        default=None, description="Minimum acceptable salary in EUR/year"
+    )
+    remote_preference: RemotePolicy = Field(
+        default=RemotePolicy.UNKNOWN, description="Preferred remote policy"
+    )
+    years_experience: int | None = Field(
+        default=None, description="Years of professional experience"
+    )
