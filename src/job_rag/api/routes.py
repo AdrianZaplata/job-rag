@@ -698,11 +698,11 @@ async def upload_resume(
     page_count: int | None = None
     try:
         if suffix == ".pdf":
-            text = await asyncio.to_thread(_extract_pdf_text, raw)
+            resume_text = await asyncio.to_thread(_extract_pdf_text, raw)
             file_type = "pdf"
             page_count = _pdf_page_count(raw)
         else:  # .docx
-            text = await asyncio.to_thread(_extract_docx_text, raw)
+            resume_text = await asyncio.to_thread(_extract_docx_text, raw)
             file_type = "docx"
     except pypdf.errors.PdfReadError:
         log.warning("resume_upload_failed", reason="pdf_encrypted")
@@ -724,11 +724,11 @@ async def upload_resume(
         ) from None
     text_extract_ms = int((time.perf_counter() - text_extract_start) * 1000)
 
-    if len(text.strip()) < 100:
+    if len(resume_text.strip()) < 100:
         log.warning(
             "resume_upload_failed",
             reason="text_extraction_failed",
-            char_count=len(text.strip()),
+            char_count=len(resume_text.strip()),
         )
         raise HTTPException(
             status_code=422,
@@ -742,13 +742,13 @@ async def upload_resume(
         )
 
     # D-11: cap text at 50 KB pre-LLM to bound LLM cost on weird/huge inputs.
-    if len(text) > 50_000:
+    if len(resume_text) > 50_000:
         log.warning(
             "resume_text_truncated",
-            original_chars=len(text),
+            original_chars=len(resume_text),
             truncated_chars=50_000,
         )
-        text = text[:50_000]
+        resume_text = resume_text[:50_000]
 
     if trace is not None:
         # T-07-07: metadata only — NO raw text.
@@ -756,7 +756,7 @@ async def upload_resume(
             trace.span(name="text_extract").end(
                 metadata={
                     "file_type": file_type,
-                    "char_count": len(text),
+                    "char_count": len(resume_text),
                     "page_count": page_count,
                     "latency_ms": text_extract_ms,
                 }
@@ -766,7 +766,7 @@ async def upload_resume(
 
     # ---- llm_extract span auto-captured by langfuse.openai; redact post-call ----
     try:
-        extraction, _usage_info = await asyncio.to_thread(extract_resume, text)
+        extraction, _usage_info = await asyncio.to_thread(extract_resume, resume_text)
     except ValidationError:
         log.exception("resume_extraction_failed", attempts=3)
         raise HTTPException(
@@ -802,7 +802,7 @@ async def upload_resume(
     if lf is not None:
         try:
             lf.update_current_observation(
-                input={"text": f"[REDACTED — char_count={len(text)}]"}
+                input={"text": f"[REDACTED — char_count={len(resume_text)}]"}
             )
         except Exception:  # pragma: no cover - fail-open
             pass
