@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     agent_timeout_seconds: int = Field(default=60, ge=1)
     heartbeat_interval_seconds: int = Field(default=15, ge=1)
 
+    # Phase 7 D-07: 2 MB cap on resume uploads. Enforced by the ASGI middleware
+    # in api/middleware.py BEFORE the body is materialized into memory (REQ-PROF-02
+    # literal "rejected with 413 before the body is fully read").
+    max_resume_size_bytes: int = Field(default=2_000_000, ge=1)
+
     # Entra External ID tenant identifiers (Phase 4 D-04 — plain env vars,
     # public-by-design per Phase 3 D-13).
     entra_tenant_id: str = ""
