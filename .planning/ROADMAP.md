@@ -197,7 +197,13 @@ Plans:
   4. Ticking a subset of extracted skills and hitting "save" PATCHes the `user_profile` row; the next CV-vs-market dashboard load reflects the new skills (PROF-06)
   5. Langfuse dashboard shows a single trace per upload spanning: text extraction → Instructor call → diff computation → (on save) PATCH — so the full pipeline is auditable in one place (PROF-06)
 **Cost delta**: ~€0.005 per upload (GPT-4o-mini extraction) — dozens per month at most
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 07-01-foundation-PLAN.md — Wave 0 foundation: pypdf + python-docx deps + max_resume_size_bytes Setting + 4 synthetic resume fixtures + conftest fixtures + test scaffolds + data/README.md + frontend profile dir (setup for PROF-01..06)
+- [ ] 07-02-profile-load-flip-PLAN.md — Backend: load_profile() async DB flip + alembic 0006 seed migration + 5 call-site updates + 2 mock-test file updates + 3 load_profile tests + 2 migration tests (PROF-01)
+- [ ] 07-03-resume-extractor-PLAN.md — Backend: resume_prompt.py with REJECTED_SOFT_SKILLS reuse + RESUME_PROMPT_VERSION + ResumeExtraction model + extract_resume with Instructor + tenacity + 7 unit tests (PROF-02 deps, PROF-03)
+- [ ] 07-04-upload-routes-diff-langfuse-PLAN.md — Backend: ResumeUploadSizeGuard middleware + compute_skills_diff service + ResumeUploadResponse/UserProfileUpdate schemas + POST /profile/upload + PATCH /profile + 4 Langfuse spans with PII redaction + 11 route tests + 3 Langfuse tests + OpenAPI snapshot regen (PROF-02/04/06)
+- [ ] 07-05-frontend-profile-feature-PLAN.md — Frontend: 6-file feature folder (ProfileView/ResumeUploader/SkillDiffChip/ReviewPanel/useResumeUpload/types) + 5 vitest tests + profile.ts service module + Profile.tsx route rewrite + cache invalidation to dashboard (PROF-05, PROF-06 frontend half)
 **UI hint**: yes
 
 ### Phase 8: Eval & Documentation
