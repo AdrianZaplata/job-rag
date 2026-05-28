@@ -78,14 +78,18 @@ export function SkillDiffChip({
 
   const commitEdit = () => {
     const trimmed = draft.trim()
-    if (trimmed === '' || trimmed === item.editedName) {
-      // empty or unchanged → discard edit
-      setEditing(false)
-      setDraft(item.editedName)
+    if (trimmed === '') {
+      // Empty input → cancel the edit (do NOT blank the name). WR-04.
+      cancelEdit()
       return
     }
-    onRename(item.name, trimmed)
+    if (trimmed !== item.editedName) {
+      onRename(item.name, trimmed)
+    }
+    // WR-04: always sync draft to the committed value (even on no-op)
+    // so the next pencil-open shows the committed text in the input.
     setEditing(false)
+    setDraft(trimmed)
   }
 
   const cancelEdit = () => {
