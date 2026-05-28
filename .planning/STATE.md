@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-28T10:48:33.073Z"
+last_updated: "2026-05-28T11:00:53.546Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 51
-  completed_plans: 47
-  percent: 92
+  completed_plans: 48
+  percent: 94
 ---
 
 # State: job-rag web-app milestone
@@ -40,7 +40,7 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 ## Current Position
 
 Phase: 07 (profile-resume-upload) — EXECUTING
-Plan: 3 of 5 (07-02-profile-load-flip-PLAN.md closed 2026-05-28 — PROF-01 done)
+Plan: 4 of 5 (07-02-profile-load-flip-PLAN.md closed 2026-05-28 — PROF-01 done)
 Next: **Plan 07-03 (resume-extractor)** — `src/job_rag/extraction/resume_prompt.py` + `extraction/resume_extractor.py` with Instructor + `RESUME_PROMPT_VERSION = "1.0"`; mirrors the existing `extract_posting()` pattern (PROF-03). Then Plan 07-04 (upload + PATCH routes + diff + Langfuse spans for PROF-02/PROF-04/PROF-06) and 07-05 (frontend profile feature folder for PROF-05).
 
 Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra phase) is already plans-complete + verifier-passed (3/3 must-haves; live `terraform plan -detailed-exitcode` exit 0 against prod state at commit `19adb94`). The `gsd-tools phase complete` sequence-bumped to 06.1 after Phase 6 closure, but 06.1's 4 PLAN.md checkboxes were already `[x]` — Phase 7 is the next real work.
@@ -115,6 +115,7 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 | Phase 06.1 P03 | 4m 14s | 3 tasks | 4 files |
 | Phase 07-profile-resume-upload P01 | ~8min | 3 tasks | 14 files |
 | Phase 07-profile-resume-upload P02 | ~10min | 2 tasks | 13 files |
+| Phase 07-profile-resume-upload P03 | ~5min | 2 tasks | 4 files |
 
 ### Per-Plan Execution
 
