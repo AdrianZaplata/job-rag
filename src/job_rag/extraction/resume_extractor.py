@@ -29,7 +29,11 @@ from job_rag.observability import get_openai_client
 log = get_logger(__name__)
 
 
-@retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
+@retry(
+    wait=wait_exponential(min=1, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def extract_resume(text: str) -> tuple[ResumeExtraction, dict]:
     """Extract a structured :class:`ResumeExtraction` from raw resume text.
 
