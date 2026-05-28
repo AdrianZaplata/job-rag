@@ -505,6 +505,70 @@ class TestAgentStream:
         assert resp.headers.get("x-accel-buffering") == "no"
 
 
+# ===== Phase 7 Plan 04 — GET /profile integration test =====
+
+
+@pytest.mark.asyncio
+async def test_get_profile_returns_loaded_profile():
+    """PROF-01 read-path / Plan 04 Task 3: GET /profile returns the
+    DB-backed UserSkillProfile for the authenticated user.
+
+    Uses the existing dependency-override + load_profile-mock pattern so
+    the test stays DB-less.
+    """
+    from job_rag.api.auth import get_current_user_id
+    from job_rag.api.deps import get_session
+    from job_rag.config import settings
+    from job_rag.models import RemotePolicy, UserSkill, UserSkillProfile
+
+    async def override_session():
+        yield AsyncMock()
+
+    async def override_user():
+        return settings.seeded_user_id
+
+    app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_current_user_id] = override_user
+
+    expected = UserSkillProfile(
+        skills=[UserSkill(name="Python"), UserSkill(name="FastAPI")],
+        target_roles=["AI Engineer"],
+        preferred_locations=["Berlin"],
+        min_salary=70000,
+        remote_preference=RemotePolicy.REMOTE,
+    )
+
+    try:
+        with patch(
+            "job_rag.api.routes.load_profile",
+            new_callable=AsyncMock,
+            return_value=expected,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                resp = await client.get("/profile")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert "skills" in body
+        assert isinstance(body["skills"], list)
+        assert len(body["skills"]) > 0
+        # Sub-shape: each skill object carries a `name` field.
+        first = body["skills"][0]
+        assert "name" in first
+        assert first["name"] == "Python"
+        # UserSkillProfile envelope fields are present.
+        assert "target_roles" in body
+        assert "preferred_locations" in body
+        assert "remote_preference" in body
+        assert "min_salary" in body
+        assert body["target_roles"] == ["AI Engineer"]
+        assert body["remote_preference"] == "remote"
+    finally:
+        app.dependency_overrides.clear()
+
+
 # ===== Phase 5 Wave 0 - dashboard endpoint scaffold =====
 
 

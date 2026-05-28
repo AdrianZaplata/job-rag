@@ -6,6 +6,7 @@ Coverage filled by:
 """
 
 import uuid
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -435,5 +436,181 @@ async def test_upload_422_extraction_failed(sample_resume_pdf):
         assert resp.status_code == 422, resp.text
         body = resp.json()
         assert body["detail"]["reason"] == "extraction_failed"
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ----------------------------------------------------------------------
+# Plan 07-04 Task 3 — PATCH /profile route tests (PROF-06 / T-07-06)
+# ----------------------------------------------------------------------
+
+
+def _patch_session_with_execute_and_commit():
+    """Build an AsyncMock AsyncSession that captures execute() calls.
+
+    Returns the (session_mock, executed_stmts) tuple; the latter is a list
+    populated by every ``await session.execute(stmt)`` call so tests can
+    assert what SQL ran.
+    """
+    executed_stmts: list[Any] = []
+    session_mock = AsyncMock()
+
+    async def fake_execute(stmt, *args, **kwargs):
+        executed_stmts.append(stmt)
+        return MagicMock()
+
+    session_mock.execute = AsyncMock(side_effect=fake_execute)
+    session_mock.commit = AsyncMock()
+    return session_mock, executed_stmts
+
+
+@pytest.mark.asyncio
+async def test_patch_replaces_skills_json():
+    """VALIDATION 07-04-12 / T-07-06: PATCH with new skills updates skills_json.
+
+    The mock session captures the UPDATE statement; we inspect its compiled
+    parameters to confirm ``skills_json`` is included.
+    """
+    from job_rag.api.auth import get_current_user_id
+    from job_rag.api.deps import get_session
+    from job_rag.config import settings as _settings
+
+    session_mock, executed_stmts = _patch_session_with_execute_and_commit()
+
+    async def override_session():
+        yield session_mock
+
+    async def override_user():
+        return _settings.seeded_user_id
+
+    app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_current_user_id] = override_user
+    try:
+        with patch(
+            "job_rag.api.routes.load_profile",
+            new_callable=AsyncMock,
+            return_value=UserSkillProfile(
+                skills=[UserSkill(name="NewSkill")],
+            ),
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                resp = await client.patch(
+                    "/profile",
+                    json={"skills": [{"name": "NewSkill"}]},
+                )
+        assert resp.status_code == 200, resp.text
+        # Exactly one UPDATE statement was emitted.
+        assert len(executed_stmts) == 1
+        # The compiled UPDATE contains the skills_json column in its targets.
+        stmt = executed_stmts[0]
+        params = stmt.compile().params
+        assert "skills_json" in params
+        assert "NewSkill" in params["skills_json"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_patch_none_fields_preserve_existing():
+    """VALIDATION 07-04-13: PATCH with target_roles=None does NOT include the
+    column in the UPDATE statement (preserving the existing DB value)."""
+    from job_rag.api.auth import get_current_user_id
+    from job_rag.api.deps import get_session
+    from job_rag.config import settings as _settings
+
+    session_mock, executed_stmts = _patch_session_with_execute_and_commit()
+
+    async def override_session():
+        yield session_mock
+
+    async def override_user():
+        return _settings.seeded_user_id
+
+    app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_current_user_id] = override_user
+    try:
+        with patch(
+            "job_rag.api.routes.load_profile",
+            new_callable=AsyncMock,
+            return_value=UserSkillProfile(
+                skills=[UserSkill(name="Python")],
+            ),
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                # Only skills provided; all other optional fields omitted.
+                resp = await client.patch(
+                    "/profile",
+                    json={"skills": [{"name": "Python"}]},
+                )
+        assert resp.status_code == 200, resp.text
+        stmt = executed_stmts[0]
+        params = stmt.compile().params
+        # skills_json + updated_at always written; others omitted when None.
+        assert "skills_json" in params
+        assert "target_roles_json" not in params
+        assert "preferred_locations_json" not in params
+        assert "min_salary_eur" not in params
+        assert "remote_preference" not in params
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_patch_returns_loaded_profile():
+    """VALIDATION 07-04-14: PATCH response body == the freshly-loaded
+    UserSkillProfile."""
+    from job_rag.api.auth import get_current_user_id
+    from job_rag.api.deps import get_session
+    from job_rag.config import settings as _settings
+
+    session_mock, _ = _patch_session_with_execute_and_commit()
+
+    async def override_session():
+        yield session_mock
+
+    async def override_user():
+        return _settings.seeded_user_id
+
+    app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_current_user_id] = override_user
+
+    expected_profile = UserSkillProfile(
+        skills=[UserSkill(name="Rust"), UserSkill(name="Go")],
+        target_roles=["ML Engineer"],
+        preferred_locations=["Berlin"],
+        min_salary=70000,
+    )
+    try:
+        with patch(
+            "job_rag.api.routes.load_profile",
+            new_callable=AsyncMock,
+            return_value=expected_profile,
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                resp = await client.patch(
+                    "/profile",
+                    json={
+                        "skills": [
+                            {"name": "Rust"},
+                            {"name": "Go"},
+                        ],
+                        "target_roles": ["ML Engineer"],
+                    },
+                )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["skills"] == [{"name": "Rust"}, {"name": "Go"}]
+        assert body["target_roles"] == ["ML Engineer"]
+        assert body["preferred_locations"] == ["Berlin"]
+        assert body["min_salary"] == 70000
     finally:
         app.dependency_overrides.clear()

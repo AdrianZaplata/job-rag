@@ -18,6 +18,7 @@ cannot run inside an already-running event loop.
 
 import asyncio
 import io
+import json
 import tempfile
 import time
 import uuid
@@ -31,7 +32,7 @@ import pypdf
 import pypdf.errors
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, TypeAdapter, ValidationError
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sse_starlette.event import ServerSentEvent
@@ -62,11 +63,11 @@ from job_rag.api.sse import (
     to_sse,
 )
 from job_rag.config import settings
-from job_rag.db.models import JobPostingDB
+from job_rag.db.models import JobPostingDB, UserProfileDB
 from job_rag.extraction.resume_extractor import extract_resume
 from job_rag.extraction.resume_prompt import RESUME_PROMPT_VERSION
 from job_rag.logging import get_logger
-from job_rag.models import Seniority
+from job_rag.models import Seniority, UserSkillProfile
 from job_rag.observability import get_langfuse_client
 from job_rag.services.analytics import (
     cv_match as analytics_cv_match,
@@ -84,6 +85,7 @@ from job_rag.services.ingestion import (
 from job_rag.services.matching import aggregate_gaps, load_profile, match_posting
 from job_rag.services.profile import (
     ResumeUploadResponse,
+    UserProfileUpdate,
     compute_skills_diff,
 )
 from job_rag.services.retrieval import rag_query, search_postings
@@ -842,3 +844,83 @@ async def upload_resume(
         extraction_id=extraction_id,
     )
 
+
+@router.patch(
+    "/profile",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    response_model=UserSkillProfile,
+)
+async def update_profile(
+    session: Session,
+    payload: UserProfileUpdate,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> UserSkillProfile:
+    """PATCH /profile — replace skills, None = no change (D-21).
+
+    ``skills`` REPLACES ``skills_json`` entirely; other fields with value
+    ``None`` are NOT written, so the DB column retains its prior value.
+    The seed migration (0006) guarantees the row exists; UPSERT is not
+    needed.
+
+    When ``extraction_id`` is supplied (matching a prior upload), a
+    ``profile_save`` span is attached to that Langfuse trace per D-32 #4.
+    Fail-open: missing keys leave the save functional without a trace.
+    """
+    updates: dict[str, Any] = {
+        "skills_json": json.dumps([s.model_dump() for s in payload.skills]),
+        "updated_at": func.now(),
+    }
+    if payload.target_roles is not None:
+        updates["target_roles_json"] = json.dumps(payload.target_roles)
+    if payload.preferred_locations is not None:
+        updates["preferred_locations_json"] = json.dumps(
+            payload.preferred_locations
+        )
+    if payload.min_salary_eur is not None:
+        updates["min_salary_eur"] = payload.min_salary_eur
+    if payload.remote_preference is not None:
+        updates["remote_preference"] = payload.remote_preference.value
+
+    stmt = (
+        update(UserProfileDB)
+        .where(UserProfileDB.user_id == user_id)
+        .values(**updates)
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+    # profile_save Langfuse span — only when extraction_id provided (D-32 #4).
+    lf = get_langfuse_client()
+    if lf is not None and payload.extraction_id is not None:
+        try:
+            trace = lf.trace(id=str(payload.extraction_id))
+            trace.span(name="profile_save").end(
+                metadata={"written_skill_count": len(payload.skills)}
+            )
+        except Exception:  # pragma: no cover - fail-open per T-07-08
+            pass
+
+    log.info(
+        "profile_saved",
+        user_id=str(user_id),
+        skill_count=len(payload.skills),
+    )
+    return await load_profile(session, user_id=user_id)
+
+
+@router.get(
+    "/profile",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    response_model=UserSkillProfile,
+)
+async def get_profile(
+    session: Session,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> UserSkillProfile:
+    """GET /profile — return the authenticated user's profile (PROF-01).
+
+    Delegates to the Phase 7 D-01/D-02 DB-backed ``load_profile`` (the
+    same read path the dashboard CV-vs-market widget uses), so the
+    frontend has a single source of truth.
+    """
+    return await load_profile(session, user_id=user_id)
