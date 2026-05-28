@@ -1,38 +1,57 @@
 import json
-from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from job_rag.config import settings
-from job_rag.db.models import JobPostingDB
+from job_rag.db.models import JobPostingDB, UserProfileDB
 from job_rag.logging import get_logger
-from job_rag.models import UserSkillProfile
+from job_rag.models import RemotePolicy, UserSkill, UserSkillProfile
 
 log = get_logger(__name__)
 
 
-def load_profile(
-    *, user_id: UUID | None = None, path: str | None = None,
+async def load_profile(
+    session: AsyncSession, *, user_id: UUID | None = None,
 ) -> UserSkillProfile:
-    """Load user skill profile.
+    """Load user skill profile from the ``user_profile`` DB row (PROF-01).
 
-    Phase 1 (v1): reads ``data/profile.json`` regardless of ``user_id`` —
-    the parameter is accepted for forward compatibility with Phase 7
-    (PROF-01), which will flip the source to the ``user_profile`` DB table
-    keyed by ``user_id``. [D-07]
+    Phase 7 D-01/D-02 body-flip: replaces the Phase 1 ``data/profile.json``
+    read with an async DB query. The Phase 1 D-07 signature
+    ``(*, user_id, path)`` collapses to ``(session, *, user_id)`` because
+    the ``path`` kwarg was a forward-compat hook with no production caller.
 
-    The kwargs are keyword-only (the leading ``*``) so existing call sites
-    that pass no args — ``load_profile()`` — keep working without
-    modification (Sequencing Caveat Option A from 01-05-PLAN.md). When
-    ``user_id`` is None, it defaults to ``settings.seeded_user_id`` so the
-    v1 single-user fallback is explicit when the value is later inspected
-    or logged (Phase 7 hook point).
+    The seed migration ``alembic/versions/0006_seed_user_profile.py``
+    guarantees the row exists. Missing row = data-integrity bug, not a
+    user error — raise ``RuntimeError`` so the surface fails loudly rather
+    than silently returning an empty profile that would destroy the user's
+    skill list on the next PATCH save.
+
+    Args:
+        session: An open ``AsyncSession`` bound to the live engine.
+        user_id: Defaults to ``settings.seeded_user_id`` for the v1
+            single-user fallback.
+
+    Raises:
+        RuntimeError: If no ``user_profile`` row exists for ``user_id``.
+
+    Returns:
+        A validated ``UserSkillProfile`` reconstituted from the JSON columns.
     """
-    if user_id is None:
-        user_id = settings.seeded_user_id
-    profile_path = Path(path or settings.profile_path)
-    data = json.loads(profile_path.read_text(encoding="utf-8"))
-    return UserSkillProfile(**data)
+    uid = user_id or settings.seeded_user_id
+    stmt = select(UserProfileDB).where(UserProfileDB.user_id == uid)
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    if row is None:
+        raise RuntimeError(f"user_profile row missing for user_id={uid}")
+    return UserSkillProfile(
+        skills=[UserSkill(**s) for s in json.loads(row.skills_json)],
+        target_roles=json.loads(row.target_roles_json),
+        preferred_locations=json.loads(row.preferred_locations_json),
+        min_salary=row.min_salary_eur,
+        remote_preference=RemotePolicy(row.remote_preference),
+    )
 
 
 def _normalize_skill(name: str) -> str:

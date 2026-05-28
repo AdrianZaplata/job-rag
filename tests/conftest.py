@@ -1,5 +1,4 @@
 import asyncio
-import os
 import uuid
 from collections.abc import AsyncIterator
 from unittest.mock import MagicMock
@@ -83,16 +82,32 @@ async def db_session():
 
     Assumes the test runner is invoked with `alembic upgrade head` already
     applied — Phase 7 0006_seed_user_profile inserts the row these tests
-    expect. Reuses AsyncSessionLocal from job_rag.db.engine so the session
-    sees the same pool config as the FastAPI app.
+    expect.
+
+    Creates a *fresh* async engine per test (NullPool-equivalent semantics via
+    a tiny pool) so each test's connections are bound to the current
+    pytest-asyncio loop. Reusing the module-global AsyncSessionLocal across
+    tests would cause `Future ... attached to a different loop` errors because
+    asyncpg connections cache the loop they were opened on.
     """
     if not _async_postgres_reachable():
         pytest.skip("Postgres not reachable — db_session fixture skipped")
-    # Lazy import so pytest collection works in PG-less environments.
-    from job_rag.db.engine import AsyncSessionLocal
+    # Lazy imports so pytest collection works in PG-less environments.
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    async with AsyncSessionLocal() as session:
-        yield session
+    from job_rag.config import settings
+
+    engine = create_async_engine(
+        settings.async_database_url,
+        echo=False,
+        pool_pre_ping=True,
+    )
+    session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
+    try:
+        async with session_factory() as session:
+            yield session
+    finally:
+        await engine.dispose()
 
 
 @pytest.fixture
