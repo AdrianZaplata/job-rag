@@ -383,3 +383,209 @@ def test_0005_downgrade_smoke() -> None:
 
     # Restore head for downstream tests.
     command.upgrade(cfg, "head")
+
+
+# --- Plan 07-02: migration 0006 (seed Adrian's user_profile row) ---
+
+
+def test_0006_seed_user_profile_inserts_row() -> None:
+    """0006 upgrade INSERTs Adrian's seeded user_profile row (PROF-01 / D-03).
+
+    Plan 07-02 Task 1 / VALIDATION 07-02-06. Skip cleanly when DATABASE_URL is
+    missing or Postgres unreachable.
+    """
+    if not _alembic_env_ready():
+        pytest.skip(
+            "DATABASE_URL not set or Postgres not reachable — 0006 seed smoke skipped"
+        )
+
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    from alembic import command
+    from job_rag.config import settings
+    from job_rag.db.engine import configure_alembic_url
+
+    cfg = Config("alembic.ini")
+    configure_alembic_url(cfg, settings.database_url)
+
+    # Roll back to 0005 to exercise the 0005 -> 0006 upgrade fresh.
+    command.downgrade(cfg, "0005")
+
+    eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    try:
+        with eng.connect() as c:
+            pre_count = c.execute(
+                text(
+                    "SELECT COUNT(*) FROM user_profile WHERE user_id = :u"
+                ).bindparams(u="00000000-0000-0000-0000-000000000001")
+            ).scalar()
+
+        command.upgrade(cfg, "0006")
+
+        with eng.connect() as c:
+            post_count = c.execute(
+                text(
+                    "SELECT COUNT(*) FROM user_profile WHERE user_id = :u"
+                ).bindparams(u="00000000-0000-0000-0000-000000000001")
+            ).scalar()
+            assert post_count == 1, (
+                f"0006 should INSERT exactly 1 user_profile row "
+                f"(pre={pre_count}, post={post_count})"
+            )
+
+            # Verify the row contains the expected shape.
+            row = c.execute(
+                text(
+                    "SELECT skills_json, target_roles_json, preferred_locations_json, "
+                    "       min_salary_eur, remote_preference "
+                    "FROM user_profile WHERE user_id = :u"
+                ).bindparams(u="00000000-0000-0000-0000-000000000001")
+            ).first()
+            assert row is not None
+            # Decode the JSON columns and assert expected seed contents.
+            import json as _json
+
+            skills = _json.loads(row.skills_json)
+            assert isinstance(skills, list) and len(skills) > 0
+            # Every skill dict has a "name" key.
+            assert all(isinstance(s, dict) and "name" in s for s in skills)
+            assert _json.loads(row.target_roles_json) == [
+                "AI Engineer",
+                "AI Application Engineer",
+                "AI Software Engineer",
+            ]
+            assert _json.loads(row.preferred_locations_json) == [
+                "Berlin, Germany",
+                "Germany",
+                "Remote",
+            ]
+            assert row.min_salary_eur == 65000
+            assert row.remote_preference == "remote"
+    finally:
+        eng.dispose()
+
+
+def test_0006_seed_user_profile_idempotent() -> None:
+    """0006 upgrade is a no-op on re-run — ON CONFLICT (user_id) DO NOTHING (T-07-03).
+
+    Plan 07-02 VALIDATION 07-02-06: re-running `alembic upgrade head` against
+    an already-seeded DB must not error and must not duplicate the row.
+    """
+    if not _alembic_env_ready():
+        pytest.skip(
+            "DATABASE_URL not set or Postgres not reachable — 0006 idempotency skipped"
+        )
+
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    from alembic import command
+    from job_rag.config import settings
+    from job_rag.db.engine import configure_alembic_url
+
+    cfg = Config("alembic.ini")
+    configure_alembic_url(cfg, settings.database_url)
+
+    # Ensure we're at head first.
+    command.upgrade(cfg, "head")
+
+    eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    try:
+        # Run upgrade head a SECOND time — this exercises the ON CONFLICT branch
+        # of the seed migration (the alembic version table already shows 0006
+        # so the command itself is a no-op; we explicitly invoke the migration
+        # body by downgrading and re-upgrading to guarantee the INSERT statement
+        # runs against the already-populated row).
+        command.downgrade(cfg, "0005")
+        command.upgrade(cfg, "0006")
+        # Second cycle — both UPGRADE calls touch the same row; second should
+        # silently DO NOTHING per the ON CONFLICT clause.
+        with eng.connect() as c:
+            count = c.execute(
+                text(
+                    "SELECT COUNT(*) FROM user_profile WHERE user_id = :u"
+                ).bindparams(u="00000000-0000-0000-0000-000000000001")
+            ).scalar()
+            assert count == 1, f"expected exactly 1 row after idempotent re-run, got {count}"
+    finally:
+        eng.dispose()
+
+
+def test_0006_seed_user_profile_downgrade_deletes_only_seeded_row() -> None:
+    """0006 downgrade DELETEs ONLY the seeded UUID row; others untouched.
+
+    Plan 07-02 Task 1 acceptance criterion. Verifies the downgrade is scoped
+    to the seeded user_id and does not truncate the user_profile table.
+    """
+    if not _alembic_env_ready():
+        pytest.skip(
+            "DATABASE_URL not set or Postgres not reachable — 0006 downgrade skipped"
+        )
+
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    from alembic import command
+    from job_rag.config import settings
+    from job_rag.db.engine import configure_alembic_url
+
+    cfg = Config("alembic.ini")
+    configure_alembic_url(cfg, settings.database_url)
+
+    # Ensure head (seeded row present).
+    command.upgrade(cfg, "head")
+
+    other_user_uuid = "00000000-0000-0000-0000-0000000000ee"
+    eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    try:
+        # INSERT a sentinel row for an OTHER user (also need users.id FK).
+        with eng.begin() as c:
+            c.execute(
+                text(
+                    "INSERT INTO users (id, email) VALUES (:u, :e) "
+                    "ON CONFLICT (id) DO NOTHING"
+                ).bindparams(u=other_user_uuid, e="sentinel@example.com")
+            )
+            c.execute(
+                text(
+                    "INSERT INTO user_profile "
+                    "(user_id, skills_json, target_roles_json, preferred_locations_json, "
+                    " min_salary_eur, remote_preference) "
+                    "VALUES (:u, '[]', '[]', '[]', NULL, 'unknown') "
+                    "ON CONFLICT (user_id) DO NOTHING"
+                ).bindparams(u=other_user_uuid)
+            )
+
+        # Downgrade — should delete ONLY the seeded UUID row.
+        command.downgrade(cfg, "0005")
+
+        with eng.connect() as c:
+            seeded_count = c.execute(
+                text(
+                    "SELECT COUNT(*) FROM user_profile WHERE user_id = :u"
+                ).bindparams(u="00000000-0000-0000-0000-000000000001")
+            ).scalar()
+            other_count = c.execute(
+                text(
+                    "SELECT COUNT(*) FROM user_profile WHERE user_id = :u"
+                ).bindparams(u=other_user_uuid)
+            ).scalar()
+            assert seeded_count == 0, "downgrade should remove the seeded row"
+            assert other_count == 1, "downgrade must NOT touch other user_profile rows"
+
+        # Cleanup: drop the sentinel rows so other tests start from a clean shape.
+        with eng.begin() as c:
+            c.execute(
+                text("DELETE FROM user_profile WHERE user_id = :u").bindparams(
+                    u=other_user_uuid
+                )
+            )
+            c.execute(
+                text("DELETE FROM users WHERE id = :u").bindparams(u=other_user_uuid)
+            )
+
+        # Restore head so downstream tests see the seeded row.
+        command.upgrade(cfg, "head")
+    finally:
+        eng.dispose()

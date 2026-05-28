@@ -1,9 +1,11 @@
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncIterator
 from unittest.mock import MagicMock
 
 import pytest
+import pytest_asyncio
 
 from job_rag.models import (
     JobPosting,
@@ -49,6 +51,48 @@ def encrypted_resume_pdf() -> bytes:
 def empty_text_resume_pdf() -> bytes:
     with open("tests/fixtures/empty-text-sample.pdf", "rb") as f:
         return f.read()
+
+
+# ===== Phase 7 D-01/D-02 — async DB session fixture for load_profile tests =====
+#
+# Skips cleanly when DATABASE_URL is unreachable. Assumes `alembic upgrade head`
+# has been applied so the seed migration (0006) has INSERTed Adrian's row. The
+# fixture wraps each test in a transaction-less AsyncSession bound to the live
+# dev DB; tests are read-only against user_profile so no rollback is needed.
+
+
+def _async_postgres_reachable() -> bool:
+    """Sync probe — uses the sync database_url to avoid event-loop concerns."""
+    try:
+        from sqlalchemy import create_engine, text
+
+        from job_rag.config import settings
+
+        eng = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+        with eng.connect() as c:
+            c.execute(text("SELECT 1"))
+        eng.dispose()
+        return True
+    except Exception:
+        return False
+
+
+@pytest_asyncio.fixture
+async def db_session():
+    """Yield an AsyncSession bound to the live dev DB; skip if PG unreachable.
+
+    Assumes the test runner is invoked with `alembic upgrade head` already
+    applied — Phase 7 0006_seed_user_profile inserts the row these tests
+    expect. Reuses AsyncSessionLocal from job_rag.db.engine so the session
+    sees the same pool config as the FastAPI app.
+    """
+    if not _async_postgres_reachable():
+        pytest.skip("Postgres not reachable — db_session fixture skipped")
+    # Lazy import so pytest collection works in PG-less environments.
+    from job_rag.db.engine import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 @pytest.fixture
