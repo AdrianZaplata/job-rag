@@ -72,6 +72,10 @@ def test_compute_skills_diff_normalizes_via_normalize_skill():
     "CI_CD"/"ci cd" collapse. NOTE: "FastAPI" and "fast api" do NOT collapse
     because the normalizer does not synthesize whitespace from camelCase. The
     test exercises the documented invariants only.
+
+    WR-03: when both sides normalize to the same key with different casing,
+    the *user's* canonical casing (current side) wins for unchanged rows so
+    a PATCH round-trip cannot silently rename a persisted skill.
     """
     current = _profile(["Python", "Fast-API", "CI_CD"])
     extracted = [
@@ -82,10 +86,10 @@ def test_compute_skills_diff_normalizes_via_normalize_skill():
     diff = compute_skills_diff(current, extracted)
     sources = {item.name: item.source for item in diff}
     assert all(s == "unchanged" for s in sources.values()), sources
-    # Extracted-side casing wins for unchanged items
-    assert "python" in sources
-    assert "fast api" in sources
-    assert "ci cd" in sources
+    # User-side (current profile) canonical casing wins for unchanged items.
+    assert "Python" in sources
+    assert "Fast-API" in sources
+    assert "CI_CD" in sources
 
 
 # ----------------------------------------------------------------------

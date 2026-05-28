@@ -89,8 +89,13 @@ def compute_skills_diff(
     Two skills are 'the same' iff
     ``_normalize_skill(a) == _normalize_skill(b)``. Output ordering: added
     (alphabetical) then removed (alphabetical) then unchanged
-    (alphabetical). Casing: extracted casing for added/unchanged, current
-    casing for removed (the canonical names the user already chose).
+    (alphabetical). Casing: extracted casing for added rows; the user's
+    existing canonical casing for removed AND unchanged rows. The
+    unchanged bucket reuses the user's stored casing (rather than the
+    extracted casing) so a round-trip save through ``PATCH /profile``
+    cannot silently rename a persisted skill — important because
+    ``editable=False`` for unchanged rows (D-26) gives the user no
+    Pencil affordance to opt into a rename (WR-03).
 
     ``_ALIAS_GROUPS`` in matching.py is empty in v1 (Phase 1 D-12); the
     diff is normalize-equality only. Future alias support would swap
@@ -106,7 +111,8 @@ def compute_skills_diff(
 
     added = sorted(extracted_map[k] for k in (ext_keys - cur_keys))
     removed = sorted(current_map[k] for k in (cur_keys - ext_keys))
-    unchanged = sorted(extracted_map[k] for k in (ext_keys & cur_keys))
+    # WR-03: keep the user's canonical casing for unchanged rows.
+    unchanged = sorted(current_map[k] for k in (ext_keys & cur_keys))
 
     return [
         *(SkillDiffItem(name=n, source="added", editable=True) for n in added),
