@@ -17,14 +17,20 @@ cannot run inside an already-running event loop.
 """
 
 import asyncio
+import io
 import tempfile
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
+import docx
+import openai
+import pypdf
+import pypdf.errors
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -57,7 +63,11 @@ from job_rag.api.sse import (
 )
 from job_rag.config import settings
 from job_rag.db.models import JobPostingDB
+from job_rag.extraction.resume_extractor import extract_resume
+from job_rag.extraction.resume_prompt import RESUME_PROMPT_VERSION
+from job_rag.logging import get_logger
 from job_rag.models import Seniority
+from job_rag.observability import get_langfuse_client
 from job_rag.services.analytics import (
     cv_match as analytics_cv_match,
 )
@@ -72,7 +82,13 @@ from job_rag.services.ingestion import (
     ingest_from_source,
 )
 from job_rag.services.matching import aggregate_gaps, load_profile, match_posting
+from job_rag.services.profile import (
+    ResumeUploadResponse,
+    compute_skills_diff,
+)
 from job_rag.services.retrieval import rag_query, search_postings
+
+log = get_logger(__name__)
 
 router = APIRouter()
 
@@ -529,4 +545,300 @@ async def ingest(
             for u, e in result.error_details
         ],
     }
+
+
+# ----------------------------------------------------------------------
+# Phase 7 — Profile & Resume Upload (PROF-02 / PROF-04 / PROF-06)
+#
+# Inline PDF/DOCX text-extraction helpers (per D-CHECKER-FIX-3 — kept in
+# routes.py rather than a separate text_extract.py module).
+# ----------------------------------------------------------------------
+
+
+def _extract_pdf_text(raw: bytes) -> str:
+    """Extract text from a PDF byte string via pypdf 6.x.
+
+    Raises ``pypdf.errors.PdfReadError`` if the document is encrypted (D-09);
+    the upload route maps this to 422 ``pdf_encrypted``.
+    """
+    reader = pypdf.PdfReader(io.BytesIO(raw))
+    if reader.is_encrypted:
+        raise pypdf.errors.PdfReadError("encrypted")
+    return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+def _pdf_page_count(raw: bytes) -> int:
+    """Best-effort page count for Langfuse trace metadata. Never raises."""
+    try:
+        return len(pypdf.PdfReader(io.BytesIO(raw)).pages)
+    except Exception:
+        return 0
+
+
+def _extract_docx_text(raw: bytes) -> str:
+    """Extract text from a DOCX byte string via python-docx 1.x (D-09).
+
+    Concatenates paragraphs (joined by ``\\n``) and tables (rows joined by
+    ``\\n``, cells joined by ``\\t``). Headers/footers are NOT traversed.
+    """
+    doc = docx.Document(io.BytesIO(raw))
+    parts: list[str] = []
+    for p in doc.paragraphs:
+        if p.text.strip():
+            parts.append(p.text)
+    for table in doc.tables:
+        for row in table.rows:
+            parts.append("\t".join(cell.text for cell in row.cells))
+    return "\n".join(parts)
+
+
+_ALLOWED_RESUME_TYPES: dict[str, str] = {
+    ".pdf": "application/pdf",
+    ".docx": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ),
+}
+
+
+@router.post(
+    "/profile/upload",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    response_model=ResumeUploadResponse,
+)
+async def upload_resume(
+    file: UploadFile,
+    session: Session,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> ResumeUploadResponse:
+    """POST /profile/upload — PDF/DOCX → Instructor extraction → skill diff.
+
+    Phase 7 D-06..D-35 + T-07-02/05/07/08:
+    - 2 MB cap enforced pre-body by :class:`ResumeUploadSizeGuard`
+      middleware (when ``Content-Length`` is present) plus an in-handler
+      chunked-encoding fallback (when it is not).
+    - Type whitelist = extension AND Content-Type intersection (D-08); 415
+      otherwise.
+    - Text extraction errors map to 422 ``pdf_encrypted`` /
+      ``text_extraction_failed`` (D-09/D-10).
+    - Tenacity retries (3x) re-raise — ``ValidationError`` maps to 422
+      ``extraction_failed``, ``openai.APIError`` to 503 ``llm_unavailable``
+      (D-15/D-16/D-35).
+    - Langfuse trace correlates 3 spans (text_extract, llm_extract auto,
+      diff_compute) via the server-generated ``extraction_id`` (D-32);
+      raw resume text is never written to trace metadata (D-33 / T-07-07).
+    """
+    extraction_id = uuid.uuid4()
+
+    # ---- Type whitelist (D-08, T-07-05) ----
+    filename = file.filename or ""
+    suffix = Path(filename).suffix.lower()
+    ctype = file.content_type or ""
+    if suffix not in _ALLOWED_RESUME_TYPES or ctype != _ALLOWED_RESUME_TYPES[suffix]:
+        log.warning(
+            "resume_upload_failed",
+            reason="unsupported_file_type",
+            filename=filename,
+            content_type=ctype,
+        )
+        raise HTTPException(
+            status_code=415,
+            detail={
+                "reason": "unsupported_file_type",
+                "message": "Upload a PDF or DOCX.",
+            },
+        )
+
+    # ---- Chunked-encoding fallback for D-07 (no Content-Length header) ----
+    # The ResumeUploadSizeGuard middleware catches the Content-Length-present
+    # case BEFORE the body materializes; this loop catches Transfer-Encoding:
+    # chunked uploads by aborting once total exceeds the cap.
+    cap = settings.max_resume_size_bytes
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > cap:
+            log.warning(
+                "resume_upload_failed",
+                reason="file_too_large",
+                bytes_read=total,
+                cap=cap,
+            )
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "reason": "file_too_large",
+                    "message": "Resume must be <=2 MB.",
+                },
+            )
+        chunks.append(chunk)
+    raw = b"".join(chunks)
+
+    # ---- Langfuse trace setup (D-32, fail-open per T-07-08) ----
+    lf = get_langfuse_client()
+    trace = None
+    if lf:
+        try:
+            trace = lf.trace(
+                name="resume_upload",
+                id=str(extraction_id),
+                user_id=str(user_id),
+                tags=["resume", "phase-7"],
+            )
+        except Exception:  # pragma: no cover - fail-open per T-07-08
+            trace = None
+
+    # ---- text_extract span (D-32 #1) ----
+    text_extract_start = time.perf_counter()
+    page_count: int | None = None
+    try:
+        if suffix == ".pdf":
+            text = await asyncio.to_thread(_extract_pdf_text, raw)
+            file_type = "pdf"
+            page_count = _pdf_page_count(raw)
+        else:  # .docx
+            text = await asyncio.to_thread(_extract_docx_text, raw)
+            file_type = "docx"
+    except pypdf.errors.PdfReadError:
+        log.warning("resume_upload_failed", reason="pdf_encrypted")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason": "pdf_encrypted",
+                "message": "Remove the password and try again.",
+            },
+        ) from None
+    except Exception:
+        log.exception("resume_upload_failed", reason="text_extraction_failed")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason": "text_extraction_failed",
+                "message": "Could not read the file.",
+            },
+        ) from None
+    text_extract_ms = int((time.perf_counter() - text_extract_start) * 1000)
+
+    if len(text.strip()) < 100:
+        log.warning(
+            "resume_upload_failed",
+            reason="text_extraction_failed",
+            char_count=len(text.strip()),
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason": "text_extraction_failed",
+                "message": (
+                    "The file appears to be a scanned image. v1 doesn't "
+                    "support OCR."
+                ),
+            },
+        )
+
+    # D-11: cap text at 50 KB pre-LLM to bound LLM cost on weird/huge inputs.
+    if len(text) > 50_000:
+        log.warning(
+            "resume_text_truncated",
+            original_chars=len(text),
+            truncated_chars=50_000,
+        )
+        text = text[:50_000]
+
+    if trace is not None:
+        # T-07-07: metadata only — NO raw text.
+        try:
+            trace.span(name="text_extract").end(
+                metadata={
+                    "file_type": file_type,
+                    "char_count": len(text),
+                    "page_count": page_count,
+                    "latency_ms": text_extract_ms,
+                }
+            )
+        except Exception:  # pragma: no cover - fail-open
+            pass
+
+    # ---- llm_extract span auto-captured by langfuse.openai; redact post-call ----
+    try:
+        extraction, _usage_info = await asyncio.to_thread(extract_resume, text)
+    except ValidationError:
+        log.exception("resume_extraction_failed", attempts=3)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason": "extraction_failed",
+                "message": (
+                    "The agent could not parse the resume. Try again or "
+                    "simplify the formatting."
+                ),
+            },
+        ) from None
+    except openai.APIError:
+        log.exception("resume_upload_failed", reason="llm_unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "reason": "llm_unavailable",
+                "message": "The LLM is down. Try again later.",
+            },
+        ) from None
+
+    if not extraction.skills:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "reason": "empty_skills",
+                "message": "No skills found. Is this a resume?",
+            },
+        )
+
+    # PII redaction on the auto-captured llm_extract span (D-33 / T-07-07)
+    if lf is not None:
+        try:
+            lf.update_current_observation(
+                input={"text": f"[REDACTED — char_count={len(text)}]"}
+            )
+        except Exception:  # pragma: no cover - fail-open
+            pass
+
+    # ---- diff_compute span (D-32 #3) ----
+    diff_start = time.perf_counter()
+    current = await load_profile(session, user_id=user_id)
+    skills_diff = compute_skills_diff(current, extraction.skills)
+    diff_ms = int((time.perf_counter() - diff_start) * 1000)
+    if trace is not None:
+        try:
+            trace.span(name="diff_compute").end(
+                metadata={
+                    "added_count": sum(
+                        1 for d in skills_diff if d.source == "added"
+                    ),
+                    "removed_count": sum(
+                        1 for d in skills_diff if d.source == "removed"
+                    ),
+                    "unchanged_count": sum(
+                        1 for d in skills_diff if d.source == "unchanged"
+                    ),
+                    "latency_ms": diff_ms,
+                }
+            )
+        except Exception:  # pragma: no cover - fail-open
+            pass
+
+    log.info(
+        "resume_skills_extracted",
+        skills_count=len(extraction.skills),
+        added=sum(1 for d in skills_diff if d.source == "added"),
+    )
+
+    return ResumeUploadResponse(
+        extracted=extraction,
+        skills_diff=skills_diff,
+        prompt_version=RESUME_PROMPT_VERSION,
+        extraction_id=extraction_id,
+    )
 
