@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-05-28T10:24:09.628Z"
+last_updated: "2026-05-28T10:48:33.073Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 51
-  completed_plans: 46
-  percent: 90
+  completed_plans: 47
+  percent: 92
 ---
 
 # State: job-rag web-app milestone
@@ -29,6 +29,8 @@ progress:
 
 ## Current Focus
 
+Phase 7 (Profile & Resume Upload) — **EXECUTING; 2 of 5 plans landed**. Plan 07-01 (Wave 0 foundation) shipped pypdf + python-docx deps, `max_resume_size_bytes` Setting, 4 synthetic resume fixtures + conftest byte fixtures, and the `data/README.md` "reference snapshot only" contract for `data/profile.json`. Plan 07-02 (this plan) closed PROF-01: `load_profile()` is now `async def load_profile(session, *, user_id=None) -> UserSkillProfile` reading from the `user_profile` DB row; `alembic/versions/0006_seed_user_profile.py` idempotently seeds Adrian's row from an embedded dict literal (ON CONFLICT DO NOTHING); 5 call sites flipped (/match, /gaps, analytics, two MCP tools); 2 mock test files converted to async stubs; `grep -rn "profile.json" src/` returns 0 matches. 244 backend tests pass; 1 pre-existing failure (`test_0005_upgrade_populates_oid_when_env_set`) logged to `deferred-items.md` per the SCOPE BOUNDARY rule — Phase 04.1 fix #1 moved the env-driven UPDATE out of the migration body, leaving this test stale. **Next:** Plan 07-03 (resume extractor + prompt module + Instructor wiring for PROF-03).
+
 Phase 6 (Chat) **COMPLETE — all 5 plans landed, UAT closed 2026-05-27 with 6/6 M-markers PASS**. Plans 06-01 → 06-04 shipped the chat surface end-to-end: backend `POST /agent/stream` (method-flipped from GET), frontend `useChatStream` hook + `streamAgent` helper, 5 shadcn-composed presentation components (ChatTranscript / ChatMessage / ToolChip / ChatComposer / ChatEmptyState), Chat.tsx route, and 17 files / 82 tests in the frontend suite. Plan 06-05 captured live UAT evidence (`06-UAT.md`) against deployed SWA + ACA: M1 (happy path streaming + tool chip + final), M2 (cold-start UX — live-verified 2026-05-27 against forced-cold revision `jobrag-prod-api--0000027` at 30s submit→first-response; supersedes the ~225s worst-case projection in `memory/aca-cold-start-profile.md`), M3 (tool chip expand + Show full output Dialog), M4 (Stop mid-stream cancels cleanly with `(stopped)` suffix), M5 (refresh = zero residue — only `theme` + MSAL keys in storage), M6 (13s `06-chat-demo.mov` portfolio recording). All 6 CHAT-* requirements + 5/5 ROADMAP success criteria PASS. Two hotfixes landed live during UAT: **Bug #5a** — SPA SSE parser searched `\n\n` but sse-starlette emits `\r\n\r\n` (fix in PR #7 / commits `44297aa` + `a62b356`; memory `sse-starlette-crlf-vs-spa-parser.md`); **Bug #5b** — MSAL silent-token `timed_out` recovery (workaround applied for Adrian's session; durable fix queued in PR #8 / commit `00848e0`). Security gate satisfied: `06-SECURITY.md` shows `status: verified, threats_open: 0, asvs_level: 1`.
 
 Phase 5 (Dashboard) **COMPLETE — all 6 plans landed, UAT close-out PASSED**. Plans 05-01 → 05-05 shipped the backend analytics service + 3 `/dashboard/*` endpoints + 4 widgets + Show More dialog. Plan 05-06 captured 6 M-marker manual UAT evidence against the live SWA + ACA stack (all 5 ROADMAP success criteria PASS; M2 country canary verified PL vs DE differ on every column). Three hotfix commits landed during UAT: `fbf82c6` (120/min rate limit), `8c8037a` (React Query skip 4xx retries), `ab9437d` (root cause — `_expected_issuer()` now uses tenant GUID as iss subdomain to match Entra External ID's actual token issuer). Phase 5 was the FIRST surface to exercise full token-acquire-validate roundtrip; Phase 4 left this latent because `/health` is unauthenticated and `/chat`+`/profile` are Phase 6/7 placeholders. 4 Phase 8 polish candidates tracked (PLN salary normalization, EU≡WW corpus hint, N=1 salary-bands EmptyState, `--chart-1` saturation). **Ready for `/gsd-verify-work 5`.**
@@ -38,8 +40,8 @@ Phase 1 (Backend Prep) **COMPLETE**. All 6 plans landed; verifier returned `stat
 ## Current Position
 
 Phase: 07 (profile-resume-upload) — EXECUTING
-Plan: 2 of 5
-Next: **Phase 7 (Profile & Resume Upload)** — close the personal-data loop: `UserProfile` DB read path replaces `data/profile.json`; `POST /profile/upload` accepts PDF/DOCX (≤2MB), runs Instructor extraction, returns a reviewable `added`/`removed`/`unchanged` diff; UI ticks confirmed skills back to `user_profile`; Langfuse traces the full extract→review→save pipeline. Parallel-eligible with Phase 8 (Eval & Documentation). UI-SPEC already drafted at `aad82eb`.
+Plan: 3 of 5 (07-02-profile-load-flip-PLAN.md closed 2026-05-28 — PROF-01 done)
+Next: **Plan 07-03 (resume-extractor)** — `src/job_rag/extraction/resume_prompt.py` + `extraction/resume_extractor.py` with Instructor + `RESUME_PROMPT_VERSION = "1.0"`; mirrors the existing `extract_posting()` pattern (PROF-03). Then Plan 07-04 (upload + PATCH routes + diff + Langfuse spans for PROF-02/PROF-04/PROF-06) and 07-05 (frontend profile feature folder for PROF-05).
 
 Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra phase) is already plans-complete + verifier-passed (3/3 must-haves; live `terraform plan -detailed-exitcode` exit 0 against prod state at commit `19adb94`). The `gsd-tools phase complete` sequence-bumped to 06.1 after Phase 6 closure, but 06.1's 4 PLAN.md checkboxes were already `[x]` — Phase 7 is the next real work.
 
@@ -112,6 +114,7 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 | Phase 06.1 P02 | 2m 50s | 2 tasks | 5 files |
 | Phase 06.1 P03 | 4m 14s | 3 tasks | 4 files |
 | Phase 07-profile-resume-upload P01 | ~8min | 3 tasks | 14 files |
+| Phase 07-profile-resume-upload P02 | ~10min | 2 tasks | 13 files |
 
 ### Per-Plan Execution
 
@@ -244,6 +247,10 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 - **Plan 07-01:** Wave-0 fixture pattern — commit BOTH the binary fixtures and the regenerator script (`scripts/generate_resume_fixtures.py`). Binaries are version-controlled because pypdf timestamps make every regenerate produce a different byte sequence; the script keeps the synthesis procedure in-tree so a future maintainer can re-derive the binaries from source. T-07-foundation-PII threat mitigated by SYNTHETIC-ONLY content with "TEST FIXTURE -- synthetic data" watermark on every text-bearing fixture.
 - **Plan 07-01:** `tests/test_alembic.py` left UNMODIFIED — pre-existing from Phase 1 plan 01-02 D-08 grep-guard tests (6 tests currently collect cleanly). Per plan Task 3 step 5 ("If exists: skip — Plan 02 appends"), the file was untouched; Plan 02's `0006_seed_user_profile` round-trip will append below the existing `0005_upgrade_smoke` block. Pattern reusable: when Wave-0 declares a test scaffold file but a same-named file already exists from an earlier phase, leave it alone and let the test-adding plan append.
 - **Plan 07-01:** Wave-0 empty test scaffolds (`tests/test_profile.py`, `tests/test_resume_extractor.py`) ship with ONLY a module docstring naming which downstream plan fills them. This is enough for `pytest --collect-only` to import the module without ImportError, while making the future-fill expectation discoverable. Cheaper than ImportError-skip-guards because there's no symbol-presence check needed for an empty file.
+- **Plan 07-02:** `load_profile()` body-flip preserves exact `UserSkillProfile` return shape — Phase 5's CV-vs-market widget keeps working transparently after the function becomes async + DB-backed. The 4 `cv_match` tests in `tests/test_analytics.py` exercise the byte-equivalence via the async-stub monkeypatches and pass without any post-flip adjustment to the analytics module's logic itself.
+- **Plan 07-02:** 0006 seed migration embeds `data/profile.json` as a Python dict literal rather than reading the file at runtime. `data/` is gitignored at the container layer per D-04; a runtime `Path("data/profile.json").read_text()` inside the migration would crash on fresh ACA boot. Trade-off: future seed-content changes require regenerating the literal in lockstep with `data/profile.json` (documented in the migration's module docstring).
+- **Plan 07-02:** Removed `settings.profile_path` entirely (was a Phase 1 D-07 forward-compat hint; no production code reads it post-flip). The grep guard `grep -rn "profile.json" src/` is meant to return 0 matches; keeping the Setting field would leave a literal string match in place. `test_load_profile_independent_of_filesystem` was rewritten to chdir into an empty `tmp_path` — a strictly stronger filesystem-independence assertion than monkeypatching a settings string.
+- **Plan 07-02:** Per-test fresh async engine in `tests/conftest.py::db_session` fixture — module-global `AsyncSessionLocal` caches `asyncpg` connections to the event loop they were opened on, so pytest-asyncio's per-test loop scope causes `Future ... attached to a different loop` errors. The fresh-engine fixture is slower (engine spin-up per test) but reliable; the slowdown is invisible at our test volume (3 tests, ~0.3s total). Pattern reusable for any future plan that needs an `AsyncSession` against the live DB inside pytest-asyncio.
 
 ### Decisions (from PROJECT.md Key Decisions — carried forward for quick reference)
 
