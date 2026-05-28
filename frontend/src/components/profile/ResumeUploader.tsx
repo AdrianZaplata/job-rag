@@ -32,6 +32,21 @@ const ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const
 
+// WR-02: Tailwind only emits classes it sees as full literal tokens at
+// scan time (`w-${w}` is invisible to the scanner). Use a static lookup
+// so all eight skeleton-bar widths survive the v4 build. Picked from
+// classes Tailwind always emits (w-16 / w-20 / w-24 / w-28 are core).
+const SKELETON_WIDTHS = [
+  'w-20',
+  'w-24',
+  'w-16',
+  'w-28',
+  'w-20',
+  'w-24',
+  'w-16',
+  'w-24',
+] as const
+
 // D-35 verbatim error copy mapping.
 const COPY: Record<string, { title: string; body: string }> = {
   file_too_large: {
@@ -291,8 +306,8 @@ export function ResumeUploader({
               {statusCopy}
             </p>
             <div className="flex flex-wrap gap-2" aria-hidden="true">
-              {[20, 24, 16, 28, 20, 24, 18, 22].map((w, i) => (
-                <Skeleton key={i} className={`h-6 w-${w}`} />
+              {SKELETON_WIDTHS.map((cls, i) => (
+                <Skeleton key={i} className={`h-6 ${cls}`} />
               ))}
             </div>
           </div>
