@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from job_rag.config import settings
 from job_rag.models import RemotePolicy, UserSkill, UserSkillProfile
 from job_rag.services.matching import (
     _normalize_skill,
@@ -211,10 +210,17 @@ async def test_load_profile_fails_when_row_missing(db_session: AsyncSession) -> 
 
 @pytest.mark.asyncio
 async def test_load_profile_independent_of_filesystem(
-    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    db_session: AsyncSession, tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """D-05 criterion 2: load_profile does NOT read data/profile.json at runtime."""
-    monkeypatch.setattr(settings, "profile_path", "/nonexistent/path/profile.json")
+    """D-05 criterion 2: load_profile does NOT read the filesystem at runtime.
+
+    Run the call from a tmp_path cwd that contains NO ``data/`` directory at
+    all. If load_profile still touched the filesystem it would raise. With the
+    Phase 7 body-flip, the function is pure DB I/O — the empty cwd is
+    irrelevant.
+    """
+    monkeypatch.chdir(tmp_path)
+    assert not (tmp_path / "data").exists()
     profile = await load_profile(db_session, user_id=SEEDED_UUID)
     assert isinstance(profile, UserSkillProfile)
     assert len(profile.skills) > 0

@@ -18,10 +18,10 @@ async def load_profile(
 ) -> UserSkillProfile:
     """Load user skill profile from the ``user_profile`` DB row (PROF-01).
 
-    Phase 7 D-01/D-02 body-flip: replaces the Phase 1 ``data/profile.json``
-    read with an async DB query. The Phase 1 D-07 signature
-    ``(*, user_id, path)`` collapses to ``(session, *, user_id)`` because
-    the ``path`` kwarg was a forward-compat hook with no production caller.
+    Phase 7 D-01/D-02 body-flip: replaces the Phase 1 JSON-file read with an
+    async DB query. The Phase 1 D-07 signature ``(*, user_id, path)``
+    collapses to ``(session, *, user_id)`` because the ``path`` kwarg was a
+    forward-compat hook with no production caller.
 
     The seed migration ``alembic/versions/0006_seed_user_profile.py``
     guarantees the row exists. Missing row = data-integrity bug, not a

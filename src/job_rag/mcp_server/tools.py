@@ -118,7 +118,9 @@ async def match_skills(posting_id: str) -> dict[str, Any]:
         # JWT to read — pass settings.seeded_user_id explicitly per D-08
         # so the v1 single-user assumption is surfaced at the call site
         # rather than relying on the load_profile fallback.
-        profile = load_profile(user_id=settings.seeded_user_id)
+        # Phase 7 D-01/D-02: load_profile is now async + DB-backed; reuse the
+        # already-open AsyncSessionLocal session opened above (PROF-01).
+        profile = await load_profile(session, user_id=settings.seeded_user_id)
         return match_posting(profile, posting)
 
 
@@ -144,7 +146,8 @@ async def skill_gaps(
             }
 
         # See match_skills above — MCP tools pass user_id explicitly per D-08.
-        profile = load_profile(user_id=settings.seeded_user_id)
+        # Phase 7 D-01/D-02: load_profile is now async + DB-backed (PROF-01).
+        profile = await load_profile(session, user_id=settings.seeded_user_id)
         return aggregate_gaps(profile, postings)
 
 

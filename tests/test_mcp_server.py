@@ -123,7 +123,11 @@ class TestMatchSkills:
 
         with (
             patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory,
-            patch("job_rag.mcp_server.tools.load_profile") as mock_load,
+            # Phase 7 D-01/D-02: load_profile is now an async coroutine — patch
+            # with AsyncMock so `await load_profile(session, user_id=...)` works.
+            patch(
+                "job_rag.mcp_server.tools.load_profile", new_callable=AsyncMock
+            ) as mock_load,
             patch("job_rag.mcp_server.tools.match_posting") as mock_match,
         ):
             session = AsyncMock()
@@ -161,7 +165,10 @@ class TestSkillGaps:
 
         with (
             patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory,
-            patch("job_rag.mcp_server.tools.load_profile") as mock_load,
+            # Phase 7 D-01/D-02: load_profile is now an async coroutine.
+            patch(
+                "job_rag.mcp_server.tools.load_profile", new_callable=AsyncMock
+            ) as mock_load,
             patch("job_rag.mcp_server.tools.aggregate_gaps") as mock_agg,
         ):
             session = AsyncMock()

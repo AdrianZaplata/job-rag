@@ -21,7 +21,10 @@ class Settings(BaseSettings):
     rag_model: str = "gpt-4o-mini"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     data_dir: str = "data/postings"
-    profile_path: str = "data/profile.json"
+    # Phase 7 D-01..D-05 (PROF-01) removed the profile-JSON runtime read path;
+    # the seed migration 0006_seed_user_profile.py now seeds Adrian's
+    # user_profile row, and load_profile() reads from the DB. The file under
+    # data/ remains as a reference snapshot only (see data/README.md).
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"

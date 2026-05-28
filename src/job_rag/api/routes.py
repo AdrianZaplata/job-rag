@@ -9,10 +9,11 @@ Phase 1 Plan 06 wires the typed SSE route handler with:
 - OpenAPI ``responses=`` exposes the ``AgentEvent`` union via inline JSON schema (BACK-02)
 
 ``/match``, ``/gaps``, and ``/ingest`` receive ``user_id`` via ``Depends(get_current_user_id)``
-and pass it to ``load_profile(user_id=...)`` (BACK-08 / D-10). ``/ingest`` calls
-``ingest_from_source`` directly (D-24) — the previous sync ``ingest_file`` path
-would have raised ``RuntimeError`` because ``asyncio.run`` cannot run inside an
-already-running event loop.
+and pass it to ``await load_profile(session, user_id=...)`` (Phase 7 D-01/D-02
+PROF-01; previously sync ``load_profile(user_id=...)`` per BACK-08 / D-10).
+``/ingest`` calls ``ingest_from_source`` directly (D-24) — the previous sync
+``ingest_file`` path would have raised ``RuntimeError`` because ``asyncio.run``
+cannot run inside an already-running event loop.
 """
 
 import asyncio
@@ -189,7 +190,8 @@ async def match(
     if not posting:
         raise HTTPException(status_code=404, detail="Posting not found")
 
-    profile = load_profile(user_id=user_id)
+    # Phase 7 D-01/D-02: load_profile is now async + DB-backed (PROF-01).
+    profile = await load_profile(session, user_id=user_id)
     return match_posting(profile, posting)
 
 
@@ -213,7 +215,8 @@ async def gaps(
     if not postings:
         raise HTTPException(status_code=404, detail="No postings found with given filters")
 
-    profile = load_profile(user_id=user_id)
+    # Phase 7 D-01/D-02: load_profile is now async + DB-backed (PROF-01).
+    profile = await load_profile(session, user_id=user_id)
     return aggregate_gaps(profile, postings)
 
 

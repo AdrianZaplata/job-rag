@@ -116,8 +116,9 @@ class UserDB(Base):
 
 
 class UserProfileDB(Base):
-    """User skill profile. v1 read path is data/profile.json (D-07);
-    Phase 7 (PROF-01) flips the source to this table.
+    """User skill profile. Phase 7 (PROF-01) — this table IS the read path;
+    the previous JSON-file v1 read path was retired by load_profile()'s
+    body-flip (Phase 7 D-01/D-02) and the 0006 seed migration.
 
     NOTE: `user_id` has NO default and NO server_default — app/migration
     INSERT must supply the value (D-07, D-08, D-12).
