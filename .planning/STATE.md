@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-last_updated: "2026-05-28T11:32:02.372Z"
-last_activity: 2026-05-28
+status: Ready to execute
+last_updated: "2026-05-29T21:57:10.679Z"
+last_activity: 2026-05-29
 progress:
   total_phases: 10
-  completed_phases: 8
-  total_plans: 51
+  completed_phases: 7
+  total_plans: 52
   completed_plans: 50
-  percent: 98
+  percent: 96
 ---
 
 # State: job-rag web-app milestone
@@ -300,7 +300,7 @@ Phase 06.1 (Terraform value_wo lifecycle hardening — INSERTED defensive infra 
 | 260523-vrw | Fix CI deploy-infra.yml home_ip gap: add TF_VAR_home_ip from HOME_IP secret to prod terraform apply step | 2026-05-23 | f6480e6 | [260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-](./quick/260523-vrw-fix-ci-deploy-infra-yml-home-ip-gap-add-/) |
 | 260527-q87 | Delete dead tflint-flagged variables (logout_redirect_uri + identity-module swa_origin pass-through) to unblock Static TF on PR #11 | 2026-05-27 | 5700f8b | [260527-q87-delete-dead-tflint-flagged-variables-log](./quick/260527-q87-delete-dead-tflint-flagged-variables-log/) |
 
-Last activity: 2026-05-28
+Last activity: 2026-05-29
 
 ### Open Questions (from research, to resolve during planning)
 
