@@ -1,9 +1,43 @@
 ---
 phase: 07-profile-resume-upload
 verified: 2026-05-28T11:44:42Z
-status: human_needed
-score: 5/5 must-haves verified
+status: gaps_found
+status_history:
+  - 2026-05-28T11:44:42Z: human_needed (initial verifier output, code-level all green)
+  - 2026-05-29T00:00:00Z: gaps_found (live UAT Test 1 failed — Langfuse SDK 3.x→4.x mismatch surfaced; see HUMAN-UAT G-07-UAT-01)
+score: 4/5 must-haves verified (truth #5 demoted to FAILED after live UAT)
 overrides_applied: 0
+gaps:
+  - id: G-07-UAT-01
+    title: "Langfuse SDK 3.x → 4.x migration (PROF-06 trace contract broken)"
+    severity: blocking
+    source: live UAT Test 1 (HUMAN-UAT.md)
+    affected_truth: 5
+    affected_requirements: [PROF-06]
+    evidence_file: "trace-c744bb2d0683a35da965946940e70bab.json (Langfuse export from Adrian's first real upload)"
+    summary: |
+      Phase 7 backend calls `lf.trace()`, `trace.span().end()`, and
+      `lf.update_current_observation()` — Langfuse Python SDK 3.x methods that
+      do not exist on the installed 4.1.0 client (OTel-based rewrite). All
+      calls raise AttributeError, are swallowed by T-07-08 fail-open
+      try/except wrappers, and silently no-op. The manual spans (text_extract,
+      diff_compute, profile_save) and PII redaction at `routes.py:805` never
+      run in production. Only `langfuse.openai` auto-instrumentation survives.
+      Result: standalone GENERATION trace with full unredacted resume PII
+      (name, email, phone, LinkedIn URL, GitHub URL, address) in trace.input.
+    affected_files:
+      - src/job_rag/api/routes.py:687
+      - src/job_rag/api/routes.py:756
+      - src/job_rag/api/routes.py:804
+      - src/job_rag/api/routes.py:817
+      - src/job_rag/api/routes.py:897
+      - src/job_rag/observability.py
+      - tests/test_observability.py
+    why_unit_tests_passed: |
+      tests/test_observability.py mocks get_langfuse_client(); the mock
+      accepts any method call (.trace, .span, .update_current_observation)
+      without raising. Tests verified call shape ("intent"), not real SDK
+      compatibility. Live UAT was first contact with a real 4.x client.
 human_verification:
   - test: "Upload a 1.5 MB PDF resume via the running UI and confirm Langfuse dashboard shows a single trace with 4 spans (text_extract, llm_extract auto, diff_compute, profile_save) correlated by extraction_id"
     expected: "Single Langfuse trace per upload spanning extraction → Instructor → diff → PATCH; raw resume text NOT visible in any span input/metadata"
