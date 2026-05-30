@@ -68,7 +68,11 @@ from job_rag.extraction.resume_extractor import extract_resume
 from job_rag.extraction.resume_prompt import RESUME_PROMPT_VERSION
 from job_rag.logging import get_logger
 from job_rag.models import Seniority, UserSkillProfile
-from job_rag.observability import get_langfuse_client
+from job_rag.observability import (
+    derive_langfuse_trace_id,
+    get_langfuse_client,
+    redact_current_generation_input,
+)
 from job_rag.services.analytics import (
     cv_match as analytics_cv_match,
 )
@@ -602,96 +606,18 @@ _ALLOWED_RESUME_TYPES: dict[str, str] = {
 }
 
 
-@router.post(
-    "/profile/upload",
-    dependencies=[Depends(require_api_key), Depends(standard_limit)],
-    response_model=ResumeUploadResponse,
-)
-async def upload_resume(
-    file: UploadFile,
-    session: Session,
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+async def _run_resume_upload_pipeline(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    extraction_id: uuid.UUID,
+    raw: bytes,
+    suffix: str,
 ) -> ResumeUploadResponse:
-    """POST /profile/upload — PDF/DOCX → Instructor extraction → skill diff.
-
-    Phase 7 D-06..D-35 + T-07-02/05/07/08:
-    - 2 MB cap enforced pre-body by :class:`ResumeUploadSizeGuard`
-      middleware (when ``Content-Length`` is present) plus an in-handler
-      chunked-encoding fallback (when it is not).
-    - Type whitelist = extension AND Content-Type intersection (D-08); 415
-      otherwise.
-    - Text extraction errors map to 422 ``pdf_encrypted`` /
-      ``text_extraction_failed`` (D-09/D-10).
-    - Tenacity retries (3x) re-raise — ``ValidationError`` maps to 422
-      ``extraction_failed``, ``openai.APIError`` to 503 ``llm_unavailable``
-      (D-15/D-16/D-35).
-    - Langfuse trace correlates 3 spans (text_extract, llm_extract auto,
-      diff_compute) via the server-generated ``extraction_id`` (D-32);
-      raw resume text is never written to trace metadata (D-33 / T-07-07).
-    """
-    extraction_id = uuid.uuid4()
-
-    # ---- Type whitelist (D-08, T-07-05) ----
-    filename = file.filename or ""
-    suffix = Path(filename).suffix.lower()
-    ctype = file.content_type or ""
-    if suffix not in _ALLOWED_RESUME_TYPES or ctype != _ALLOWED_RESUME_TYPES[suffix]:
-        log.warning(
-            "resume_upload_failed",
-            reason="unsupported_file_type",
-            filename=filename,
-            content_type=ctype,
-        )
-        raise HTTPException(
-            status_code=415,
-            detail={
-                "reason": "unsupported_file_type",
-                "message": "Upload a PDF or DOCX.",
-            },
-        )
-
-    # ---- Chunked-encoding fallback for D-07 (no Content-Length header) ----
-    # The ResumeUploadSizeGuard middleware catches the Content-Length-present
-    # case BEFORE the body materializes; this loop catches Transfer-Encoding:
-    # chunked uploads by aborting once total exceeds the cap.
-    cap = settings.max_resume_size_bytes
-    chunks: list[bytes] = []
-    total = 0
-    while True:
-        chunk = await file.read(64 * 1024)
-        if not chunk:
-            break
-        total += len(chunk)
-        if total > cap:
-            log.warning(
-                "resume_upload_failed",
-                reason="file_too_large",
-                bytes_read=total,
-                cap=cap,
-            )
-            raise HTTPException(
-                status_code=413,
-                detail={
-                    "reason": "file_too_large",
-                    "message": "Resume must be <=2 MB.",
-                },
-            )
-        chunks.append(chunk)
-    raw = b"".join(chunks)
-
-    # ---- Langfuse trace setup (D-32, fail-open per T-07-08) ----
-    lf = get_langfuse_client()
-    trace = None
-    if lf:
-        try:
-            trace = lf.trace(
-                name="resume_upload",
-                id=str(extraction_id),
-                user_id=str(user_id),
-                tags=["resume", "phase-7"],
-            )
-        except Exception:  # pragma: no cover - fail-open per T-07-08
-            trace = None
+    """The actual upload pipeline — extracted so it can run inside-or-outside
+    a Langfuse trace context without code duplication. Caller wraps in
+    ``with lf.start_as_current_observation(name='resume_upload', ...)`` when
+    Langfuse is enabled (G-07-UAT-01 v4 migration)."""
+    lf = get_langfuse_client()  # already inside the parent context if any
 
     # ---- text_extract span (D-32 #1) ----
     text_extract_start = time.perf_counter()
@@ -750,21 +676,25 @@ async def upload_resume(
         )
         resume_text = resume_text[:50_000]
 
-    if trace is not None:
-        # T-07-07: metadata only — NO raw text.
+    if lf:
+        # T-07-07: metadata only — NO raw text. v4 emits as a child span
+        # of the parent resume_upload context via OTel propagation.
         try:
-            trace.span(name="text_extract").end(
+            with lf.start_as_current_observation(
+                name="text_extract",
+                as_type="span",
                 metadata={
                     "file_type": file_type,
                     "char_count": len(resume_text),
                     "page_count": page_count,
                     "latency_ms": text_extract_ms,
-                }
-            )
-        except Exception:  # pragma: no cover - fail-open
+                },
+            ):
+                pass  # metadata is on the span; nothing to do inside
+        except Exception:  # pragma: no cover - fail-open per T-07-08
             pass
 
-    # ---- llm_extract span auto-captured by langfuse.openai; redact post-call ----
+    # ---- llm_extract: auto-captured GENERATION by langfuse.openai ----
     try:
         extraction, _usage_info = await asyncio.to_thread(extract_resume, resume_text)
     except ValidationError:
@@ -798,23 +728,22 @@ async def upload_resume(
             },
         )
 
-    # PII redaction on the auto-captured llm_extract span (D-33 / T-07-07)
-    if lf is not None:
-        try:
-            lf.update_current_observation(
-                input={"text": f"[REDACTED — char_count={len(resume_text)}]"}
-            )
-        except Exception:  # pragma: no cover - fail-open
-            pass
+    # PII redaction on auto-captured GENERATION + trace root (D-33 / T-07-07).
+    # Must run INSIDE the parent resume_upload context so the
+    # update_current_generation call targets the LLM child observation.
+    if lf:
+        redact_current_generation_input(lf, char_count=len(resume_text))
 
     # ---- diff_compute span (D-32 #3) ----
     diff_start = time.perf_counter()
     current = await load_profile(session, user_id=user_id)
     skills_diff = compute_skills_diff(current, extraction.skills)
     diff_ms = int((time.perf_counter() - diff_start) * 1000)
-    if trace is not None:
+    if lf:
         try:
-            trace.span(name="diff_compute").end(
+            with lf.start_as_current_observation(
+                name="diff_compute",
+                as_type="span",
                 metadata={
                     "added_count": sum(
                         1 for d in skills_diff if d.source == "added"
@@ -826,9 +755,10 @@ async def upload_resume(
                         1 for d in skills_diff if d.source == "unchanged"
                     ),
                     "latency_ms": diff_ms,
-                }
-            )
-        except Exception:  # pragma: no cover - fail-open
+                },
+            ):
+                pass
+        except Exception:  # pragma: no cover - fail-open per T-07-08
             pass
 
     log.info(
@@ -843,6 +773,126 @@ async def upload_resume(
         prompt_version=RESUME_PROMPT_VERSION,
         extraction_id=extraction_id,
     )
+
+
+@router.post(
+    "/profile/upload",
+    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    response_model=ResumeUploadResponse,
+)
+async def upload_resume(
+    file: UploadFile,
+    session: Session,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> ResumeUploadResponse:
+    """POST /profile/upload — PDF/DOCX → Instructor extraction → skill diff.
+
+    Phase 7 D-06..D-35 + T-07-02/05/07/08 + G-07-UAT-01 (Langfuse v4 migration):
+    - 2 MB cap enforced pre-body by :class:`ResumeUploadSizeGuard`
+      middleware (when ``Content-Length`` is present) plus an in-handler
+      chunked-encoding fallback (when it is not).
+    - Type whitelist = extension AND Content-Type intersection (D-08); 415
+      otherwise.
+    - Text extraction errors map to 422 ``pdf_encrypted`` /
+      ``text_extraction_failed`` (D-09/D-10).
+    - Tenacity retries (3x) re-raise — ``ValidationError`` maps to 422
+      ``extraction_failed``, ``openai.APIError`` to 503 ``llm_unavailable``
+      (D-15/D-16/D-35).
+    - Langfuse trace correlates 4 child observations under a single
+      ``resume_upload`` parent span keyed by
+      ``derive_langfuse_trace_id(extraction_id)`` (D-32, post-G-07-UAT-01
+      v4 migration). Raw resume text NEVER reaches Langfuse —
+      ``redact_current_generation_input`` overrides BOTH the auto-captured
+      generation input AND the trace-level input (D-33 / T-07-07).
+    """
+    extraction_id = uuid.uuid4()
+
+    # ---- Type whitelist (D-08, T-07-05) ----
+    filename = file.filename or ""
+    suffix = Path(filename).suffix.lower()
+    ctype = file.content_type or ""
+    if suffix not in _ALLOWED_RESUME_TYPES or ctype != _ALLOWED_RESUME_TYPES[suffix]:
+        log.warning(
+            "resume_upload_failed",
+            reason="unsupported_file_type",
+            filename=filename,
+            content_type=ctype,
+        )
+        raise HTTPException(
+            status_code=415,
+            detail={
+                "reason": "unsupported_file_type",
+                "message": "Upload a PDF or DOCX.",
+            },
+        )
+
+    # ---- Chunked-encoding fallback for D-07 (no Content-Length header) ----
+    # The ResumeUploadSizeGuard middleware catches the Content-Length-present
+    # case BEFORE the body materializes; this loop catches Transfer-Encoding:
+    # chunked uploads by aborting once total exceeds the cap.
+    cap = settings.max_resume_size_bytes
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > cap:
+            log.warning(
+                "resume_upload_failed",
+                reason="file_too_large",
+                bytes_read=total,
+                cap=cap,
+            )
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "reason": "file_too_large",
+                    "message": "Resume must be <=2 MB.",
+                },
+            )
+        chunks.append(chunk)
+    raw = b"".join(chunks)
+
+    # ---- Langfuse trace setup (D-32, fail-open per T-07-08) ----
+    # G-07-UAT-01 v4 migration: wrap the entire pipeline in a
+    # `resume_upload` parent span so text_extract + diff_compute + the
+    # auto-captured langfuse.openai GENERATION all land as children of
+    # the same trace, keyed by derive_langfuse_trace_id(extraction_id).
+    lf = get_langfuse_client()
+    if lf is None:
+        return await _run_resume_upload_pipeline(
+            session, user_id, extraction_id, raw, suffix
+        )
+
+    trace_id = derive_langfuse_trace_id(extraction_id)
+    try:
+        with lf.start_as_current_observation(
+            name="resume_upload",
+            as_type="span",
+            trace_context={"trace_id": trace_id},
+            metadata={
+                "extraction_id": str(extraction_id),
+                "user_id": str(user_id),
+                "phase": "7",
+                "tags": ["resume", "phase-7"],
+            },
+        ):
+            return await _run_resume_upload_pipeline(
+                session, user_id, extraction_id, raw, suffix
+            )
+    except HTTPException:
+        # Re-raise FastAPI errors verbatim — they must reach the client,
+        # not get swallowed by the fail-open guard below.
+        raise
+    except Exception:  # pragma: no cover - fail-open per T-07-08
+        log.exception(
+            "langfuse_trace_setup_failed", extraction_id=str(extraction_id)
+        )
+        return await _run_resume_upload_pipeline(
+            session, user_id, extraction_id, raw, suffix
+        )
 
 
 @router.patch(
@@ -890,15 +940,25 @@ async def update_profile(
     await session.commit()
 
     # profile_save Langfuse span — only when extraction_id provided (D-32 #4).
+    # G-07-UAT-01 v4 migration: re-derive the same trace_id from the same
+    # extraction_id seed so this span attaches to the SAME trace as the
+    # original POST /profile/upload.
     lf = get_langfuse_client()
     if lf is not None and payload.extraction_id is not None:
         try:
-            trace = lf.trace(id=str(payload.extraction_id))
-            trace.span(name="profile_save").end(
-                metadata={"written_skill_count": len(payload.skills)}
-            )
+            trace_id = derive_langfuse_trace_id(payload.extraction_id)
+            with lf.start_as_current_observation(
+                name="profile_save",
+                as_type="span",
+                trace_context={"trace_id": trace_id},
+                metadata={"written_skill_count": len(payload.skills)},
+            ):
+                pass
         except Exception:  # pragma: no cover - fail-open per T-07-08
-            pass
+            log.warning(
+                "langfuse_profile_save_span_failed",
+                extraction_id=str(payload.extraction_id),
+            )
 
     log.info(
         "profile_saved",

@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
-from typing import Any, Iterator
-
+from collections.abc import Iterator
+from typing import Any
 
 # v3 names that MUST raise AttributeError if accessed — keeps the next SDK
 # regression from slipping through silently.
@@ -29,7 +29,7 @@ class _FakeObservation:
 
     def __init__(
         self,
-        parent: "FakeLangfuseClient",
+        parent: FakeLangfuseClient,
         name: str,
         as_type: str,
         trace_id: str | None,
@@ -46,7 +46,7 @@ class _FakeObservation:
         self.output = output
         self.id = f"obs-{len(parent.calls)}"
 
-    def __enter__(self) -> "_FakeObservation":
+    def __enter__(self) -> _FakeObservation:
         self._parent.calls.append((
             "enter_observation",
             {

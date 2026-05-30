@@ -11,7 +11,9 @@ the import cost when observability is disabled.
 """
 from __future__ import annotations
 
+import hashlib
 import os
+import uuid as _uuid
 from functools import lru_cache
 from typing import Any
 
@@ -105,9 +107,6 @@ def get_langfuse_client() -> Any | None:
     )
 
 
-import uuid as _uuid  # local alias to avoid shadowing if uuid is used elsewhere
-
-
 def derive_langfuse_trace_id(seed: _uuid.UUID | str) -> str:
     """Derive a deterministic 32-char hex Langfuse trace_id from an extraction_id.
 
@@ -127,8 +126,6 @@ def derive_langfuse_trace_id(seed: _uuid.UUID | str) -> str:
     lf = get_langfuse_client()
     seed_str = str(seed)
     if lf is None:
-        import hashlib
-
         return hashlib.blake2b(seed_str.encode("utf-8"), digest_size=16).hexdigest()
     return lf.create_trace_id(seed=seed_str)
 
