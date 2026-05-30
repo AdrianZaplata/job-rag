@@ -31,21 +31,21 @@ follow_ups:
   - id: WR-01
     severity: warning
     source: 07-06-REVIEW.md
-    summary: "Fail-open path on start_as_current_observation failure re-runs the ENTIRE upload pipeline — can double-bill OpenAI extraction if failure originates in context manager __exit__ rather than __enter__. HTTPException is correctly excluded. Edge-case (only fires on a real trace-teardown exception); does not block PROF-06 contract."
-    location: src/job_rag/api/routes.py:870-895
-    recommendation: "Split trace-setup guard from pipeline-execution guard so only __enter__ failures fall through to the un-traced pipeline. Defer to Phase 8 housekeeping or 07.1 follow-up."
+    status: resolved
+    resolved_in: 953ccf1
+    summary: "Fail-open path on start_as_current_observation failure re-runs the ENTIRE upload pipeline — could double-bill OpenAI if the failure originated in __exit__. Resolved by restructuring with contextlib.ExitStack: __enter__ guard is its own try/except (failure → un-traced pipeline, no double-bill); body runs in a separate try/finally that swallows teardown exceptions. Pipeline now runs exactly once regardless of which side of the context manager fails."
   - id: WR-02
     severity: warning
     source: 07-06-REVIEW.md
-    summary: "tags=['resume','phase-7'] buried inside metadata kwarg instead of passed as the top-level tags= keyword the v4 SDK supports — Langfuse UI tag filter will not index the values. Behavioral regression vs the v3 lf.trace(tags=...) call. Trace correlation + PII redaction still work; this is a discoverability nit."
-    location: src/job_rag/api/routes.py:875-880
-    recommendation: "Pass tags=['resume','phase-7'] as a top-level kwarg to start_as_current_observation (or call lf.update_current_span(tags=[...]) immediately inside the context body)."
+    status: resolved_with_caveat
+    resolved_in: 953ccf1
+    summary: "Misleading metadata.tags=['resume','phase-7'] removed after verifying Langfuse 4.1.0 exposes NO public API for indexed trace tags (dir(Langfuse) has only update_current_span / update_current_generation / set_current_trace_io / set_current_trace_as_public — no tags= kwarg, no public update_current_trace / propagate_attributes; only the private _create_trace_tags_via_ingestion). The v3 lf.trace(tags=...) capability is intentionally accepted as lost in v4.1; identifying keys remain in metadata, filterable via metadata.<key> in the Langfuse UI. Caveat: proper tag indexing will return when Langfuse ships propagate_attributes() — track for Phase 8 follow-up if needed."
   - id: WR-03
     severity: warning
     source: 07-06-REVIEW.md
-    summary: "derive_langfuse_trace_id fallback uses hashlib.blake2b(seed, 16) while Langfuse v4 SDK likely uses SHA-256 — the BLAKE2b 'parity' claim in the docstring is unverified. Invisible within a single process (lru_cache forces all callers to take the same branch), but a latent landmine if anything ever crosses process boundaries or if the test fallback diverges from prod."
-    location: src/job_rag/observability.py:110-130
-    recommendation: "Verify against installed langfuse 4.1.0 which hash the SDK uses; either match the algorithm exactly OR drop the parity claim from the docstring and document the fallback as in-process-only."
+    status: resolved
+    resolved_in: 572cf13
+    summary: "BLAKE2b fallback in derive_langfuse_trace_id replaced with sha256(seed.encode())[:16].hex() — exact match for langfuse.Langfuse.create_trace_id source (verified by inspecting installed langfuse 4.1.0). FakeLangfuseClient.create_trace_id mirrored so test trace_ids match the real SDK. Docstring rewritten to point at the SDK source so future hash-function drift is easier to catch."
 deprecation_warnings:
   - api: "Langfuse.set_current_trace_io(input=...)"
     location: src/job_rag/observability.py:156

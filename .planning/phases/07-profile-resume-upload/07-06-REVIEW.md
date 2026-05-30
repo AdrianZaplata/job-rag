@@ -13,7 +13,12 @@ findings:
   warning: 3
   info: 5
   total: 8
-status: issues_found
+status: resolved
+resolved_at: 2026-05-30T17:05:00Z
+resolution:
+  WR-01: "fixed in 953ccf1 — ExitStack splits __enter__/__exit__ guards; pipeline runs exactly once"
+  WR-02: "fixed in 953ccf1 — metadata.tags removed (Langfuse 4.1 has no public indexed-tag API; verified via dir(Langfuse)); identifying keys remain in metadata, filterable via metadata.<key>"
+  WR-03: "fixed in 572cf13 — fallback uses sha256(seed)[:16].hex() to match langfuse.Langfuse.create_trace_id exactly; FakeLangfuseClient mirrored; docstring rewritten"
 ---
 
 # Phase 07-06: Code Review Report — Langfuse SDK v4 Migration
