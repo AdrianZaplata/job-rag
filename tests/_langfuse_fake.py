@@ -105,7 +105,11 @@ class FakeLangfuseClient:
         self.calls.append(("create_trace_id", {"seed": seed}))
         if seed is None:
             return "00" * 16
-        return hashlib.blake2b(seed.encode("utf-8"), digest_size=16).hexdigest()
+        # Mirror langfuse 4.1.0 Langfuse.create_trace_id exactly so
+        # FakeLangfuseClient-based tests produce trace_ids that match what
+        # the real SDK would produce — keeps the v3-regression guard
+        # contract-faithful to the live API.
+        return hashlib.sha256(seed.encode("utf-8")).digest()[:16].hex()
 
     @contextlib.contextmanager
     def start_as_current_observation(

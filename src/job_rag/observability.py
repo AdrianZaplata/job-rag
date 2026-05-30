@@ -118,15 +118,17 @@ def derive_langfuse_trace_id(seed: _uuid.UUID | str) -> str:
 
     Fail-open: returns the (deterministic) ID even when Langfuse is disabled —
     callers should check ``get_langfuse_client()`` before consuming the ID
-    for actual tracing. This avoids a None-check at every call site. When
-    the client is absent we replicate the BLAKE2b(seed, 16)[:16].hex()
-    derivation Langfuse uses internally so tests that patch out the client
-    still get a stable, deterministic ID.
+    for actual tracing. The fallback path inlines Langfuse 4.1.0's exact
+    algorithm — ``sha256(seed.encode("utf-8")).digest()[:16].hex()`` (see
+    ``langfuse.Langfuse.create_trace_id`` source) — so an ID derived
+    without a live client matches what the SDK would have produced. If
+    Langfuse changes its hash function in a future release, update this
+    fallback to match or the client-vs-clientless paths will diverge.
     """
     lf = get_langfuse_client()
     seed_str = str(seed)
     if lf is None:
-        return hashlib.blake2b(seed_str.encode("utf-8"), digest_size=16).hexdigest()
+        return hashlib.sha256(seed_str.encode("utf-8")).digest()[:16].hex()
     return lf.create_trace_id(seed=seed_str)
 
 
