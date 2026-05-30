@@ -103,3 +103,59 @@ def get_langfuse_client() -> Any | None:
         secret_key=settings.langfuse_secret_key,
         host=settings.langfuse_host,
     )
+
+
+import uuid as _uuid  # local alias to avoid shadowing if uuid is used elsewhere
+
+
+def derive_langfuse_trace_id(seed: _uuid.UUID | str) -> str:
+    """Derive a deterministic 32-char hex Langfuse trace_id from an extraction_id.
+
+    Phase 7 G-07-UAT-01: Langfuse 4.x replaces the v3 trace-by-id
+    correlation API with a ``create_trace_id(seed=...)`` helper that hashes
+    the seed into a 16-byte OTel-compatible trace_id. Both ``POST
+    /profile/upload`` and ``PATCH /profile`` derive the same trace_id from
+    the same ``extraction_id`` so spans land on the same trace.
+
+    Fail-open: returns the (deterministic) ID even when Langfuse is disabled —
+    callers should check ``get_langfuse_client()`` before consuming the ID
+    for actual tracing. This avoids a None-check at every call site. When
+    the client is absent we replicate the BLAKE2b(seed, 16)[:16].hex()
+    derivation Langfuse uses internally so tests that patch out the client
+    still get a stable, deterministic ID.
+    """
+    lf = get_langfuse_client()
+    seed_str = str(seed)
+    if lf is None:
+        import hashlib
+
+        return hashlib.blake2b(seed_str.encode("utf-8"), digest_size=16).hexdigest()
+    return lf.create_trace_id(seed=seed_str)
+
+
+def redact_current_generation_input(client: Any, *, char_count: int) -> None:
+    """Overwrite resume PII on the auto-captured GENERATION + trace input (D-33).
+
+    The ``langfuse.openai`` wrapper auto-captures the LLM call as a child
+    GENERATION observation AND writes the raw input to the trace root.
+    This helper performs BOTH redactions in v4-compatible style:
+
+    1. ``client.update_current_generation(input=REDACTED)`` — overrides the
+       CHILD generation's input field.
+    2. ``client.set_current_trace_io(input=REDACTED)`` — overrides the
+       TRACE-LEVEL input (which is what showed PII in the
+       ``trace-c744bb2d...json`` export captured during live UAT).
+
+    Both calls are wrapped in ``try/except Exception: pass`` per T-07-08
+    fail-open semantics. If step 1 raises, step 2 is still attempted —
+    defense in depth for PII redaction.
+    """
+    redacted = {"text": f"[REDACTED — char_count={char_count}]"}
+    try:
+        client.update_current_generation(input=redacted)
+    except Exception:  # pragma: no cover - fail-open per T-07-08
+        log.warning("langfuse_redact_generation_failed", char_count=char_count)
+    try:
+        client.set_current_trace_io(input=redacted)
+    except Exception:  # pragma: no cover - fail-open per T-07-08
+        log.warning("langfuse_redact_trace_failed", char_count=char_count)
