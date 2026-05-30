@@ -3,21 +3,19 @@ status: partial
 phase: 07-profile-resume-upload
 source: [07-VERIFICATION.md]
 started: 2026-05-28T13:50:00Z
-updated: 2026-05-29T00:00:00Z
+updated: 2026-05-30T16:30:00Z
 ---
 
 ## Current Test
 
-[Test 1 failed — gap closure triggered; remaining tests deferred until fix lands]
+[Test 1 re-runnable after Plan 07-06 gap closure — Tests 1-5 awaiting Adrian's manual replay]
 
 ## Tests
 
 ### 1. Langfuse trace rendering (M-marker 3)
 expected: Single Langfuse trace per upload spanning extraction → Instructor → diff → PATCH; 4 spans (text_extract, llm_extract auto, diff_compute, profile_save) correlated by extraction_id; raw resume text NOT visible in any span input/metadata
-result: failed
-evidence: Live Langfuse export `trace-c744bb2d0683a35da965946940e70bab.json` from Adrian's first real upload showed (a) a single standalone GENERATION trace named `OpenAI-generation` with no `extraction_id` correlation, and (b) the full unredacted resume in `trace.input` — name, email, phone +49 174 608 8033, LinkedIn URL, GitHub URL, address, full skills list. Manual spans `text_extract`, `diff_compute`, `profile_save` are completely absent.
-root_cause: Phase 7 code (`src/job_rag/api/routes.py:687,756,804,817,897` + `src/job_rag/observability.py`) calls the Langfuse SDK 3.x API (`lf.trace()`, `trace.span().end()`, `lf.update_current_observation()`). Installed SDK is **4.1.0** (OTel-based rewrite) where these methods do not exist. Every call raises `AttributeError`, gets swallowed by the T-07-08 `try/except Exception: pass` fail-open guards, and the manual spans + PII redaction silently never happen. Only `langfuse.openai` auto-instrumentation (which speaks v4 correctly) survives — hence the lone `OpenAI-generation` trace.
-why_tests_passed: `tests/test_observability.py` mocks `get_langfuse_client()`. The mock accepts any method call without raising, so tests verified intent (`.trace.called_with(...)`) rather than SDK compatibility. Live UAT was the first contact with a real Langfuse 4.x client.
+result: pending
+re_run_after: Plan 07-06 closed G-07-UAT-01 at code level (commits ad31379, 3ffc244, 82bb8d5). Adrian must replay the live UAT with `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` set, upload a 1.5 MB PDF via the deployed UI, and confirm in the Langfuse dashboard: (a) single trace with parent `resume_upload` span keyed by `derive_langfuse_trace_id(extraction_id)`, (b) 3 explicit child spans (`text_extract`, `diff_compute`, `profile_save` after PATCH) + 1 auto-captured GENERATION child, (c) `[REDACTED — char_count=N]` watermark in BOTH trace root input AND generation input — no name/email/phone/LinkedIn/GitHub/address.
 
 ### 2. Dashboard CV-vs-market refresh after save
 expected: Dashboard widget reflects the new skill list within one re-render (TanStack cache invalidation propagates from save → dashboard)
@@ -39,15 +37,25 @@ result: [pending]
 
 total: 5
 passed: 0
-issues: 1
-pending: 4
+issues: 0
+pending: 5
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 ### G-07-UAT-01: Langfuse SDK 3.x → 4.x migration (PROF-06 trace contract broken)
-status: failed
+status: resolved_at_code_level
+resolution_commits: [ad31379, 3ffc244, 82bb8d5, f8a90bf]
+resolution_summary: |
+  Plan 07-06 migrated 5 v3 call sites to v4 OTel-based API
+  (`start_as_current_observation`, `update_current_generation`,
+  `set_current_trace_io`), added `derive_langfuse_trace_id` helper for
+  POST/PATCH trace_id correlation, added two-layer PII redaction via
+  `redact_current_generation_input`, and replaced Mock-based tests with
+  contract-faithful `FakeLangfuseClient` that raises AttributeError on
+  every v3 method name. Pending Adrian's live replay (Test 1) to close
+  the gap end-to-end.
 source_test: 1
 severity: blocking
 scope: backend
