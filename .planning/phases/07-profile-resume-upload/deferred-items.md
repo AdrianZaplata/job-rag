@@ -30,3 +30,36 @@ This failure existed before Plan 07-02 started and is OUT OF SCOPE per the
 GSD executor SCOPE BOUNDARY rule. Plan 07-02 did not modify
 `tests/test_alembic.py::test_0005_upgrade_populates_oid_when_env_set`, the
 0005 migration, or the engine `_seed_entra_oid()` helper.
+
+## Discovered during Plan 07-06 (Langfuse SDK v4 migration)
+
+### Pre-existing test failure: `test_load_profile_returns_seeded_row`
+
+- **File:** `tests/test_matching.py:196`
+- **Symptom:** `AssertionError: assert {...} == {...}` — the seeded
+  `user_profile.skills_json` set in the live dev DB has drifted from the
+  hardcoded expectation in the test. The test expects skills like
+  `'Pydantic'`, `'RAGAS'`, `'Ruff'`, `'Software Architecture'`, `'Supabase'`,
+  `'sse-starlette'`, `'pip-audit'`, `'pytest'`, etc. — but the DB now
+  contains `'Terraform'`, `'streaming'`, `'tool calling'` and is missing
+  several of the originally seeded skills.
+- **Root cause:** Adrian re-ran `POST /profile/upload` + `PATCH /profile`
+  during live UAT (the very flow that captured G-07-UAT-01), which
+  replaced the `user_profile.skills_json` with the LLM-extracted skills
+  from his actual resume. The test still asserts the original migration-
+  seeded snapshot.
+- **Verified pre-existing:** confirmed by reverting plan 07-06 files
+  (`src/job_rag/api/routes.py`, `src/job_rag/observability.py`,
+  `tests/test_matching.py`) to commit `056c3df` (the commit before Task 1
+  of Plan 07-06) and rerunning the test — failure reproduces identically.
+- **Recommendation:** Either re-seed the dev DB from the canonical
+  `data/profile.json` snapshot before running the matching suite, OR
+  rewrite the test to assert structural properties (skill_count > 30,
+  contains "Python", contains "PostgreSQL", etc.) rather than exact set
+  equality. Defer to Phase 8 docs/eval housekeeping.
+
+This failure existed before Plan 07-06 started and is OUT OF SCOPE per
+the GSD executor SCOPE BOUNDARY rule. Plan 07-06 did not modify
+`tests/test_matching.py`, the seed migration (`0006_seed_user_profile`),
+or the `load_profile` service function — it only migrated the Langfuse
+tracing calls in `routes.py` to the v4 SDK API.
