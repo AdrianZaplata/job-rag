@@ -17,6 +17,7 @@ cannot run inside an already-running event loop.
 """
 
 import asyncio
+import contextlib
 import io
 import json
 import tempfile
@@ -866,26 +867,30 @@ async def upload_resume(
             session, user_id, extraction_id, raw, suffix
         )
 
+    # WR-01: ExitStack splits the __enter__ guard from the body so a
+    # span-teardown failure cannot re-enter the pipeline and double-bill
+    # OpenAI. Only __enter__ failures fall through to the un-traced path.
+    # WR-02: Langfuse 4.1.0 exposes no public API for indexed trace tags
+    # (no `tags=` kwarg on start_as_current_observation, no public
+    # update_current_trace / propagate_attributes). The v3 lf.trace(tags=...)
+    # capability is intentionally lost here; identifying keys live in
+    # metadata, which is still filterable in the Langfuse UI by
+    # `metadata.<key>` until the SDK ships propagate_attributes().
     trace_id = derive_langfuse_trace_id(extraction_id)
+    stack = contextlib.ExitStack()
     try:
-        with lf.start_as_current_observation(
-            name="resume_upload",
-            as_type="span",
-            trace_context={"trace_id": trace_id},
-            metadata={
-                "extraction_id": str(extraction_id),
-                "user_id": str(user_id),
-                "phase": "7",
-                "tags": ["resume", "phase-7"],
-            },
-        ):
-            return await _run_resume_upload_pipeline(
-                session, user_id, extraction_id, raw, suffix
+        stack.enter_context(
+            lf.start_as_current_observation(
+                name="resume_upload",
+                as_type="span",
+                trace_context={"trace_id": trace_id},
+                metadata={
+                    "extraction_id": str(extraction_id),
+                    "user_id": str(user_id),
+                    "phase": "7",
+                },
             )
-    except HTTPException:
-        # Re-raise FastAPI errors verbatim — they must reach the client,
-        # not get swallowed by the fail-open guard below.
-        raise
+        )
     except Exception:  # pragma: no cover - fail-open per T-07-08
         log.exception(
             "langfuse_trace_setup_failed", extraction_id=str(extraction_id)
@@ -893,6 +898,19 @@ async def upload_resume(
         return await _run_resume_upload_pipeline(
             session, user_id, extraction_id, raw, suffix
         )
+
+    try:
+        return await _run_resume_upload_pipeline(
+            session, user_id, extraction_id, raw, suffix
+        )
+    finally:
+        try:
+            stack.close()
+        except Exception:  # pragma: no cover - fail-open per T-07-08
+            log.exception(
+                "langfuse_trace_teardown_failed",
+                extraction_id=str(extraction_id),
+            )
 
 
 @router.patch(
