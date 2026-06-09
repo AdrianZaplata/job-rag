@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -102,10 +103,18 @@ async def search_postings(
 
 async def match_skills(posting_id: str) -> dict[str, Any]:
     """Match a specific job posting against the user profile."""
+    # posting_id comes from the LLM (agent tool call) or an MCP client —
+    # validate it before the query so a malformed ID returns a structured
+    # error the model can recover from instead of an asyncpg cast exception.
+    try:
+        posting_uuid = uuid.UUID(posting_id)
+    except (ValueError, AttributeError, TypeError):
+        return {"error": "invalid_posting_id", "posting_id": posting_id}
+
     async with AsyncSessionLocal() as session:
         stmt = (
             select(JobPostingDB)
-            .filter(JobPostingDB.id == posting_id)
+            .filter(JobPostingDB.id == posting_uuid)
             .options(selectinload(JobPostingDB.requirements))
         )
         result = await session.execute(stmt)

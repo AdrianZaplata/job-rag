@@ -60,7 +60,9 @@ class TestSearchEndpoint:
                     id=uuid.uuid4(),
                     title="AI Engineer",
                     company="TestCorp",
-                    location="Berlin",
+                    location_country="DE",
+                    location_city="Berlin",
+                    location_region=None,
                     remote_policy="remote",
                     seniority="senior",
                 ),
@@ -85,6 +87,11 @@ class TestSearchEndpoint:
         assert "results" in data
         assert len(data["results"]) == 1
         assert data["results"][0]["company"] == "TestCorp"
+        assert data["results"][0]["location"] == {
+            "country": "DE",
+            "city": "Berlin",
+            "region": None,
+        }
 
     async def test_search_with_generate(self):
         from job_rag.api.deps import get_session
