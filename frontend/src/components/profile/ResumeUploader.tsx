@@ -25,6 +25,9 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
+// Keep in sync with the backend cap `settings.max_resume_size_bytes`
+// (src/job_rag/config.py) — the backend is authoritative; this is a UX
+// pre-check so obviously-oversized files fail before a network round-trip.
 const MAX_BYTES = 2_000_000
 const ALLOWED_EXTS = ['.pdf', '.docx'] as const
 const ALLOWED_TYPES = [

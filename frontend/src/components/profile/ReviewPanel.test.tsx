@@ -7,11 +7,29 @@
 //   - Save click → onSave called with payload containing only checked items + extraction_id
 //   - Discard click → onCancel called
 
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
 import { ReviewPanel } from './ReviewPanel'
 import type { DiffItemState } from './types'
+
+// ReviewPanel is fully controlled — toggles only take effect when a parent
+// feeds the updated diff back down. This harness plays that parent (same
+// contract as useResumeUpload's ReviewState in production).
+function StatefulHarness({ initial }: { initial: DiffItemState[] }) {
+  const [diff, setDiff] = useState(initial)
+  return (
+    <ReviewPanel
+      diff={diff}
+      extractionId="abc"
+      onSave={vi.fn()}
+      onCancel={vi.fn()}
+      isSaving={false}
+      setDiff={setDiff}
+    />
+  )
+}
 
 function seed(): DiffItemState[] {
   return [
@@ -87,16 +105,7 @@ describe('ReviewPanel', () => {
   })
 
   it('Save button label updates live when an "added" chip is unticked', () => {
-    render(
-      <ReviewPanel
-        diff={seed()}
-        extractionId="abc"
-        onSave={vi.fn()}
-        onCancel={vi.fn()}
-        isSaving={false}
-        setDiff={vi.fn()}
-      />,
-    )
+    render(<StatefulHarness initial={seed()} />)
     // Seed default checked total = 2 (added) + 0 (removed) + 2 (unchanged) = 4
     expect(screen.getByTestId('save-button')).toHaveTextContent(
       'Save profile (4 skills)',

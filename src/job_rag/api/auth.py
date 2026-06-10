@@ -135,6 +135,9 @@ class RateLimiter:
 standard_limit = RateLimiter(calls=30, period=60)   # 30 req/min
 agent_limit = RateLimiter(calls=10, period=60)       # 10 req/min
 ingest_limit = RateLimiter(calls=5, period=60)       #  5 req/min
+# Resume upload triggers a GPT-4o-mini extraction per request — same LLM-cost
+# rationale as ingest_limit, vs the 30/min standard_limit it shipped with.
+upload_limit = RateLimiter(calls=5, period=60)       #  5 req/min
 # Dashboard fires 3 parallel widget fetches per page load; with React Query retries
 # and the proxy-IP collapse behind SWA→ACA, 30/min trips on a couple of reloads.
 dashboard_limit = RateLimiter(calls=120, period=60)  # 120 req/min

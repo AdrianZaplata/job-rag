@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # Phase 7 D-07: 2 MB cap on resume uploads. Enforced by the ASGI middleware
     # in api/middleware.py BEFORE the body is materialized into memory (REQ-PROF-02
     # literal "rejected with 413 before the body is fully read").
+    # NOTE: the frontend duplicates this default as MAX_BYTES in
+    # components/profile/ResumeUploader.tsx (client-side pre-check + "max 2 MB"
+    # copy) — change both together.
     max_resume_size_bytes: int = Field(default=2_000_000, ge=1)
 
     # Entra External ID tenant identifiers (Phase 4 D-04 — plain env vars,

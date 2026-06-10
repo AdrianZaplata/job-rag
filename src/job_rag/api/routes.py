@@ -47,6 +47,7 @@ from job_rag.api.auth import (
     ingest_limit,
     require_api_key,
     standard_limit,
+    upload_limit,
 )
 from job_rag.api.dashboard import (
     CountryFilter,
@@ -786,7 +787,7 @@ async def _run_resume_upload_pipeline(
 
 @router.post(
     "/profile/upload",
-    dependencies=[Depends(require_api_key), Depends(standard_limit)],
+    dependencies=[Depends(require_api_key), Depends(upload_limit)],
     response_model=ResumeUploadResponse,
 )
 async def upload_resume(

@@ -104,7 +104,7 @@ def _override_session_and_user():
     responsible for clearing ``app.dependency_overrides`` (we leave it set
     so a single test can run multiple requests without re-wiring).
     """
-    from job_rag.api.auth import get_current_user_id
+    from job_rag.api.auth import get_current_user_id, upload_limit
     from job_rag.api.deps import get_session
     from job_rag.config import settings as _settings
 
@@ -114,8 +114,14 @@ def _override_session_and_user():
     async def override_user():
         return _settings.seeded_user_id
 
+    async def override_upload_limit():
+        # upload_limit is 5/min in production (LLM-cost endpoint); this file
+        # fires more uploads than that in one run, all from the same test IP.
+        return None
+
     app.dependency_overrides[get_session] = override_session
     app.dependency_overrides[get_current_user_id] = override_user
+    app.dependency_overrides[upload_limit] = override_upload_limit
 
 
 def _stub_load_profile_empty():

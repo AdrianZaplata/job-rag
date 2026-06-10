@@ -10,8 +10,6 @@
 //   - other fields = null  (v1 review panel only edits skills per D-Discretion)
 //   - extraction_id = the upload's UUID  (Langfuse correlation per D-32)
 
-import { useState } from 'react'
-
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -42,26 +40,20 @@ export function ReviewPanel({
   isSaving,
   setDiff,
 }: ReviewPanelProps) {
-  const [localDiff, setLocalDiff] = useState<DiffItemState[]>(diff)
-
-  // Whenever upstream diff array changes (new upload), reset local.
-  // Keep upstream synchronised via setDiff for parents that read it back.
-  const update = (next: DiffItemState[]) => {
-    setLocalDiff(next)
-    setDiff(next)
-  }
-
+  // Fully controlled: the parent (useResumeUpload's ReviewState) is the single
+  // owner of the diff draft; toggles/renames flow up via setDiff and back down
+  // as the `diff` prop. No local copy to drift out of sync.
   const handleToggle = (name: string) => {
-    update(
-      localDiff.map((d) =>
+    setDiff(
+      diff.map((d) =>
         d.name === name ? { ...d, checked: !d.checked } : d,
       ),
     )
   }
 
   const handleRename = (name: string, newName: string) => {
-    update(
-      localDiff.map((d) =>
+    setDiff(
+      diff.map((d) =>
         d.name === name ? { ...d, editedName: newName } : d,
       ),
     )
@@ -69,16 +61,16 @@ export function ReviewPanel({
 
   // Live counts (D-25 / D-27 verbatim)
   const counts = {
-    extracted: localDiff.length,
-    added: localDiff.filter((d) => d.source === 'added').length,
-    removed: localDiff.filter((d) => d.source === 'removed').length,
-    unchanged: localDiff.filter((d) => d.source === 'unchanged').length,
-    addedChecked: localDiff.filter((d) => d.source === 'added' && d.checked)
+    extracted: diff.length,
+    added: diff.filter((d) => d.source === 'added').length,
+    removed: diff.filter((d) => d.source === 'removed').length,
+    unchanged: diff.filter((d) => d.source === 'unchanged').length,
+    addedChecked: diff.filter((d) => d.source === 'added' && d.checked)
       .length,
-    removedChecked: localDiff.filter(
+    removedChecked: diff.filter(
       (d) => d.source === 'removed' && d.checked,
     ).length,
-    unchangedChecked: localDiff.filter(
+    unchangedChecked: diff.filter(
       (d) => d.source === 'unchanged' && d.checked,
     ).length,
   }
@@ -87,7 +79,7 @@ export function ReviewPanel({
     counts.addedChecked + counts.removedChecked + counts.unchangedChecked
 
   const handleSave = () => {
-    const skills = localDiff
+    const skills = diff
       .filter((d) => d.checked)
       .map((d) => ({ name: d.editedName }))
     onSave({
@@ -111,7 +103,7 @@ export function ReviewPanel({
       </CardHeader>
       <CardContent className="max-h-[60vh] overflow-y-auto">
         <ul className="space-y-1 list-none">
-          {localDiff.map((item) => (
+          {diff.map((item) => (
             <SkillDiffChip
               key={item.name}
               item={item}
