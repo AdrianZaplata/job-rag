@@ -96,7 +96,7 @@ def _heartbeat_factory() -> ServerSentEvent:
     return ServerSentEvent(event="heartbeat", data=ev.model_dump_json())
 
 
-def _sanitize(exc: BaseException) -> str:
+def _sanitize(exc: BaseException | str) -> str:
     """Bound + newline-strip exception text for SSE error event payloads.
 
     D-19 / T-06-01: never include exception class names, stack traces, or
@@ -158,7 +158,13 @@ async def search(
                 "id": str(r["posting"].id),
                 "title": r["posting"].title,
                 "company": r["posting"].company,
-                "location": r["posting"].location,
+                # Structured location (free-text `location` column dropped in
+                # migration 0004) — same shape as the MCP serializer.
+                "location": {
+                    "country": r["posting"].location_country,
+                    "city": r["posting"].location_city,
+                    "region": r["posting"].location_region,
+                },
                 "remote_policy": r["posting"].remote_policy,
                 "seniority": r["posting"].seniority,
                 "similarity": round(r["similarity"], 4),
@@ -174,10 +180,15 @@ async def search(
 )
 async def match(
     session: Session,
-    posting_id: str,
+    posting_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
 ) -> dict[str, Any]:
-    """Match a specific posting against the user profile."""
+    """Match a specific posting against the user profile.
+
+    ``posting_id`` is typed as ``uuid.UUID`` so malformed IDs are rejected
+    with 422 at the FastAPI boundary instead of surfacing as an asyncpg
+    cast error (HTTP 500) inside the query.
+    """
     stmt = (
         select(JobPostingDB)
         .filter(JobPostingDB.id == posting_id)
@@ -293,7 +304,8 @@ async def dashboard_salary_bands(
 
     Returns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``
     (NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).
-    Per-period normalization: ``month`` -> x12; ``hour`` rows excluded (Pitfall 3).
+    Salaries are stored as EUR/year (annualized at extraction time), so no
+    per-period re-normalization happens here.
     """
     # user_id reserved for future per-user scoping
     _ = user_id
@@ -507,7 +519,10 @@ async def ingest(
         raise HTTPException(status_code=413, detail="File too large (max 1 MB)")
 
     with tempfile.TemporaryDirectory() as td:
-        tmp_path = Path(td) / (file.filename or "posting.md")
+        # file.filename is client-controlled — keep only the basename so a
+        # crafted name like "../../x.md" cannot escape the temp directory.
+        safe_name = Path(file.filename or "posting.md").name or "posting.md"
+        tmp_path = Path(td) / safe_name
         with tmp_path.open("wb") as dst:
             dst.write(content)
         result = await ingest_from_source(session, MarkdownFileSource(tmp_path))
@@ -522,7 +537,7 @@ async def ingest(
         "error_details": [
             # T-06-06: sanitize per-source error strings at the API boundary
             # (same helper used by /agent/stream's internal error branch).
-            {"source_url": u, "error": _sanitize(Exception(e))}
+            {"source_url": u, "error": _sanitize(e)}
             for u, e in result.error_details
         ],
     }

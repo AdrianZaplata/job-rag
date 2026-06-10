@@ -191,33 +191,33 @@ async def salary_bands(
 ) -> dict[str, Any]:
     """Salary percentiles p25/p50/p75.
 
-    DASH-02: server-side via PostgreSQL percentile_cont. Salary-period normalization:
-    salary_period='month' rows normalized x12 (treated as annual); salary_period='hour'
-    rows EXCLUDED (too noisy without hours/week assumption - deferred idea).
+    DASH-02: server-side via PostgreSQL percentile_cont.
+
+    salary_min/salary_max are stored as EUR/year — the extraction prompt
+    (prompt.py, v2.0) converts monthly salaries x12 and hourly x2080 at
+    extraction time, and matching.py already compares them against the
+    profile's annual min_salary. salary_period only records the period as
+    written in the posting. No re-normalization happens here: an earlier
+    revision multiplied 'month' rows by 12 again, inflating those postings
+    12x in the percentiles.
 
     Pitfalls:
       - func.percentile_cont(...) MUST chain .within_group(<sort_expr>.asc()) (Pitfall 1)
       - Empty result set yields NULL percentiles; response model declares int|None (Pitfall 2)
-      - Mind salary_period='hour' exclusion (Pitfall 3); document hourly is deferred
 
     Returns:
         {"p25": int|None, "p50": int|None, "p75": int|None,
          "postings_with_salary": int, "total_postings": int, "currency": "EUR"}
     """
-    # Normalize month -> year via x12 in the percentile sort expression
-    normalized_salary = case(
-        (JobPostingDB.salary_period == "month", JobPostingDB.salary_min * 12),
-        else_=JobPostingDB.salary_min,
-    )
+    annual_salary = JobPostingDB.salary_min
 
     stmt = select(
-        func.percentile_cont(0.25).within_group(normalized_salary.asc()).label("p25"),
-        func.percentile_cont(0.50).within_group(normalized_salary.asc()).label("p50"),
-        func.percentile_cont(0.75).within_group(normalized_salary.asc()).label("p75"),
+        func.percentile_cont(0.25).within_group(annual_salary.asc()).label("p25"),
+        func.percentile_cont(0.50).within_group(annual_salary.asc()).label("p50"),
+        func.percentile_cont(0.75).within_group(annual_salary.asc()).label("p75"),
         func.count().label("postings_with_salary"),
     ).where(
         JobPostingDB.salary_min.isnot(None),
-        JobPostingDB.salary_period.in_(["year", "month"]),  # exclude 'hour' (Pitfall 3)
     )
     stmt = _apply_filters(stmt, country=country, seniority=seniority, remote=remote)
 

@@ -137,7 +137,7 @@
     "/match/{posting_id}": {
       "get": {
         "summary": "Match",
-        "description": "Match a specific posting against the user profile.",
+        "description": "Match a specific posting against the user profile.\n\n``posting_id`` is typed as ``uuid.UUID`` so malformed IDs are rejected\nwith 422 at the FastAPI boundary instead of surfacing as an asyncpg\ncast error (HTTP 500) inside the query.",
         "operationId": "match_match__posting_id__get",
         "security": [
           {
@@ -154,6 +154,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Posting Id"
             }
           }
@@ -361,7 +362,7 @@
           "dashboard"
         ],
         "summary": "Dashboard Salary Bands",
-        "description": "Salary percentiles p25/p50/p75 via PostgreSQL ``percentile_cont`` (DASH-02).\n\nReturns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``\n(NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).\nPer-period normalization: ``month`` -> x12; ``hour`` rows excluded (Pitfall 3).",
+        "description": "Salary percentiles p25/p50/p75 via PostgreSQL ``percentile_cont`` (DASH-02).\n\nReturns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``\n(NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).\nSalaries are stored as EUR/year (annualized at extraction time), so no\nper-period re-normalization happens here.",
         "operationId": "dashboard_salary_bands_dashboard_salary_bands_get",
         "security": [
           {

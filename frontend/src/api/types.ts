@@ -57,6 +57,10 @@ export interface paths {
         /**
          * Match
          * @description Match a specific posting against the user profile.
+         *
+         *     ``posting_id`` is typed as ``uuid.UUID`` so malformed IDs are rejected
+         *     with 422 at the FastAPI boundary instead of surfacing as an asyncpg
+         *     cast error (HTTP 500) inside the query.
          */
         get: operations["match_match__posting_id__get"];
         put?: never;
@@ -124,7 +128,8 @@ export interface paths {
          *
          *     Returns ``DashboardSalaryBandsResponse``; ``p25/p50/p75`` are ``int | None``
          *     (NULL when the filter matches zero salary-bearing postings - RESEARCH Pitfall 2).
-         *     Per-period normalization: ``month`` -> x12; ``hour`` rows excluded (Pitfall 3).
+         *     Salaries are stored as EUR/year (annualized at extraction time), so no
+         *     per-period re-normalization happens here.
          */
         get: operations["dashboard_salary_bands_dashboard_salary_bands_get"];
         put?: never;

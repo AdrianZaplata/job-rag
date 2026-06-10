@@ -450,6 +450,11 @@ def ingest_directory(session: Session, directory: Path | None = None) -> dict:
                 if "$" in reason:
                     cost_str = reason.split("$")[1].rstrip(")")
                     total_cost += float(cost_str)
+            elif reason.startswith("error"):
+                # ingest_file reports per-posting failures as (False, "error: …")
+                # rather than raising — count them as errors, not skips.
+                log.error("ingest_error", file=f.name, error=reason)
+                errors.append((f.name, reason))
             else:
                 skipped += 1
         except Exception as e:

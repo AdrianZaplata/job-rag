@@ -262,8 +262,11 @@ class TestSalaryBands:
         assert result["total_postings"] == 12
         assert result["currency"] == "EUR"
 
-    async def test_month_normalized_to_year(self, dashboard_postings_factory):
-        """E5: salary_period='month' rows normalized x 12 - verify via SQL stmt inspection."""
+    async def test_no_period_renormalization(self, dashboard_postings_factory):
+        """salary_min/salary_max are stored as EUR/year (extraction prompt v2.0
+        converts month x12 / hour x2080 at extraction time), so the percentile
+        stmt must NOT re-normalize by salary_period — an earlier revision
+        multiplied 'month' rows by 12 again, inflating them 12x."""
         from job_rag.services.analytics import salary_bands
 
         session = _make_salary_bands_mock_session(
@@ -272,38 +275,14 @@ class TestSalaryBands:
         )
         await salary_bands(session)
 
-        # The percentile stmt MUST normalize month -> year via CASE WHEN
-        # salary_period = 'month' THEN salary_min * 12 ELSE salary_min END.
-        percentile_stmt = session.execute.call_args_list[0].args[0]
-        compiled_sql = str(
-            percentile_stmt.compile(compile_kwargs={"literal_binds": True})
-        )
-        # Look for the month normalization clause.
-        assert "month" in compiled_sql.lower()
-        # Multiplication by 12 must appear somewhere in the case expression.
-        assert "* 12" in compiled_sql or "*12" in compiled_sql
-
-    async def test_hour_rows_excluded(self, dashboard_postings_factory):
-        """E4: salary_period='hour' rows excluded from percentiles."""
-        from job_rag.services.analytics import salary_bands
-
-        session = _make_salary_bands_mock_session(
-            p25=60000, p50=75000, p75=90000,
-            postings_with_salary=8, total_postings=12,
-        )
-        await salary_bands(session)
-
-        # Verify the WHERE clause restricts salary_period IN ('year', 'month')
-        # (i.e. excludes 'hour').
         percentile_stmt = session.execute.call_args_list[0].args[0]
         compiled_sql = str(
             percentile_stmt.compile(compile_kwargs={"literal_binds": True})
         ).lower()
-        # The IN clause for ('year', 'month') must appear.
-        assert "year" in compiled_sql and "month" in compiled_sql
-        # 'hour' MUST NOT appear in the WHERE clause directly as an included value.
-        # Acceptable patterns: salary_period IN ('year', 'month').
-        assert "in ('year', 'month')" in compiled_sql or "in ('month', 'year')" in compiled_sql
+        # No CASE-based x12 re-normalization.
+        assert "* 12" not in compiled_sql and "*12" not in compiled_sql
+        # No salary_period filter — all annualized rows participate.
+        assert "salary_period" not in compiled_sql
 
     async def test_null_salary_excluded_from_count(self, dashboard_postings_factory):
         """E3: NULL salary_min rows excluded; postings_with_salary count is accurate."""
