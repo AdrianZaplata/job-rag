@@ -30,7 +30,6 @@ from typing import Annotated, Any
 import docx
 import openai
 import pypdf
-import pypdf.errors
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from sqlalchemy import func, select, text, update
@@ -92,6 +91,7 @@ from job_rag.services.profile import (
     ResumeUploadResponse,
     UserProfileUpdate,
     compute_skills_diff,
+    dedupe_skills,
 )
 from job_rag.services.retrieval import rag_query, search_postings
 
@@ -562,15 +562,23 @@ async def ingest(
 # ----------------------------------------------------------------------
 
 
+class _EncryptedPdfError(Exception):
+    """Password-protected PDF (D-09). Distinct from pypdf's ``PdfReadError``,
+    which pypdf also raises for corrupt/malformed files — those must map to
+    422 ``text_extraction_failed``, not ``pdf_encrypted``."""
+
+
 def _extract_pdf_text(raw: bytes) -> str:
     """Extract text from a PDF byte string via pypdf 6.x.
 
-    Raises ``pypdf.errors.PdfReadError`` if the document is encrypted (D-09);
-    the upload route maps this to 422 ``pdf_encrypted``.
+    Raises :class:`_EncryptedPdfError` if the document is encrypted (D-09);
+    the upload route maps this to 422 ``pdf_encrypted``. Any other pypdf
+    error (corrupt file, bad xref, …) propagates and maps to 422
+    ``text_extraction_failed``.
     """
     reader = pypdf.PdfReader(io.BytesIO(raw))
     if reader.is_encrypted:
-        raise pypdf.errors.PdfReadError("encrypted")
+        raise _EncryptedPdfError
     return "\n\n".join(page.extract_text() or "" for page in reader.pages)
 
 
@@ -631,7 +639,7 @@ async def _run_resume_upload_pipeline(
         else:  # .docx
             resume_text = await asyncio.to_thread(_extract_docx_text, raw)
             file_type = "docx"
-    except pypdf.errors.PdfReadError:
+    except _EncryptedPdfError:
         log.warning("resume_upload_failed", reason="pdf_encrypted")
         raise HTTPException(
             status_code=422,
@@ -934,8 +942,11 @@ async def update_profile(
     ``profile_save`` span is attached to that Langfuse trace per D-32 #4.
     Fail-open: missing keys leave the save functional without a trace.
     """
+    # Renaming an 'added' chip can collide with a kept skill — persist each
+    # normalize-equal skill once (first occurrence wins).
+    skills = dedupe_skills(payload.skills)
     updates: dict[str, Any] = {
-        "skills_json": json.dumps([s.model_dump() for s in payload.skills]),
+        "skills_json": json.dumps([s.model_dump() for s in skills]),
         "updated_at": func.now(),
     }
     if payload.target_roles is not None:
@@ -969,7 +980,7 @@ async def update_profile(
                 name="profile_save",
                 as_type="span",
                 trace_context={"trace_id": trace_id},
-                metadata={"written_skill_count": len(payload.skills)},
+                metadata={"written_skill_count": len(skills)},
             ):
                 pass
         except Exception:  # pragma: no cover - fail-open per T-07-08
@@ -981,7 +992,7 @@ async def update_profile(
     log.info(
         "profile_saved",
         user_id=str(user_id),
-        skill_count=len(payload.skills),
+        skill_count=len(skills),
     )
     return await load_profile(session, user_id=user_id)
 

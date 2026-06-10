@@ -47,6 +47,13 @@ const SKELETON_WIDTHS = [
   'w-24',
 ] as const
 
+// D-31 stepped status copy, indexed by elapsed-time stage (0-2s / 2-10s / 10s+).
+const STATUS_COPY = [
+  'Reading your resume…',
+  'Asking the agent to extract skills…',
+  'Still working — extraction can take a minute on first load…',
+] as const
+
 // D-35 verbatim error copy mapping.
 const COPY: Record<string, { title: string; body: string }> = {
   file_too_large: {
@@ -123,33 +130,30 @@ export function ResumeUploader({
   const [file, setFile] = useState<File | null>(null)
   const [clientError, setClientError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
-  const [statusCopy, setStatusCopy] = useState<string>(
-    'Reading your resume…',
-  )
+  const [statusStage, setStatusStage] = useState(0)
 
-  // D-31 stepped status copy: 0-2s / 2-10s / 10s+ timers, cleared when isPending falls.
+  // Reset the stage whenever isPending flips (adjust-state-during-render
+  // pattern — react-hooks/set-state-in-effect forbids the synchronous
+  // setState-in-effect alternative). A fresh upload always restarts at stage 0.
+  const [prevPending, setPrevPending] = useState(isPending)
+  if (prevPending !== isPending) {
+    setPrevPending(isPending)
+    setStatusStage(0)
+  }
+
+  // D-31 stepped status copy: 0-2s / 2-10s / 10s+ timers, cleared when
+  // isPending falls. State is only set inside timer callbacks.
   useEffect(() => {
-    if (!isPending) {
-      setStatusCopy('Reading your resume…')
-      return
-    }
-    setStatusCopy('Reading your resume…')
-    const t1 = setTimeout(
-      () => setStatusCopy('Asking the agent to extract skills…'),
-      2_000,
-    )
-    const t2 = setTimeout(
-      () =>
-        setStatusCopy(
-          'Still working — extraction can take a minute on first load…',
-        ),
-      10_000,
-    )
+    if (!isPending) return
+    const t1 = setTimeout(() => setStatusStage(1), 2_000)
+    const t2 = setTimeout(() => setStatusStage(2), 10_000)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
     }
   }, [isPending])
+
+  const statusCopy = STATUS_COPY[statusStage]
 
   const handleCandidate = useCallback((candidate: File) => {
     const v = validateFile(candidate)

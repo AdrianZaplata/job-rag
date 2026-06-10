@@ -135,13 +135,13 @@ app = FastAPI(
 )
 
 # Phase 7 D-07 / T-07-02: pre-body 413 guard on POST /profile/upload.
-# Added BEFORE CORSMiddleware so OPTIONS preflight still flows through CORS
-# handling — the size guard only fires on POST /profile/upload, so any
-# preflight OPTIONS bypasses cleanly. Note Starlette middleware execution
-# order is reverse of registration (innermost runs first); registering
-# ResumeUploadSizeGuard first means it sits OUTSIDE CORS so the 413 is
-# returned without CORS headers — acceptable because the browser only
-# triggers a real upload after a successful CORS preflight.
+# Starlette's add_middleware() PREPENDS to the stack, so registering the size
+# guard before CORSMiddleware makes the guard the INNER layer (verified:
+# app.user_middleware == [CORSMiddleware, ResumeUploadSizeGuard]). That is the
+# order we want: OPTIONS preflight is answered by the outer CORSMiddleware
+# before reaching the guard, and the guard's 413 travels back out THROUGH
+# CORSMiddleware, which attaches CORS headers so the SPA can read the error
+# body cross-origin.
 app.add_middleware(ResumeUploadSizeGuard)
 
 # CORS middleware [D-26, BACK-01, T-05-01]

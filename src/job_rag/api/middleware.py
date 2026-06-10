@@ -8,9 +8,11 @@ The chunked-encoding fallback (no ``Content-Length`` header) is handled
 inside the route handler via a size-accumulating ``read_with_cap`` loop —
 this middleware only covers the headers-known-up-front case.
 
-Mounted on the app in :mod:`job_rag.api.app` ABOVE the existing
-``CORSMiddleware`` so OPTIONS preflight still flows through CORS handling
-even for the upload route (the size guard only fires on POST).
+Mounted on the app in :mod:`job_rag.api.app` INSIDE the existing
+``CORSMiddleware`` (``add_middleware()`` prepends, so the guard registered
+first is the inner layer): OPTIONS preflight is answered by CORS before
+reaching the guard, and the guard's 413 passes back out through
+CORSMiddleware, picking up CORS headers on the way.
 """
 
 from __future__ import annotations

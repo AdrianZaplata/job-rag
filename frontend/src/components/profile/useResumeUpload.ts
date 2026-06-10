@@ -63,6 +63,14 @@ export function useResumeUpload() {
       // Auto-revert so `saved` is genuinely transient (matches types.ts D-28).
       setTimeout(() => setState({ phase: 'idle' }), 0)
     },
+    onError: (err) => {
+      // PATCH failure must be visible: without this the user clicks Save, the
+      // spinner stops, and nothing happens. Stay in `reviewing` so the draft
+      // diff is preserved for a retry.
+      toast.error('Could not save your profile', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    },
   })
 
   const reset = () => setState({ phase: 'idle' })

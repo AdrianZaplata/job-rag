@@ -127,9 +127,29 @@ def compute_skills_diff(
     ]
 
 
+def dedupe_skills(skills: list[UserSkill]) -> list[UserSkill]:
+    """Drop normalize-equal duplicates, keeping first occurrence (PR-14 review).
+
+    The review UI lets the user rename an 'added' chip to collide with a kept
+    skill (e.g. rename "Py" → "Python" while "Python" is unchanged-checked);
+    without this guard ``PATCH /profile`` would persist both rows verbatim in
+    ``skills_json``. Same equality contract as :func:`compute_skills_diff`.
+    """
+    seen: set[str] = set()
+    deduped: list[UserSkill] = []
+    for s in skills:
+        key = _normalize_skill(s.name)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(s)
+    return deduped
+
+
 __all__ = [
     "ResumeUploadResponse",
     "SkillDiffItem",
     "UserProfileUpdate",
     "compute_skills_diff",
+    "dedupe_skills",
 ]

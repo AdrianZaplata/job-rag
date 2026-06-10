@@ -55,10 +55,8 @@ export function SkillDiffChip({
   const [draft, setDraft] = useState(item.editedName)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Sync draft when item.editedName changes from outside (e.g., parent reset).
-  useEffect(() => {
-    if (!editing) setDraft(item.editedName)
-  }, [item.editedName, editing])
+  // No prop-sync effect needed: `draft` is only rendered while editing, and
+  // startEdit() re-seeds it from item.editedName on every edit-mode entry.
 
   // Auto-focus + select text when entering edit mode (D-26).
   useEffect(() => {
