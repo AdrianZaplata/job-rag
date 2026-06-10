@@ -269,7 +269,7 @@ export interface paths {
          * Upload Resume
          * @description POST /profile/upload — PDF/DOCX → Instructor extraction → skill diff.
          *
-         *     Phase 7 D-06..D-35 + T-07-02/05/07/08:
+         *     Phase 7 D-06..D-35 + T-07-02/05/07/08 + G-07-UAT-01 (Langfuse v4 migration):
          *     - 2 MB cap enforced pre-body by :class:`ResumeUploadSizeGuard`
          *       middleware (when ``Content-Length`` is present) plus an in-handler
          *       chunked-encoding fallback (when it is not).
@@ -280,9 +280,12 @@ export interface paths {
          *     - Tenacity retries (3x) re-raise — ``ValidationError`` maps to 422
          *       ``extraction_failed``, ``openai.APIError`` to 503 ``llm_unavailable``
          *       (D-15/D-16/D-35).
-         *     - Langfuse trace correlates 3 spans (text_extract, llm_extract auto,
-         *       diff_compute) via the server-generated ``extraction_id`` (D-32);
-         *       raw resume text is never written to trace metadata (D-33 / T-07-07).
+         *     - Langfuse trace correlates 4 child observations under a single
+         *       ``resume_upload`` parent span keyed by
+         *       ``derive_langfuse_trace_id(extraction_id)`` (D-32, post-G-07-UAT-01
+         *       v4 migration). Raw resume text NEVER reaches Langfuse —
+         *       ``redact_current_generation_input`` overrides BOTH the auto-captured
+         *       generation input AND the trace-level input (D-33 / T-07-07).
          */
         post: operations["upload_resume_profile_upload_post"];
         delete?: never;
