@@ -333,7 +333,12 @@ class TestCvMatch:
         session = _make_cv_match_mock_session(postings=postings)
 
         # Stub load_profile to return the synthetic profile (no data/profile.json read).
-        monkeypatch.setattr(analytics, "load_profile", lambda *, user_id: synthetic_profile)
+        # Phase 7 D-01/D-02: load_profile is now async and takes a positional
+        # session arg. Replace with an async stub matching the new signature.
+        async def _fake_load_profile(session, *, user_id=None):
+            return synthetic_profile
+
+        monkeypatch.setattr(analytics, "load_profile", _fake_load_profile)
 
         result = await analytics.cv_match(session, uuid.uuid4())
         assert "mean_score" in result
@@ -354,7 +359,12 @@ class TestCvMatch:
         from job_rag.services import analytics
 
         session = _make_cv_match_mock_session(postings=[])
-        monkeypatch.setattr(analytics, "load_profile", lambda *, user_id: synthetic_profile)
+        # Phase 7 D-01/D-02: load_profile is now async and takes a positional
+        # session arg. Replace with an async stub matching the new signature.
+        async def _fake_load_profile(session, *, user_id=None):
+            return synthetic_profile
+
+        monkeypatch.setattr(analytics, "load_profile", _fake_load_profile)
 
         result = await analytics.cv_match(session, uuid.uuid4())
         assert result["mean_score"] is None
@@ -379,7 +389,12 @@ class TestCvMatch:
         # Full 12-posting fixture has > 3 unique must-have skills total.
         postings = dashboard_postings_factory()
         session = _make_cv_match_mock_session(postings=postings)
-        monkeypatch.setattr(analytics, "load_profile", lambda *, user_id: empty_profile)
+
+        # Phase 7 D-01/D-02: async load_profile signature.
+        async def _fake_load_profile(session, *, user_id=None):
+            return empty_profile
+
+        monkeypatch.setattr(analytics, "load_profile", _fake_load_profile)
 
         result = await analytics.cv_match(session, uuid.uuid4())
         assert len(result["top_missing_must_have"]) <= 3
@@ -393,7 +408,12 @@ class TestCvMatch:
 
         postings = dashboard_postings_factory()
         session = _make_cv_match_mock_session(postings=postings)
-        monkeypatch.setattr(analytics, "load_profile", lambda *, user_id: synthetic_profile)
+        # Phase 7 D-01/D-02: load_profile is now async and takes a positional
+        # session arg. Replace with an async stub matching the new signature.
+        async def _fake_load_profile(session, *, user_id=None):
+            return synthetic_profile
+
+        monkeypatch.setattr(analytics, "load_profile", _fake_load_profile)
 
         result = await analytics.cv_match(session, uuid.uuid4())
 

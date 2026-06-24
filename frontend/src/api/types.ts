@@ -261,6 +261,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Resume
+         * @description POST /profile/upload — PDF/DOCX → Instructor extraction → skill diff.
+         *
+         *     Phase 7 D-06..D-35 + T-07-02/05/07/08 + G-07-UAT-01 (Langfuse v4 migration):
+         *     - 2 MB cap enforced pre-body by :class:`ResumeUploadSizeGuard`
+         *       middleware (when ``Content-Length`` is present) plus an in-handler
+         *       chunked-encoding fallback (when it is not).
+         *     - Type whitelist = extension AND Content-Type intersection (D-08); 415
+         *       otherwise.
+         *     - Text extraction errors map to 422 ``pdf_encrypted`` /
+         *       ``text_extraction_failed`` (D-09/D-10).
+         *     - Tenacity retries (3x) re-raise — ``ValidationError`` maps to 422
+         *       ``extraction_failed``, ``openai.APIError`` to 503 ``llm_unavailable``
+         *       (D-15/D-16/D-35).
+         *     - Langfuse trace correlates 4 child observations under a single
+         *       ``resume_upload`` parent span keyed by
+         *       ``derive_langfuse_trace_id(extraction_id)`` (D-32, post-G-07-UAT-01
+         *       v4 migration). Raw resume text NEVER reaches Langfuse —
+         *       ``redact_current_generation_input`` overrides BOTH the auto-captured
+         *       generation input AND the trace-level input (D-33 / T-07-07).
+         */
+        post: operations["upload_resume_profile_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Profile
+         * @description GET /profile — return the authenticated user's profile (PROF-01).
+         *
+         *     Delegates to the Phase 7 D-01/D-02 DB-backed ``load_profile`` (the
+         *     same read path the dashboard CV-vs-market widget uses), so the
+         *     frontend has a single source of truth.
+         */
+        get: operations["get_profile_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Profile
+         * @description PATCH /profile — replace skills, None = no change (D-21).
+         *
+         *     ``skills`` REPLACES ``skills_json`` entirely; other fields with value
+         *     ``None`` are NOT written, so the DB column retains its prior value.
+         *     The seed migration (0006) guarantees the row exists; UPSERT is not
+         *     needed.
+         *
+         *     When ``extraction_id`` is supplied (matching a prior upload), a
+         *     ``profile_save`` span is attached to that Langfuse trace per D-32 #4.
+         *     Fail-open: missing keys leave the save functional without a trace.
+         */
+        patch: operations["update_profile_profile_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -272,6 +347,11 @@ export interface components {
         };
         /** Body_ingest_ingest_post */
         Body_ingest_ingest_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_resume_profile_upload_post */
+        Body_upload_resume_profile_upload_post: {
             /** File */
             file: string;
         };
@@ -410,10 +490,97 @@ export interface components {
          */
         RemoteFilter: "any" | "remote" | "non_remote";
         /**
+         * RemotePolicy
+         * @enum {string}
+         */
+        RemotePolicy: "remote" | "hybrid" | "onsite" | "unknown";
+        /**
+         * ResumeExtraction
+         * @description LLM-extracted resume contents (Phase 7 D-13).
+         *
+         *     Sibling of :class:`UserSkillProfile`. Decoupled so the extraction format can
+         *     evolve (e.g. add ``companies_worked_at``) without coupling the canonical
+         *     user-state shape. Adds ``years_experience``, which the resume-review UI
+         *     surfaces back to the user, and renames ``min_salary`` to ``min_salary_eur``
+         *     so the Instructor prompt has an explicit unit hint (otherwise GPT-4o-mini
+         *     tends to drop the currency conversion step).
+         */
+        ResumeExtraction: {
+            /**
+             * Skills
+             * @description Extracted user skills
+             */
+            skills: components["schemas"]["UserSkill"][];
+            /**
+             * Target Roles
+             * @description Target job titles inferred from the resume
+             */
+            target_roles?: string[];
+            /**
+             * Preferred Locations
+             * @description Preferred locations stated in the resume
+             */
+            preferred_locations?: string[];
+            /**
+             * Min Salary Eur
+             * @description Minimum acceptable salary in EUR/year
+             */
+            min_salary_eur?: number | null;
+            /**
+             * @description Preferred remote policy
+             * @default unknown
+             */
+            remote_preference: components["schemas"]["RemotePolicy"];
+            /**
+             * Years Experience
+             * @description Years of professional experience
+             */
+            years_experience?: number | null;
+        };
+        /**
+         * ResumeUploadResponse
+         * @description Wire shape returned by ``POST /profile/upload`` (D-13).
+         *
+         *     ``extraction_id`` ties the upload to a Langfuse trace (D-32) and is
+         *     echoed back on the subsequent PATCH so the ``profile_save`` span can
+         *     attach to the same trace.
+         */
+        ResumeUploadResponse: {
+            extracted: components["schemas"]["ResumeExtraction"];
+            /** Skills Diff */
+            skills_diff: components["schemas"]["SkillDiffItem"][];
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Extraction Id
+             * Format: uuid
+             */
+            extraction_id: string;
+        };
+        /**
          * Seniority
          * @enum {string}
          */
         Seniority: "junior" | "mid" | "senior" | "staff" | "lead" | "unknown";
+        /**
+         * SkillDiffItem
+         * @description One row in the upload-review diff (D-17).
+         *
+         *     ``editable=True`` only for ``source="added"`` chips per D-26 — the user
+         *     can rename newly-discovered skills before they are persisted. Removed
+         *     and unchanged chips are read-only at the wire level.
+         */
+        SkillDiffItem: {
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "added" | "removed" | "unchanged";
+            /** Editable */
+            editable: boolean;
+        };
         /**
          * TopSkillItem
          * @description One row of the top-skills aggregate.
@@ -439,6 +606,74 @@ export interface components {
              * @description must_count + nice_count
              */
             total: number;
+        };
+        /**
+         * UserProfileUpdate
+         * @description PATCH /profile body (D-21).
+         *
+         *     ``skills`` is REQUIRED and REPLACES the row's ``skills_json`` entirely.
+         *     Other fields default to ``None`` and are treated as "no change" by the
+         *     handler so the existing DB value is preserved. ``extraction_id`` is the
+         *     Langfuse correlation token from the prior upload response — passing it
+         *     back lets the ``profile_save`` span attach to the same trace.
+         */
+        UserProfileUpdate: {
+            /** Skills */
+            skills: components["schemas"]["UserSkill"][];
+            /** Target Roles */
+            target_roles?: string[] | null;
+            /** Preferred Locations */
+            preferred_locations?: string[] | null;
+            /** Min Salary Eur */
+            min_salary_eur?: number | null;
+            remote_preference?: components["schemas"]["RemotePolicy"] | null;
+            /**
+             * Extraction Id
+             * @description Langfuse correlation token (D-21).
+             */
+            extraction_id?: string | null;
+        };
+        /**
+         * UserSkill
+         * @description A skill in the user's profile.
+         */
+        UserSkill: {
+            /**
+             * Name
+             * @description Skill name
+             */
+            name: string;
+        };
+        /**
+         * UserSkillProfile
+         * @description User's skill profile for matching against job postings.
+         */
+        UserSkillProfile: {
+            /**
+             * Skills
+             * @description User skills
+             */
+            skills: components["schemas"]["UserSkill"][];
+            /**
+             * Target Roles
+             * @description Target job titles
+             */
+            target_roles?: string[];
+            /**
+             * Preferred Locations
+             * @description Preferred locations
+             */
+            preferred_locations?: string[];
+            /**
+             * Min Salary
+             * @description Minimum acceptable salary in EUR/year
+             */
+            min_salary?: number | null;
+            /**
+             * @description Preferred remote policy
+             * @default unknown
+             */
+            remote_preference: components["schemas"]["RemotePolicy"];
         };
         /** ValidationError */
         ValidationError: {
@@ -924,6 +1159,92 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_resume_profile_upload_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_resume_profile_upload_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeUploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSkillProfile"];
+                };
+            };
+        };
+    };
+    update_profile_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSkillProfile"];
                 };
             };
             /** @description Validation Error */

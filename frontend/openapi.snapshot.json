@@ -679,6 +679,125 @@
           }
         ]
       }
+    },
+    "/profile/upload": {
+      "post": {
+        "summary": "Upload Resume",
+        "description": "POST /profile/upload \u2014 PDF/DOCX \u2192 Instructor extraction \u2192 skill diff.\n\nPhase 7 D-06..D-35 + T-07-02/05/07/08 + G-07-UAT-01 (Langfuse v4 migration):\n- 2 MB cap enforced pre-body by :class:`ResumeUploadSizeGuard`\n  middleware (when ``Content-Length`` is present) plus an in-handler\n  chunked-encoding fallback (when it is not).\n- Type whitelist = extension AND Content-Type intersection (D-08); 415\n  otherwise.\n- Text extraction errors map to 422 ``pdf_encrypted`` /\n  ``text_extraction_failed`` (D-09/D-10).\n- Tenacity retries (3x) re-raise \u2014 ``ValidationError`` maps to 422\n  ``extraction_failed``, ``openai.APIError`` to 503 ``llm_unavailable``\n  (D-15/D-16/D-35).\n- Langfuse trace correlates 4 child observations under a single\n  ``resume_upload`` parent span keyed by\n  ``derive_langfuse_trace_id(extraction_id)`` (D-32, post-G-07-UAT-01\n  v4 migration). Raw resume text NEVER reaches Langfuse \u2014\n  ``redact_current_generation_input`` overrides BOTH the auto-captured\n  generation input AND the trace-level input (D-33 / T-07-07).",
+        "operationId": "upload_resume_profile_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_resume_profile_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
+          }
+        ]
+      }
+    },
+    "/profile": {
+      "get": {
+        "summary": "Get Profile",
+        "description": "GET /profile \u2014 return the authenticated user's profile (PROF-01).\n\nDelegates to the Phase 7 D-01/D-02 DB-backed ``load_profile`` (the\nsame read path the dashboard CV-vs-market widget uses), so the\nfrontend has a single source of truth.",
+        "operationId": "get_profile_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSkillProfile"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update Profile",
+        "description": "PATCH /profile \u2014 replace skills, None = no change (D-21).\n\n``skills`` REPLACES ``skills_json`` entirely; other fields with value\n``None`` are NOT written, so the DB column retains its prior value.\nThe seed migration (0006) guarantees the row exists; UPSERT is not\nneeded.\n\nWhen ``extraction_id`` is supplied (matching a prior upload), a\n``profile_save`` span is attached to that Langfuse trace per D-32 #4.\nFail-open: missing keys leave the save functional without a trace.",
+        "operationId": "update_profile_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSkillProfile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "AzureAD_PKCE_B2C_multi_tenant": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -709,6 +828,20 @@
           "file"
         ],
         "title": "Body_ingest_ingest_post"
+      },
+      "Body_upload_resume_profile_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_resume_profile_upload_post"
       },
       "CountryFilter": {
         "type": "string",
@@ -904,6 +1037,111 @@
         "title": "RemoteFilter",
         "description": "3-state remote-policy tri-toggle (D-09).\n\nany:        no filter (default).\nremote:     remote_policy = 'remote'.\nnon_remote: remote_policy IN ('hybrid', 'onsite')."
       },
+      "RemotePolicy": {
+        "type": "string",
+        "enum": [
+          "remote",
+          "hybrid",
+          "onsite",
+          "unknown"
+        ],
+        "title": "RemotePolicy"
+      },
+      "ResumeExtraction": {
+        "properties": {
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/UserSkill"
+            },
+            "type": "array",
+            "title": "Skills",
+            "description": "Extracted user skills"
+          },
+          "target_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Target Roles",
+            "description": "Target job titles inferred from the resume"
+          },
+          "preferred_locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Locations",
+            "description": "Preferred locations stated in the resume"
+          },
+          "min_salary_eur": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Salary Eur",
+            "description": "Minimum acceptable salary in EUR/year"
+          },
+          "remote_preference": {
+            "$ref": "#/components/schemas/RemotePolicy",
+            "description": "Preferred remote policy",
+            "default": "unknown"
+          },
+          "years_experience": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Years Experience",
+            "description": "Years of professional experience"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skills"
+        ],
+        "title": "ResumeExtraction",
+        "description": "LLM-extracted resume contents (Phase 7 D-13).\n\nSibling of :class:`UserSkillProfile`. Decoupled so the extraction format can\nevolve (e.g. add ``companies_worked_at``) without coupling the canonical\nuser-state shape. Adds ``years_experience``, which the resume-review UI\nsurfaces back to the user, and renames ``min_salary`` to ``min_salary_eur``\nso the Instructor prompt has an explicit unit hint (otherwise GPT-4o-mini\ntends to drop the currency conversion step)."
+      },
+      "ResumeUploadResponse": {
+        "properties": {
+          "extracted": {
+            "$ref": "#/components/schemas/ResumeExtraction"
+          },
+          "skills_diff": {
+            "items": {
+              "$ref": "#/components/schemas/SkillDiffItem"
+            },
+            "type": "array",
+            "title": "Skills Diff"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "extraction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Extraction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "extracted",
+          "skills_diff",
+          "prompt_version",
+          "extraction_id"
+        ],
+        "title": "ResumeUploadResponse",
+        "description": "Wire shape returned by ``POST /profile/upload`` (D-13).\n\n``extraction_id`` ties the upload to a Langfuse trace (D-32) and is\nechoed back on the subsequent PATCH so the ``profile_save`` span can\nattach to the same trace."
+      },
       "Seniority": {
         "type": "string",
         "enum": [
@@ -915,6 +1153,35 @@
           "unknown"
         ],
         "title": "Seniority"
+      },
+      "SkillDiffItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "added",
+              "removed",
+              "unchanged"
+            ],
+            "title": "Source"
+          },
+          "editable": {
+            "type": "boolean",
+            "title": "Editable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "source",
+          "editable"
+        ],
+        "title": "SkillDiffItem",
+        "description": "One row in the upload-review diff (D-17).\n\n``editable=True`` only for ``source=\"added\"`` chips per D-26 \u2014 the user\ncan rename newly-discovered skills before they are persisted. Removed\nand unchanged chips are read-only at the wire level."
       },
       "TopSkillItem": {
         "properties": {
@@ -948,6 +1215,151 @@
         ],
         "title": "TopSkillItem",
         "description": "One row of the top-skills aggregate."
+      },
+      "UserProfileUpdate": {
+        "properties": {
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/UserSkill"
+            },
+            "type": "array",
+            "title": "Skills"
+          },
+          "target_roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Roles"
+          },
+          "preferred_locations": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Locations"
+          },
+          "min_salary_eur": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Salary Eur"
+          },
+          "remote_preference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemotePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extraction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Id",
+            "description": "Langfuse correlation token (D-21)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "skills"
+        ],
+        "title": "UserProfileUpdate",
+        "description": "PATCH /profile body (D-21).\n\n``skills`` is REQUIRED and REPLACES the row's ``skills_json`` entirely.\nOther fields default to ``None`` and are treated as \"no change\" by the\nhandler so the existing DB value is preserved. ``extraction_id`` is the\nLangfuse correlation token from the prior upload response \u2014 passing it\nback lets the ``profile_save`` span attach to the same trace."
+      },
+      "UserSkill": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Skill name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "UserSkill",
+        "description": "A skill in the user's profile."
+      },
+      "UserSkillProfile": {
+        "properties": {
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/UserSkill"
+            },
+            "type": "array",
+            "title": "Skills",
+            "description": "User skills"
+          },
+          "target_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Target Roles",
+            "description": "Target job titles"
+          },
+          "preferred_locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Locations",
+            "description": "Preferred locations"
+          },
+          "min_salary": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Salary",
+            "description": "Minimum acceptable salary in EUR/year"
+          },
+          "remote_preference": {
+            "$ref": "#/components/schemas/RemotePolicy",
+            "description": "Preferred remote policy",
+            "default": "unknown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skills"
+        ],
+        "title": "UserSkillProfile",
+        "description": "User's skill profile for matching against job postings."
       },
       "ValidationError": {
         "properties": {

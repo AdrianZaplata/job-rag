@@ -33,12 +33,12 @@ All four ship as a single pair to amortize the re-extraction cost.
 
 ### Profile and resume upload (PROF)
 
-- [ ] **PROF-01**: `UserProfile` DB model (skills list, target roles, preferred locations, min salary) added via Alembic; Adrian's profile seeded from the current `data/profile.json`; `data/profile.json` is removed from the canonical read path
-- [ ] **PROF-02**: API endpoint accepts a PDF or DOCX upload (`multipart/form-data`, max 2 MB; `pypdf` 6.x for PDF text, `python-docx` 1.x for DOCX)
-- [ ] **PROF-03**: Uploaded resume text is passed through Instructor + GPT-4o-mini with a pinned prompt version; returns a `UserSkillProfile` structured per the existing Pydantic schema
-- [ ] **PROF-04**: API returns a reviewable diff of extracted skills vs the current profile (added / removed / unchanged) so the UI can show a side-by-side view
-- [ ] **PROF-05**: Frontend review panel shows the extracted skills as tick/untick chips; user can edit skill names before saving
-- [ ] **PROF-06**: Confirmed skills persist to the `user_profile` row via a PATCH endpoint; Langfuse traces the full extract → review → save flow
+- [x] **PROF-01**: `UserProfile` DB model (skills list, target roles, preferred locations, min salary) added via Alembic; Adrian's profile seeded from the current `data/profile.json`; `data/profile.json` is removed from the canonical read path
+- [x] **PROF-02**: API endpoint accepts a PDF or DOCX upload (`multipart/form-data`, max 2 MB; `pypdf` 6.x for PDF text, `python-docx` 1.x for DOCX)
+- [x] **PROF-03**: Uploaded resume text is passed through Instructor + GPT-4o-mini with a pinned prompt version; returns a `UserSkillProfile` structured per the existing Pydantic schema
+- [x] **PROF-04**: API returns a reviewable diff of extracted skills vs the current profile (added / removed / unchanged) so the UI can show a side-by-side view
+- [x] **PROF-05**: Frontend review panel shows the extracted skills as tick/untick chips; user can edit skill names before saving
+- [x] **PROF-06**: Confirmed skills persist to the `user_profile` row via a PATCH endpoint; Langfuse traces the full extract → review → save flow
 
 ### Dashboard — static snapshot (DASH)
 
@@ -170,12 +170,12 @@ Which phases cover which requirements. Filled in by the roadmapper.
 | CORP-02 | Phase 2 | Complete |
 | CORP-03 | Phase 2 | Complete |
 | CORP-04 | Phase 2 | Complete |
-| PROF-01 | Phase 7 | Pending |
-| PROF-02 | Phase 7 | Pending |
-| PROF-03 | Phase 7 | Pending |
-| PROF-04 | Phase 7 | Pending |
-| PROF-05 | Phase 7 | Pending |
-| PROF-06 | Phase 7 | Pending |
+| PROF-01 | Phase 7 | Complete |
+| PROF-02 | Phase 7 | Complete |
+| PROF-03 | Phase 7 | Complete |
+| PROF-04 | Phase 7 | Complete |
+| PROF-05 | Phase 7 | Complete |
+| PROF-06 | Phase 7 | Complete |
 | DASH-01 | Phase 5 | Complete |
 | DASH-02 | Phase 5 | Complete |
 | DASH-03 | Phase 5 | Complete |

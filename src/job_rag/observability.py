@@ -11,7 +11,9 @@ the import cost when observability is disabled.
 """
 from __future__ import annotations
 
+import hashlib
 import os
+import uuid as _uuid
 from functools import lru_cache
 from typing import Any
 
@@ -81,3 +83,78 @@ def flush() -> None:
         get_client().flush()
     except Exception as e:  # pragma: no cover - best effort
         log.warning("langfuse_flush_failed", error=str(e))
+
+
+@lru_cache(maxsize=1)
+def get_langfuse_client() -> Any | None:
+    """Return a raw Langfuse client for manual span/trace creation (Phase 7 D-32).
+
+    Fail-open: returns ``None`` when keys are missing — all callers MUST
+    guard with ``if lf:`` before usage (mirrors :func:`get_langchain_callbacks`
+    fail-open semantics). Cached so the same client is reused across the
+    resume upload + PATCH save paths within a process.
+    """
+    if not is_enabled():
+        return None
+    _ensure_env()
+    from langfuse import Langfuse  # type: ignore[import-untyped]
+
+    log.info("langfuse_client_initialized")
+    return Langfuse(
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        host=settings.langfuse_host,
+    )
+
+
+def derive_langfuse_trace_id(seed: _uuid.UUID | str) -> str:
+    """Derive a deterministic 32-char hex Langfuse trace_id from an extraction_id.
+
+    Phase 7 G-07-UAT-01: Langfuse 4.x replaces the v3 trace-by-id
+    correlation API with a ``create_trace_id(seed=...)`` helper that hashes
+    the seed into a 16-byte OTel-compatible trace_id. Both ``POST
+    /profile/upload`` and ``PATCH /profile`` derive the same trace_id from
+    the same ``extraction_id`` so spans land on the same trace.
+
+    Fail-open: returns the (deterministic) ID even when Langfuse is disabled —
+    callers should check ``get_langfuse_client()`` before consuming the ID
+    for actual tracing. The fallback path inlines Langfuse 4.1.0's exact
+    algorithm — ``sha256(seed.encode("utf-8")).digest()[:16].hex()`` (see
+    ``langfuse.Langfuse.create_trace_id`` source) — so an ID derived
+    without a live client matches what the SDK would have produced. If
+    Langfuse changes its hash function in a future release, update this
+    fallback to match or the client-vs-clientless paths will diverge.
+    """
+    lf = get_langfuse_client()
+    seed_str = str(seed)
+    if lf is None:
+        return hashlib.sha256(seed_str.encode("utf-8")).digest()[:16].hex()
+    return lf.create_trace_id(seed=seed_str)
+
+
+def redact_current_generation_input(client: Any, *, char_count: int) -> None:
+    """Overwrite resume PII on the auto-captured GENERATION + trace input (D-33).
+
+    The ``langfuse.openai`` wrapper auto-captures the LLM call as a child
+    GENERATION observation AND writes the raw input to the trace root.
+    This helper performs BOTH redactions in v4-compatible style:
+
+    1. ``client.update_current_generation(input=REDACTED)`` — overrides the
+       CHILD generation's input field.
+    2. ``client.set_current_trace_io(input=REDACTED)`` — overrides the
+       TRACE-LEVEL input (which is what showed PII in the
+       ``trace-c744bb2d...json`` export captured during live UAT).
+
+    Both calls are wrapped in ``try/except Exception: pass`` per T-07-08
+    fail-open semantics. If step 1 raises, step 2 is still attempted —
+    defense in depth for PII redaction.
+    """
+    redacted = {"text": f"[REDACTED — char_count={char_count}]"}
+    try:
+        client.update_current_generation(input=redacted)
+    except Exception:  # pragma: no cover - fail-open per T-07-08
+        log.warning("langfuse_redact_generation_failed", char_count=char_count)
+    try:
+        client.set_current_trace_io(input=redacted)
+    except Exception:  # pragma: no cover - fail-open per T-07-08
+        log.warning("langfuse_redact_trace_failed", char_count=char_count)

@@ -36,6 +36,17 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # The FastAPI lifespan loads the cross-encoder reranker; without a cache
+      # every test run re-downloads it from HF Hub unauthenticated, which is
+      # rate-limited and has blown past LifespanManager's 60s startup_timeout
+      # (observed run 26901638282: test_agent_stream_emits_sse_events
+      # TimeoutError mid-download).
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-models-${{ runner.os }}-cross-encoder-ms-marco-MiniLM-L-6-v2
+
       - name: Lint (ruff)
         run: uv run ruff check src/ tests/
 

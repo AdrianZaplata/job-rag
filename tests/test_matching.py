@@ -1,13 +1,17 @@
+import json
 import uuid
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from job_rag.models import RemotePolicy, UserSkill, UserSkillProfile
 from job_rag.services.matching import (
     _normalize_skill,
     _skill_matches,
     aggregate_gaps,
+    load_profile,
     match_posting,
 )
 
@@ -164,3 +168,59 @@ class TestAggregateGaps:
         result = aggregate_gaps(profile, [])
         assert result["total_postings_analyzed"] == 0
         assert result["must_have_gaps"] == []
+
+
+# ====== Phase 7 D-01/D-02 — load_profile DB-backed tests (PROF-01) ======
+#
+# These tests exercise the Phase 7 body-flip of load_profile from JSON file read
+# to async DB query. The db_session fixture (tests/conftest.py) skips cleanly
+# when DATABASE_URL is unreachable and assumes `alembic upgrade head` has been
+# run (the 0006_seed_user_profile migration must have already INSERTed the
+# seeded row before these tests execute).
+
+SEEDED_UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
+@pytest.mark.asyncio
+async def test_load_profile_returns_seeded_row(db_session: AsyncSession) -> None:
+    """PROF-01 / D-01: load_profile reads from user_profile DB row.
+
+    Asserts the returned UserSkillProfile shape matches data/profile.json
+    (the reference snapshot from which the seed migration was generated).
+    """
+    profile = await load_profile(db_session, user_id=SEEDED_UUID)
+    assert isinstance(profile, UserSkillProfile)
+    assert len(profile.skills) > 0
+    # Compare against data/profile.json reference snapshot (D-04).
+    raw = json.loads(Path("data/profile.json").read_text(encoding="utf-8"))
+    assert {s.name for s in profile.skills} == {s["name"] for s in raw["skills"]}
+    assert profile.target_roles == raw["target_roles"]
+    assert profile.preferred_locations == raw["preferred_locations"]
+    assert profile.min_salary == raw["min_salary"]
+    assert profile.remote_preference.value == raw["remote_preference"]
+
+
+@pytest.mark.asyncio
+async def test_load_profile_fails_when_row_missing(db_session: AsyncSession) -> None:
+    """D-02 defensive: RuntimeError when no user_profile row exists for the uid."""
+    bogus = uuid.uuid4()  # guaranteed not seeded
+    with pytest.raises(RuntimeError, match="user_profile row missing"):
+        await load_profile(db_session, user_id=bogus)
+
+
+@pytest.mark.asyncio
+async def test_load_profile_independent_of_filesystem(
+    db_session: AsyncSession, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-05 criterion 2: load_profile does NOT read the filesystem at runtime.
+
+    Run the call from a tmp_path cwd that contains NO ``data/`` directory at
+    all. If load_profile still touched the filesystem it would raise. With the
+    Phase 7 body-flip, the function is pure DB I/O — the empty cwd is
+    irrelevant.
+    """
+    monkeypatch.chdir(tmp_path)
+    assert not (tmp_path / "data").exists()
+    profile = await load_profile(db_session, user_id=SEEDED_UUID)
+    assert isinstance(profile, UserSkillProfile)
+    assert len(profile.skills) > 0

@@ -292,7 +292,8 @@ async def cv_match(
             "top_missing_must_have": [],
         }
 
-    profile = load_profile(user_id=user_id)
+    # Phase 7 D-01/D-02: load_profile is now async + DB-backed (PROF-01).
+    profile = await load_profile(session, user_id=user_id)
     scores: list[float] = []
     missing: Counter[str] = Counter()
     for posting in postings:

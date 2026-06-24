@@ -28,6 +28,8 @@ dependencies = [
     "langchain-openai",
     "sentence-transformers",
     "python-multipart",
+    "pypdf>=6,<7",
+    "python-docx>=1,<2",
     "mcp",
     "langfuse",
     "langgraph",

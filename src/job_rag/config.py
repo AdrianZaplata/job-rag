@@ -21,7 +21,10 @@ class Settings(BaseSettings):
     rag_model: str = "gpt-4o-mini"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     data_dir: str = "data/postings"
-    profile_path: str = "data/profile.json"
+    # Phase 7 D-01..D-05 (PROF-01) removed the profile-JSON runtime read path;
+    # the seed migration 0006_seed_user_profile.py now seeds Adrian's
+    # user_profile row, and load_profile() reads from the DB. The file under
+    # data/ remains as a reference snapshot only (see data/README.md).
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
@@ -51,6 +54,14 @@ class Settings(BaseSettings):
     # asyncio.wait_for and sse-starlette's ping kwarg downstream (D-15, D-25).
     agent_timeout_seconds: int = Field(default=60, ge=1)
     heartbeat_interval_seconds: int = Field(default=15, ge=1)
+
+    # Phase 7 D-07: 2 MB cap on resume uploads. Enforced by the ASGI middleware
+    # in api/middleware.py BEFORE the body is materialized into memory (REQ-PROF-02
+    # literal "rejected with 413 before the body is fully read").
+    # NOTE: the frontend duplicates this default as MAX_BYTES in
+    # components/profile/ResumeUploader.tsx (client-side pre-check + "max 2 MB"
+    # copy) — change both together.
+    max_resume_size_bytes: int = Field(default=2_000_000, ge=1)
 
     # Entra External ID tenant identifiers (Phase 4 D-04 — plain env vars,
     # public-by-design per Phase 3 D-13).
