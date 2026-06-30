@@ -89,6 +89,57 @@ class SalaryPeriod(StrEnum):
     UNKNOWN = "unknown"
 
 
+# Tokens the agent LLM (or an MCP client) uses to mean "no filter". The LLM
+# tends to invent string sentinels like "null"/"any" for an omitted optional
+# arg; treating them as None keeps an unspecified filter UNFILTERED instead of
+# matching the literal value (which matches zero rows — the analyze_gaps
+# "no postings" bug). See services/retrieval.apply_posting_filters.
+_NO_FILTER_TOKENS: frozenset[str] = frozenset(
+    {"", "null", "none", "any", "all", "n/a", "na", "undefined"}
+)
+_SENIORITY_VALUES: frozenset[str] = frozenset(s.value for s in Seniority)
+_REMOTE_POLICY_VALUES: frozenset[str] = frozenset(r.value for r in RemotePolicy)
+
+
+def _coerce_enum_value(value: object, valid: frozenset[str]) -> str | None:
+    """Lower-case ``value`` and return it only if it is a known enum value.
+
+    Sentinel "no filter" tokens and any out-of-domain string return ``None`` so
+    callers fall back to UNFILTERED rather than filtering on a value no column
+    ever holds.
+    """
+    if value is None:
+        return None
+    token = str(value).strip().lower()
+    if token in _NO_FILTER_TOKENS:
+        return None
+    return token if token in valid else None
+
+
+def coerce_seniority(value: object) -> str | None:
+    """Coerce an arbitrary seniority filter to a valid Seniority value, or None.
+
+    The agent LLM and MCP clients pass free text — ``"null"``/``"any"``/``""``
+    to mean "no filter", or values outside the enum. Anything unrecognized
+    returns ``None`` (no filter) rather than a value that would match zero
+    postings. Accepts the :class:`Seniority` enum itself unchanged.
+    """
+    return _coerce_enum_value(value, _SENIORITY_VALUES)
+
+
+def coerce_remote_policy(value: object) -> str | None:
+    """Coerce an arbitrary remote filter to a valid RemotePolicy value, or None.
+
+    Accepts the :class:`RemotePolicy` strings (remote/hybrid/onsite/unknown). A
+    ``bool`` maps ``True`` -> ``"remote"`` and ``False`` -> ``None`` so a
+    caller can pass a remote-only flag. Junk — including the LLM's stray
+    ``"true"``/``"false"`` strings — returns ``None`` (no filter).
+    """
+    if isinstance(value, bool):
+        return RemotePolicy.REMOTE.value if value else None
+    return _coerce_enum_value(value, _REMOTE_POLICY_VALUES)
+
+
 class JobRequirement(BaseModel):
     """A single skill or requirement extracted from a job posting.
 

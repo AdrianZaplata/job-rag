@@ -115,6 +115,24 @@ class TestSearchPostings:
 
         assert result == {"query": "nothing here", "count": 0, "results": []}
 
+    async def test_location_filter(self):
+        with (
+            patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory,
+            patch(
+                "job_rag.mcp_server.tools._search_postings", new_callable=AsyncMock
+            ) as mock_search,
+            patch("job_rag.mcp_server.tools.rerank") as mock_rerank,
+        ):
+            session = AsyncMock()
+            mock_factory.return_value.__aenter__.return_value = session
+            mock_factory.return_value.__aexit__.return_value = None
+            mock_search.return_value = []
+            mock_rerank.return_value = []
+
+            await tools.search_postings("foo", location="Berlin")
+
+        assert mock_search.await_args.kwargs["location"] == "Berlin"
+
 
 @pytest.mark.asyncio
 class TestMatchSkills:
@@ -200,6 +218,101 @@ class TestSkillGaps:
             result = await tools.skill_gaps()
 
         assert result["error"] == "no_postings_found"
+
+    async def test_passes_filters_to_loader(self):
+        # remote_only=True maps to the remote_policy filter; location threads
+        # through; the raw seniority is forwarded (the loader coerces it).
+        posting = _make_posting()
+        with (
+            patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory,
+            patch(
+                "job_rag.mcp_server.tools.load_filtered_postings", new_callable=AsyncMock
+            ) as mock_loader,
+            patch(
+                "job_rag.mcp_server.tools.load_profile", new_callable=AsyncMock
+            ) as mock_load,
+            patch("job_rag.mcp_server.tools.aggregate_gaps") as mock_agg,
+        ):
+            session = AsyncMock()
+            mock_factory.return_value.__aenter__.return_value = session
+            mock_factory.return_value.__aexit__.return_value = None
+            mock_loader.return_value = [posting]
+            mock_load.return_value = MagicMock()
+            mock_agg.return_value = {"total_postings_analyzed": 1}
+
+            await tools.skill_gaps(seniority="null", remote_only=True, location="Berlin")
+
+        kwargs = mock_loader.await_args.kwargs
+        assert kwargs["remote"] == "remote"
+        assert kwargs["location"] == "Berlin"
+        assert kwargs["seniority"] == "null"
+
+    async def test_remote_only_false_passes_no_remote_filter(self):
+        with (
+            patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory,
+            patch(
+                "job_rag.mcp_server.tools.load_filtered_postings", new_callable=AsyncMock
+            ) as mock_loader,
+            patch(
+                "job_rag.mcp_server.tools.load_profile", new_callable=AsyncMock
+            ) as mock_load,
+            patch("job_rag.mcp_server.tools.aggregate_gaps") as mock_agg,
+        ):
+            session = AsyncMock()
+            mock_factory.return_value.__aenter__.return_value = session
+            mock_factory.return_value.__aexit__.return_value = None
+            mock_loader.return_value = [_make_posting()]
+            mock_load.return_value = MagicMock()
+            mock_agg.return_value = {"total_postings_analyzed": 1}
+
+            await tools.skill_gaps(remote_only=False)
+
+        assert mock_loader.await_args.kwargs["remote"] is None
+
+    async def test_invalid_seniority_still_aggregates(self):
+        # Empty-vs-invalid: junk seniority coerces to no-filter (real loader
+        # runs against the mocked session), so postings are found and the
+        # result is aggregated — NOT no_postings_found.
+        posting = _make_posting()
+        with (
+            patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory,
+            patch(
+                "job_rag.mcp_server.tools.load_profile", new_callable=AsyncMock
+            ) as mock_load,
+            patch("job_rag.mcp_server.tools.aggregate_gaps") as mock_agg,
+        ):
+            session = AsyncMock()
+            mock_factory.return_value.__aenter__.return_value = session
+            mock_factory.return_value.__aexit__.return_value = None
+            execute_result = MagicMock()
+            scalars = MagicMock()
+            scalars.all.return_value = [posting]
+            execute_result.scalars.return_value = scalars
+            session.execute = AsyncMock(return_value=execute_result)
+            mock_load.return_value = MagicMock()
+            mock_agg.return_value = {"total_postings_analyzed": 1, "must_have_gaps": []}
+
+            result = await tools.skill_gaps(seniority="banana", remote_only=False)
+
+        assert "error" not in result
+        assert result["total_postings_analyzed"] == 1
+
+    async def test_no_postings_error_reports_filters(self):
+        with patch("job_rag.mcp_server.tools.AsyncSessionLocal") as mock_factory:
+            session = AsyncMock()
+            mock_factory.return_value.__aenter__.return_value = session
+            mock_factory.return_value.__aexit__.return_value = None
+            execute_result = MagicMock()
+            scalars = MagicMock()
+            scalars.all.return_value = []
+            execute_result.scalars.return_value = scalars
+            session.execute = AsyncMock(return_value=execute_result)
+
+            result = await tools.skill_gaps(location="Atlantis")
+
+        assert result["error"] == "no_postings_found"
+        assert result["filters"]["location"] == "Atlantis"
+        assert result["filters"]["remote_only"] is False
 
 
 @pytest.mark.asyncio

@@ -28,6 +28,7 @@ async def search_postings(
     query: str,
     remote_only: bool = False,
     seniority: str | None = None,
+    location: str | None = None,
     limit: int = 5,
 ) -> dict[str, Any]:
     """Semantic search over the AI Engineer job posting corpus.
@@ -35,13 +36,16 @@ async def search_postings(
     Args:
         query: Natural-language search query (e.g. "roles using LangGraph").
         remote_only: If true, restrict to fully remote postings.
-        seniority: Optional filter — junior, mid, senior, staff, lead.
+        seniority: Optional filter — junior, mid, senior, staff, lead, unknown.
+            Unrecognized values are ignored (treated as no filter).
+        location: Optional city or country to scope results (e.g. "Berlin", "DE").
         limit: Max postings to return after reranking (default 5).
     """
     return await tools.search_postings(
         query=query,
         remote_only=remote_only,
         seniority=seniority,
+        location=location,
         limit=limit,
     )
 
@@ -62,17 +66,23 @@ async def match_skills(posting_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def skill_gaps(
     seniority: str | None = None,
-    remote: str | None = None,
+    remote_only: bool = False,
+    location: str | None = None,
 ) -> dict[str, Any]:
     """Aggregate the user's missing skills across all (or filtered) postings.
 
     Args:
-        seniority: Optional filter — junior, mid, senior, staff, lead.
-        remote: Optional filter — remote, hybrid, onsite.
+        seniority: Optional filter — junior, mid, senior, staff, lead, unknown.
+            Unrecognized values are ignored (treated as no filter).
+        remote_only: If true, restrict to fully remote postings.
+        location: Optional city or country to scope the analysis (e.g.
+            "Berlin", "DE"). Omit to span the whole corpus.
 
     Returns top must-have and nice-to-have gaps ranked by frequency.
     """
-    return await tools.skill_gaps(seniority=seniority, remote=remote)
+    return await tools.skill_gaps(
+        seniority=seniority, remote_only=remote_only, location=location
+    )
 
 
 @mcp.tool()

@@ -5,13 +5,14 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from sentence_transformers import CrossEncoder
-from sqlalchemy import select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from job_rag.config import settings
 from job_rag.db.models import JobChunkDB, JobPostingDB
 from job_rag.logging import get_logger
+from job_rag.models import coerce_remote_policy, coerce_seniority
 from job_rag.observability import get_langchain_callbacks, get_openai_client
 
 log = get_logger(__name__)
@@ -51,6 +52,50 @@ def _embed_query(query: str) -> list[float]:
     return response.data[0].embedding
 
 
+def apply_posting_filters(
+    stmt: Select[Any],
+    *,
+    seniority: str | None = None,
+    remote: str | None = None,
+    location: str | None = None,
+) -> Select[Any]:
+    """Add coerced seniority / remote / location WHERE clauses to a postings select.
+
+    The single place every entry point (agent, MCP, FastAPI) filters job
+    postings, so they all share identical semantics:
+
+    - ``seniority`` / ``remote`` are run through ``coerce_seniority`` /
+      ``coerce_remote_policy``: out-of-domain or sentinel values ("null", "any",
+      the LLM's "true"/"false", ...) coerce to ``None`` and add NO clause. An
+      invalid filter therefore falls back to UNFILTERED rather than silently
+      matching zero rows.
+    - ``location`` is a case-insensitive substring match across the city,
+      country, and region columns (e.g. "Berlin" matches the city; "DE" the
+      country). A genuinely unmatched location still returns zero rows — that is
+      an honest empty result, not the coercion bug.
+    """
+    sen = coerce_seniority(seniority)
+    if sen is not None:
+        stmt = stmt.where(JobPostingDB.seniority == sen)
+
+    rem = coerce_remote_policy(remote)
+    if rem is not None:
+        stmt = stmt.where(JobPostingDB.remote_policy == rem)
+
+    loc = (location or "").strip()
+    if loc:
+        like = f"%{loc}%"
+        stmt = stmt.where(
+            or_(
+                JobPostingDB.location_city.ilike(like),
+                JobPostingDB.location_country.ilike(like),
+                JobPostingDB.location_region.ilike(like),
+            )
+        )
+
+    return stmt
+
+
 async def search_postings(
     session: AsyncSession,
     query: str,
@@ -58,11 +103,14 @@ async def search_postings(
     top_k: int = 20,
     seniority: str | None = None,
     remote: str | None = None,
+    location: str | None = None,
     min_salary: int | None = None,
 ) -> list[dict[str, Any]]:
     """Semantic search over postings using pgvector cosine distance.
 
-    Returns top_k postings sorted by similarity.
+    Returns top_k postings sorted by similarity. ``seniority``/``remote`` are
+    defensively coerced (invalid -> no filter) and ``location`` matches the
+    city/country/region columns — see ``apply_posting_filters``.
     """
     query_embedding = _embed_query(query)
 
@@ -77,10 +125,9 @@ async def search_postings(
         .limit(top_k)
     )
 
-    if seniority:
-        stmt = stmt.filter(JobPostingDB.seniority == seniority)
-    if remote:
-        stmt = stmt.filter(JobPostingDB.remote_policy == remote)
+    stmt = apply_posting_filters(
+        stmt, seniority=seniority, remote=remote, location=location
+    )
     if min_salary is not None:
         stmt = stmt.filter(
             (JobPostingDB.salary_max >= min_salary) | (JobPostingDB.salary_max.is_(None))
@@ -97,6 +144,27 @@ async def search_postings(
         }
         for row in rows
     ]
+
+
+async def load_filtered_postings(
+    session: AsyncSession,
+    *,
+    seniority: str | None = None,
+    remote: str | None = None,
+    location: str | None = None,
+) -> list[JobPostingDB]:
+    """Load postings + requirements for gap aggregation, applying coerced filters.
+
+    Shared by the MCP/agent ``skill_gaps`` tool and the FastAPI ``/gaps`` route
+    so all three honor identical filter semantics (single shared impl). See
+    ``apply_posting_filters`` for the coercion + location rules.
+    """
+    stmt = select(JobPostingDB).options(selectinload(JobPostingDB.requirements))
+    stmt = apply_posting_filters(
+        stmt, seniority=seniority, remote=remote, location=location
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
 
 
 async def search_chunks(

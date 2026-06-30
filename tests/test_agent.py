@@ -5,6 +5,7 @@ import pytest
 
 from job_rag.agent import graph, stream
 from job_rag.agent import tools as agent_tools
+from job_rag.models import Seniority
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +45,86 @@ class TestAgentTools:
             raw = await agent_tools.analyze_gaps.ainvoke({"seniority": "senior"})
 
         assert json.loads(raw)["total_postings_analyzed"] == 23
+
+    async def test_analyze_gaps_threads_remote_only_and_location(self):
+        with patch(
+            "job_rag.agent.tools.job_tools.skill_gaps", new_callable=AsyncMock
+        ) as mock_gaps:
+            mock_gaps.return_value = {"total_postings_analyzed": 5}
+            await agent_tools.analyze_gaps.ainvoke(
+                {"seniority": "senior", "remote_only": True, "location": "Berlin"}
+            )
+
+        kwargs = mock_gaps.await_args.kwargs
+        assert kwargs["seniority"] == Seniority.SENIOR
+        assert kwargs["remote_only"] is True
+        assert kwargs["location"] == "Berlin"
+
+    async def test_analyze_gaps_no_args_uses_defaults(self):
+        with patch(
+            "job_rag.agent.tools.job_tools.skill_gaps", new_callable=AsyncMock
+        ) as mock_gaps:
+            mock_gaps.return_value = {"total_postings_analyzed": 88}
+            await agent_tools.analyze_gaps.ainvoke({})
+
+        kwargs = mock_gaps.await_args.kwargs
+        assert kwargs["seniority"] is None
+        assert kwargs["remote_only"] is False
+        assert kwargs["location"] is None
+
+    async def test_analyze_gaps_location_only(self):
+        # The "What's the top must-have skill in Berlin?" suggestion-chip path.
+        with patch(
+            "job_rag.agent.tools.job_tools.skill_gaps", new_callable=AsyncMock
+        ) as mock_gaps:
+            mock_gaps.return_value = {"total_postings_analyzed": 12}
+            await agent_tools.analyze_gaps.ainvoke({"location": "Berlin"})
+
+        kwargs = mock_gaps.await_args.kwargs
+        assert kwargs["location"] == "Berlin"
+        assert kwargs["seniority"] is None
+        assert kwargs["remote_only"] is False
+
+    async def test_search_jobs_threads_filters(self):
+        with patch(
+            "job_rag.agent.tools.job_tools.search_postings", new_callable=AsyncMock
+        ) as mock_search:
+            mock_search.return_value = {"count": 0, "results": []}
+            await agent_tools.search_jobs.ainvoke(
+                {
+                    "query": "azure",
+                    "remote_only": True,
+                    "seniority": "senior",
+                    "location": "Berlin",
+                }
+            )
+
+        kwargs = mock_search.await_args.kwargs
+        assert kwargs["location"] == "Berlin"
+        assert kwargs["remote_only"] is True
+        assert kwargs["seniority"] == Seniority.SENIOR
+
+
+class TestAgentToolSchemas:
+    """The agent tool schemas constrain the LLM to valid filter values so it
+    can't emit the "null"/"true"/"false" junk that zeroed analyze_gaps."""
+
+    def test_analyze_gaps_seniority_is_enum(self):
+        blob = json.dumps(agent_tools.analyze_gaps.args_schema.model_json_schema())
+        for level in ["junior", "mid", "senior", "staff", "lead", "unknown"]:
+            assert level in blob
+
+    def test_analyze_gaps_params(self):
+        args = agent_tools.analyze_gaps.args
+        assert "remote_only" in args
+        assert "location" in args
+        # The old free-text `remote` string param is gone (replaced by remote_only).
+        assert "remote" not in args
+
+    def test_search_jobs_params(self):
+        args = agent_tools.search_jobs.args
+        assert "location" in args
+        assert "remote_only" in args
 
 
 @pytest.mark.asyncio
