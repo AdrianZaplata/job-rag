@@ -3,12 +3,12 @@ status: partial
 phase: 07-profile-resume-upload
 source: [07-VERIFICATION.md]
 started: 2026-05-28T13:50:00Z
-updated: 2026-05-30T16:30:00Z
+updated: 2026-06-30T12:00:00Z
 ---
 
 ## Current Test
 
-[Test 1 re-runnable after Plan 07-06 gap closure — Tests 1-5 awaiting Adrian's manual replay]
+[2026-06-30 Claude Code live-prod UAT: Tests 2, 3, 5 PASS. Test 1 (Langfuse trace/PII) pending Adrian's dashboard inspection — a real trace now exists from the 2026-06-30 synthetic-resume upload. Test 4 (cold-start copy) pending a genuinely cold backend (idle ~5 min).]
 
 ## Tests
 
@@ -19,11 +19,13 @@ re_run_after: Plan 07-06 closed G-07-UAT-01 at code level (commits ad31379, 3ffc
 
 ### 2. Dashboard CV-vs-market refresh after save
 expected: Dashboard widget reflects the new skill list within one re-render (TanStack cache invalidation propagates from save → dashboard)
-result: [pending]
+result: pass
+evidence: 2026-06-30 live prod UAT (Claude Code, browser). Saved an 8-skill profile via the deployed SPA; client-side nav to Dashboard showed CV-vs-market match score update 0.28 → 0.17 and missing-must-haves recompute (AWS/SQL/Azure → AWS/RAG/SQL) without a hard reload; "Saved 8 skills to your profile" toast fired. Caveat: client-side nav can itself trigger a stale refetch, so this confirms the widget reflects the new skills but does not fully isolate save-triggered invalidation from navigation-triggered refetch.
 
 ### 3. Pre-body 413 on >2 MB upload
 expected: 413 response returned BEFORE the full body is uploaded (Content-Length-based reject); body bytes transmitted < 2 MB cap (observe in browser DevTools Network panel)
-result: [pending]
+result: pass
+evidence: 2026-06-30 live prod (Claude Code, curl). POST /profile/upload with a 3 MB body → 413 after only ~128 KB transmitted (bytes_uploaded=130812, << 2 MB cap), confirming Content-Length pre-body reject; a 100 B body → 401 (passes the size guard, reaches auth), confirming ResumeUploadSizeGuard runs before auth. Tested via curl because the SPA's client-side MAX_BYTES pre-check blocks >2 MB before any request fires.
 
 ### 4. Cold-start stepped status copy
 expected: Copy transitions 0-2s "Reading…" → 2-10s "Asking the agent…" → 10s+ "Still working…" per D-31; requires real cold-start latency (set ACA min-replicas=0 + idle 5 min)
@@ -31,14 +33,15 @@ result: [pending]
 
 ### 5. Inline-edit rename persistence
 expected: Renamed skill on an added chip appears in ProfileView Badge list after refresh — proves the edited name persists through PATCH round-trip
-result: [pending]
+result: pass
+evidence: 2026-06-30 live prod UAT (Claude Code, browser). Uploaded synthetic sample-resume.pdf; renamed the added "Azure Container Apps" chip to "Azure Container Apps (UAT rename)" via the inline pencil; Save profile → PATCH 200; a fresh GET /profile returned the renamed skill, proving persistence through the PATCH round-trip. Profile then restored to the original 63 skills (PATCH full-replace; dashboard match score back to 0.28).
 
 ## Summary
 
 total: 5
-passed: 0
+passed: 3
 issues: 0
-pending: 5
+pending: 2
 skipped: 0
 blocked: 0
 
