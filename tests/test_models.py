@@ -12,6 +12,8 @@ from job_rag.models import (
     SkillType,
     UserSkill,
     UserSkillProfile,
+    coerce_remote_policy,
+    coerce_seniority,
     derive_skill_category,
 )
 
@@ -248,3 +250,58 @@ class TestUserSkillProfile:
         assert profile.preferred_locations == []
         assert profile.min_salary is None
         assert profile.remote_preference == RemotePolicy.UNKNOWN
+
+
+class TestFilterCoercion:
+    """Defensive coercion of free-text filter args (the analyze_gaps "no
+    postings" bug: the LLM passes "null"/"true"/"false" or out-of-domain
+    strings that must fall back to no-filter rather than matching zero rows)."""
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["null", "NULL", "none", "any", "all", "", "   ", "n/a", "banana", "principal", None],
+    )
+    def test_coerce_seniority_junk_to_none(self, raw):
+        assert coerce_seniority(raw) is None
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("senior", "senior"),
+            ("Senior", "senior"),
+            ("  MID ", "mid"),
+            ("staff", "staff"),
+            ("lead", "lead"),
+            ("unknown", "unknown"),
+        ],
+    )
+    def test_coerce_seniority_valid(self, raw, expected):
+        assert coerce_seniority(raw) == expected
+
+    def test_coerce_seniority_accepts_enum(self):
+        assert coerce_seniority(Seniority.LEAD) == "lead"
+
+    def test_coerce_remote_policy_bool(self):
+        # search_jobs / analyze_gaps pass a remote_only bool.
+        assert coerce_remote_policy(True) == "remote"
+        assert coerce_remote_policy(False) is None
+
+    @pytest.mark.parametrize("raw", ["true", "false", "null", "", "yes", "no", "banana", None])
+    def test_coerce_remote_policy_junk_to_none(self, raw):
+        assert coerce_remote_policy(raw) is None
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("remote", "remote"),
+            ("Remote", "remote"),
+            ("hybrid", "hybrid"),
+            ("onsite", "onsite"),
+            ("unknown", "unknown"),
+        ],
+    )
+    def test_coerce_remote_policy_valid(self, raw, expected):
+        assert coerce_remote_policy(raw) == expected
+
+    def test_coerce_remote_policy_accepts_enum(self):
+        assert coerce_remote_policy(RemotePolicy.HYBRID) == "hybrid"

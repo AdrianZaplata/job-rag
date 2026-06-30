@@ -94,7 +94,11 @@ from job_rag.services.profile import (
     compute_skills_diff,
     dedupe_skills,
 )
-from job_rag.services.retrieval import rag_query, search_postings
+from job_rag.services.retrieval import (
+    load_filtered_postings,
+    rag_query,
+    search_postings,
+)
 
 log = get_logger(__name__)
 
@@ -238,14 +242,10 @@ async def gaps(
     remote: str | None = None,
 ) -> dict[str, Any]:
     """Aggregate skill gaps across all (or filtered) postings."""
-    stmt = select(JobPostingDB).options(selectinload(JobPostingDB.requirements))
-    if seniority:
-        stmt = stmt.filter(JobPostingDB.seniority == seniority)
-    if remote:
-        stmt = stmt.filter(JobPostingDB.remote_policy == remote)
-
-    result = await session.execute(stmt)
-    postings = list(result.scalars().all())
+    # Shared loader (single impl across agent / MCP / API): invalid or sentinel
+    # seniority/remote values coerce to no-filter, so a malformed query falls
+    # back to the full corpus instead of 404-ing on zero rows.
+    postings = await load_filtered_postings(session, seniority=seniority, remote=remote)
 
     if not postings:
         raise HTTPException(status_code=404, detail="No postings found with given filters")

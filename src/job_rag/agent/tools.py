@@ -11,6 +11,7 @@ from typing import Any
 from langchain_core.tools import tool
 
 from job_rag.mcp_server import tools as job_tools
+from job_rag.models import Seniority
 
 
 def _dump(payload: Any) -> str:
@@ -21,18 +22,27 @@ def _dump(payload: Any) -> str:
 async def search_jobs(
     query: str,
     remote_only: bool = False,
-    seniority: str | None = None,
+    seniority: Seniority | None = None,
+    location: str | None = None,
     limit: int = 5,
 ) -> str:
     """Semantic search over the AI Engineer job posting corpus.
 
     Use this to find postings matching a topic, skill, or constraint
-    (e.g. "roles using LangGraph", "remote senior positions").
+    (e.g. "roles using LangGraph", "remote senior positions"). Pass
+    `remote_only=True` for fully-remote roles, `seniority` (one of junior,
+    mid, senior, staff, lead, unknown) to filter by level, and `location`
+    (a city or country like "Berlin" or "DE") to scope by place. Omit any
+    filter you don't need — do NOT pass empty strings or "null".
     Returns a JSON list of postings with id, company, title, skills, and
     rerank score. Always pass the posting `id` to other tools.
     """
     result = await job_tools.search_postings(
-        query=query, remote_only=remote_only, seniority=seniority, limit=limit
+        query=query,
+        remote_only=remote_only,
+        seniority=seniority,
+        location=location,
+        limit=limit,
     )
     return _dump(result)
 
@@ -49,15 +59,29 @@ async def match_profile(posting_id: str) -> str:
 
 @tool
 async def analyze_gaps(
-    seniority: str | None = None,
-    remote: str | None = None,
+    seniority: Seniority | None = None,
+    remote_only: bool = False,
+    location: str | None = None,
 ) -> str:
     """Aggregate the user's missing skills across all (or filtered) postings.
 
-    Returns the top must-have and nice-to-have gaps ranked by frequency.
-    Use this to recommend which skills to learn for maximum coverage.
+    Ranks the top must-have and nice-to-have skill gaps by how often they
+    appear in the corpus — use it for "what should I learn?" and
+    "what's the top skill in <city>?" questions.
+
+    Pass `seniority` (one of junior, mid, senior, staff, lead, unknown) to
+    scope by level, `remote_only=True` to count only fully-remote roles, and
+    `location` (a city or country like "Berlin" or "DE") to scope by place.
+    Omit any filter you don't need — do NOT pass empty strings or "null".
+    With no arguments it aggregates over the entire corpus.
+
+    Returns JSON with `total_postings_analyzed` and the ranked gap lists.
     """
-    return _dump(await job_tools.skill_gaps(seniority=seniority, remote=remote))
+    return _dump(
+        await job_tools.skill_gaps(
+            seniority=seniority, remote_only=remote_only, location=location
+        )
+    )
 
 
 AGENT_TOOLS = [search_jobs, match_profile, analyze_gaps]

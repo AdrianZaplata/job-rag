@@ -19,7 +19,7 @@ from job_rag.db.engine import AsyncSessionLocal, SessionLocal
 from job_rag.db.models import JobPostingDB
 from job_rag.logging import get_logger
 from job_rag.services.matching import aggregate_gaps, load_profile, match_posting
-from job_rag.services.retrieval import rerank
+from job_rag.services.retrieval import load_filtered_postings, rerank
 from job_rag.services.retrieval import search_postings as _search_postings
 
 log = get_logger(__name__)
@@ -63,12 +63,14 @@ async def search_postings(
     query: str,
     remote_only: bool = False,
     seniority: str | None = None,
+    location: str | None = None,
     limit: int = 5,
 ) -> dict[str, Any]:
     """Semantic search over job postings with optional filters.
 
     Returns ranked posting summaries — no LLM generation, since the MCP
     client (Claude) can synthesize answers from the structured results.
+    ``location`` scopes results to a city/country (e.g. "Berlin", "DE").
     """
     async with AsyncSessionLocal() as session:
         results = await _search_postings(
@@ -77,6 +79,7 @@ async def search_postings(
             top_k=max(limit * 4, 20),
             seniority=seniority,
             remote="remote" if remote_only else None,
+            location=location,
         )
 
         if not results:
@@ -135,23 +138,34 @@ async def match_skills(posting_id: str) -> dict[str, Any]:
 
 async def skill_gaps(
     seniority: str | None = None,
-    remote: str | None = None,
+    remote_only: bool = False,
+    location: str | None = None,
 ) -> dict[str, Any]:
-    """Aggregate skill gaps across all (or filtered) postings."""
-    async with AsyncSessionLocal() as session:
-        stmt = select(JobPostingDB).options(selectinload(JobPostingDB.requirements))
-        if seniority:
-            stmt = stmt.filter(JobPostingDB.seniority == seniority)
-        if remote:
-            stmt = stmt.filter(JobPostingDB.remote_policy == remote)
+    """Aggregate skill gaps across all (or filtered) postings.
 
-        result = await session.execute(stmt)
-        postings = list(result.scalars().all())
+    ``seniority`` is coerced (invalid / sentinel -> no filter), ``remote_only``
+    restricts to fully-remote postings, and ``location`` scopes to a
+    city/country (e.g. "Berlin"). All filtering flows through the shared
+    ``load_filtered_postings`` so the agent, MCP, and API layers behave
+    identically. ``no_postings_found`` now means a genuinely empty result for
+    the (valid) filters — never an invalid filter zeroing the corpus.
+    """
+    async with AsyncSessionLocal() as session:
+        postings = await load_filtered_postings(
+            session,
+            seniority=seniority,
+            remote="remote" if remote_only else None,
+            location=location,
+        )
 
         if not postings:
             return {
                 "error": "no_postings_found",
-                "filters": {"seniority": seniority, "remote": remote},
+                "filters": {
+                    "seniority": seniority,
+                    "remote_only": remote_only,
+                    "location": location,
+                },
             }
 
         # See match_skills above — MCP tools pass user_id explicitly per D-08.
