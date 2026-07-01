@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SkillType(StrEnum):
@@ -104,10 +104,35 @@ class JobRequirement(BaseModel):
             "soft_skill, domain)"
         )
     )
+    # Defaulted (NOT required) on purpose. The extraction prompt instructs the LLM
+    # to NOT emit skill_category (it is overwritten in code via derive_skill_category()
+    # at store time). When this field was required, every time the model obeyed that
+    # instruction the whole posting failed Pydantic validation — only instructor's
+    # reask loop recovered it, and ~25% of postings never converged on a fresh ingest
+    # (prod seeded 88/118; see services/ingestion.py overwrite at store time). A
+    # default keeps the field present without forcing the LLM to produce a value.
     skill_category: SkillCategory = Field(
-        description="Derived category (hard / soft / domain) — populated by code, not the LLM"
+        default=SkillCategory.HARD,
+        description="Derived category (hard / soft / domain) — populated by code, not the LLM",
     )
     required: bool = Field(description="True if must-have, False if nice-to-have")
+
+    @field_validator("skill_type", mode="before")
+    @classmethod
+    def _fallback_unknown_skill_type(cls, v: object) -> object:
+        """Coerce an out-of-taxonomy skill_type to CONCEPT — the prompt's own
+        fallback ('When uncertain, use concept'). The LLM occasionally emits a
+        value outside the 8-member SkillType enum (e.g. 'mlops', 'other'); without
+        this, that single bad value would fail validation and drop the whole posting.
+        """
+        if isinstance(v, str):
+            for candidate in (v, v.strip().lower()):
+                try:
+                    return SkillType(candidate)
+                except ValueError:
+                    continue
+            return SkillType.CONCEPT
+        return v
 
 
 class JobPosting(BaseModel):
