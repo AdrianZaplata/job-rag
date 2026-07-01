@@ -3,18 +3,19 @@ status: partial
 phase: 07-profile-resume-upload
 source: [07-VERIFICATION.md]
 started: 2026-05-28T13:50:00Z
-updated: 2026-06-30T12:00:00Z
+updated: 2026-07-01T12:00:00Z
 ---
 
 ## Current Test
 
-[2026-06-30 Claude Code live-prod UAT: Tests 2, 3, 5 PASS. Test 1 (Langfuse trace/PII) pending Adrian's dashboard inspection — a real trace now exists from the 2026-06-30 synthetic-resume upload. Test 4 (cold-start copy) pending a genuinely cold backend (idle ~5 min).]
+[2026-07-01 Claude Code live-prod UAT: Tests 2, 3, 5 PASS; Test 1 FAIL — PII redaction incomplete (G-07-UAT-01 reopened). Test 4 (cold-start copy) still pending a genuinely cold backend (idle ~5 min).]
 
 ## Tests
 
 ### 1. Langfuse trace rendering (M-marker 3)
 expected: Single Langfuse trace per upload spanning extraction → Instructor → diff → PATCH; 4 spans (text_extract, llm_extract auto, diff_compute, profile_save) correlated by extraction_id; raw resume text NOT visible in any span input/metadata
-result: pending
+result: fail
+evidence: 2026-07-01 live-prod replay — Adrian uploaded a real CV; Langfuse events export analyzed by Claude Code (PII values not reproduced). Structure PASSES: single trace (a4dd02d38409abe3), all 5 observations correctly nested under `resume_upload` (text_extract, OpenAI-generation auto, diff_compute, profile_save). Redaction FAILS criterion (c) — the manual `resume_upload` root input is redacted (`[REDACTED — char_count=5792]`), BUT the auto-captured `OpenAI-generation` span input (~9803 chars ≈ system prompt + the same 5792-char resume) still contains the raw resume with real PII (email, phone, LinkedIn, GitHub, unredacted). Layer-2 redaction (generation input via `langfuse.openai` / `redact_current_generation_input`) is not effective in prod. Real CV PII exposed in Langfuse until trace a4dd02d38409abe3 is deleted. See G-07-UAT-01 (reopened).
 re_run_after: Plan 07-06 closed G-07-UAT-01 at code level (commits ad31379, 3ffc244, 82bb8d5). Adrian must replay the live UAT with `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` set, upload a 1.5 MB PDF via the deployed UI, and confirm in the Langfuse dashboard: (a) single trace with parent `resume_upload` span keyed by `derive_langfuse_trace_id(extraction_id)`, (b) 3 explicit child spans (`text_extract`, `diff_compute`, `profile_save` after PATCH) + 1 auto-captured GENERATION child, (c) `[REDACTED — char_count=N]` watermark in BOTH trace root input AND generation input — no name/email/phone/LinkedIn/GitHub/address.
 
 ### 2. Dashboard CV-vs-market refresh after save
@@ -40,15 +41,23 @@ evidence: 2026-06-30 live prod UAT (Claude Code, browser). Uploaded synthetic sa
 
 total: 5
 passed: 3
-issues: 0
-pending: 2
+issues: 1
+pending: 1
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 ### G-07-UAT-01: Langfuse SDK 3.x → 4.x migration (PROF-06 trace contract broken)
-status: resolved_at_code_level
+status: reopened
+reopened: |
+  2026-07-01 live-prod replay (Test 1) FAILED redaction criterion (c). The 07-06 fix
+  redacts the manual `resume_upload` root input (`[REDACTED — char_count=N]`), but the
+  SECOND layer — redacting the auto-captured `langfuse.openai` generation input via
+  `redact_current_generation_input` — is NOT effective in prod: the `OpenAI-generation`
+  span input still carries the full raw resume (email/phone/LinkedIn/GitHub). Structure
+  (single trace, correct span hierarchy) is fine; only the generation-input redaction leaks.
+  Evidence: Langfuse export, trace a4dd02d38409abe3, observation OpenAI-generation.
 resolution_commits: [ad31379, 3ffc244, 82bb8d5, f8a90bf]
 resolution_summary: |
   Plan 07-06 migrated 5 v3 call sites to v4 OTel-based API
