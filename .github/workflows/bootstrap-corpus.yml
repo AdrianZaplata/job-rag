@@ -6,12 +6,17 @@ name: Bootstrap corpus (one-shot)
 #
 # Trigger: workflow_dispatch ONLY. NO push/schedule trigger — every cold-start re-running
 # embed would blow the €0 OpenAI budget (Phase 1 D-25 + Phase 2 prompt-version drift).
+#
+# Integrity: the "Verify corpus is complete" step re-reads the live DB posting count and
+# FAILS the run if it doesn't match the corpus file count, so a partial / OOM-truncated
+# ingest can no longer report success silently. Incident: run 25310744151 truncated at
+# ~88/118 yet went green, and prod sat at 88/118 for weeks (see the OOM block below).
 
 on:
   workflow_dispatch:
     inputs:
       acknowledge_cost:
-        description: 'Type "yes" to acknowledge that this will incur OpenAI ingest+embed cost (~€0.20 per 108-posting full re-extract).'
+        description: 'Type "yes" to acknowledge that this will incur OpenAI ingest+embed cost (~€0.20 per 118-posting full re-extract).'
         required: true
         default: 'no'
 
@@ -45,27 +50,127 @@ jobs:
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Run job-rag ingest inside the live container
-        run: |
-          # `script -qc ... /dev/null` fakes a TTY because `az containerapp exec`
-          # calls `tty.setcbreak()` which otherwise crashes with
-          # "Inappropriate ioctl for device" on GHA runners (no terminal in CI).
-          # Two separate exec calls avoid the nested-quote mess of /bin/sh -c.
-          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag ingest --show-cost'" /dev/null
-
-      - name: Run job-rag embed inside the live container
-        run: |
-          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag embed --show-cost'" /dev/null
-
-      - name: Print summary
-        if: always()
+      - name: Init step summary
         run: |
           {
             echo "## Corpus bootstrap result"
             echo ""
-            echo "- Triggered: $(date -u +%Y-%m-%dT%H:%M:%SZ) UTC"
-            echo "- Container app: jobrag-prod-api"
-            echo "- Resource group: jobrag-prod-rg"
+            echo "Ingest + embed \`data/postings/*.md\` into prod, then assert the DB"
+            echo "posting count equals the corpus file count on the runner."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # SHARED-REPLICA OOM RISK (why the ingest below can silently truncate)
+      #
+      # `script -qc "..." <log>` fakes a TTY because `az containerapp exec` calls
+      # tty.setcbreak(), which otherwise crashes with "Inappropriate ioctl for
+      # device" on GHA runners (no terminal in CI). Writing to <log> (instead of
+      # /dev/null) also captures the exec output so the counts land in the job
+      # summary — they used to vanish into exec stdout (that is defect #2, "counts
+      # discarded").
+      #
+      # `az containerapp exec ... job-rag ingest` runs the heavy extraction as a
+      # SECOND python process INSIDE the live API replica (cpu=1 / memory=2Gi,
+      # min=0 / max=1 — infra/modules/compute/main.tf). uvicorn already holds ~1Gi
+      # of that 2Gi; a full 118-posting extract can push the replica past its limit
+      # and the kernel OOM-kills the ingest (SIGKILL, exit 137). That happened in
+      # run 25310744151 (truncated ~88/118) yet the job reported SUCCESS because
+      # `az containerapp exec` does NOT propagate the remote process exit code.
+      #
+      # MITIGATION HERE (defends against the SYMPTOM): the "Verify corpus is
+      # complete" step re-reads the DB count out-of-band and FAILS the run on any
+      # shortfall. Ingest dedups on (content_hash | linkedin_job_id), so recovery
+      # is simply to re-run until the gate goes green.
+      #
+      # DURABLE FIX (removes the ROOT CAUSE — deferred to its own PR): run
+      # ingest+embed OFF the serving replica in a dedicated azurerm_container_app_job
+      # (Terraform / infra/, manual trigger, its own 4Gi, same image) started via
+      # `az containerapp job start`. An on-demand job that exits keeps the €0
+      # budget. Not done here: it is new prod infra that can't be `terraform
+      # plan`-validated during code review nor smoke-tested without a paid ingest run.
+      # ─────────────────────────────────────────────────────────────────────────
+      - name: Ingest corpus (job-rag ingest --show-cost)
+        run: |
+          # Non-fatal: a truncated ingest is caught by the completeness gate in the
+          # next step, not here (exec swallows the remote exit code). Always capture
+          # the counts into the summary.
+          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag ingest --show-cost'" ingest.log || true
+          tr -d '\r' < ingest.log > ingest.clean
+          {
+            echo "### 1. Ingest — \`job-rag ingest --show-cost\`"
             echo ""
-            echo "Verify corpus state with M8 from Plan 07 smoke (psql \\dx + row counts)."
+            echo '```'
+            cat ingest.clean
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify corpus is complete (fail on partial / OOM-truncated ingest)
+        run: |
+          set -uo pipefail
+          # Corpus files present on the runner at this ref (the source of truth for
+          # how many postings a complete ingest must produce).
+          EXPECTED="$(find data/postings -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')"
+
+          # Live posting count from the DB. SEPARATE exec on purpose: exec does not
+          # propagate the remote exit code, so re-reading the count out-of-band is
+          # the only trustworthy completeness signal. `job-rag stats` prints the
+          # line "Total postings: N".
+          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag stats'" stats.log || true
+          tr -d '\r' < stats.log > stats.clean
+          ACTUAL="$(grep -oaE 'Total postings:[[:space:]]*[0-9]+' stats.clean | grep -oE '[0-9]+' | head -n1 || true)"
+
+          {
+            echo "### 2. Corpus completeness check"
+            echo ""
+            echo "| metric | value |"
+            echo "| --- | --- |"
+            echo "| Corpus \`.md\` files on runner | \`${EXPECTED}\` |"
+            echo "| Postings in prod DB (\`job-rag stats\`) | \`${ACTUAL:-<none parsed>}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "${ACTUAL}" ]; then
+            echo "::error title=Corpus verify failed::Could not parse 'Total postings:' from job-rag stats (exec failed, or DB is empty). Raw stats output follows."
+            echo "----- job-rag stats output -----"
+            cat stats.clean
+            echo "| **result** | ❌ FAILED — could not read DB posting count |" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "${ACTUAL}" -lt "${EXPECTED}" ]; then
+            echo "::error title=Corpus incomplete::Prod DB has ${ACTUAL} postings but the corpus has ${EXPECTED} files — partial seed (likely OOM-truncated ingest, exit 137). Re-run this workflow; ingest dedups on (content_hash | linkedin_job_id) and tops up only the missing rows."
+            echo "| **result** | ❌ FAILED — partial seed ${ACTUAL}/${EXPECTED} (re-run to top up) |" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "${ACTUAL}" -gt "${EXPECTED}" ]; then
+            echo "::error title=Corpus count mismatch::Prod DB has ${ACTUAL} postings but the corpus has only ${EXPECTED} files — the DB holds rows with no backing corpus file (stale / duplicate ingest). Investigate before trusting the corpus."
+            echo "| **result** | ❌ FAILED — DB ${ACTUAL} exceeds corpus ${EXPECTED} (stale rows) |" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Corpus complete: ${ACTUAL}/${EXPECTED} postings."
+          echo "| **result** | ✅ PASSED — ${ACTUAL}/${EXPECTED} |" >> "$GITHUB_STEP_SUMMARY"
+
+      # embed is NOT gated: it loads no heavy model (OpenAI embedding API calls +
+      # DB writes), so it is not an OOM risk the way extraction is. Its output is
+      # surfaced below; a partial embed shows a nonzero "Total unembedded" the next
+      # time this workflow runs (embed is idempotent and tops up). This step runs
+      # only after the completeness gate passes, so we never embed a partial corpus.
+      - name: Embed corpus (job-rag embed --show-cost)
+        run: |
+          script -qc "az containerapp exec --name jobrag-prod-api --resource-group jobrag-prod-rg --container api --command 'job-rag embed --show-cost'" embed.log || true
+          tr -d '\r' < embed.log > embed.clean
+          {
+            echo "### 3. Embed — \`job-rag embed --show-cost\`"
+            echo ""
+            echo '```'
+            cat embed.clean
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary footer
+        if: always()
+        run: |
+          {
+            echo ""
+            echo "---"
+            echo "- Container app: \`jobrag-prod-api\` (RG \`jobrag-prod-rg\`, container \`api\`)"
+            echo "- Run \`${{ github.run_id }}\` · ref \`${{ github.ref_name }}\` · sha \`${{ github.sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
